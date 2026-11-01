@@ -29,6 +29,7 @@
 #include "ne2000.h"
 #include "system/system.h"
 #include "qapi/error.h"
+#include "qapi/qapi-builtin-type-infos.h"
 #include "qapi/visitor.h"
 #include "qemu/module.h"
 #include "qom/object.h"
@@ -131,7 +132,7 @@ out:
 
 static void isa_ne2000_instance_init(Object *obj)
 {
-    object_property_add(obj, "bootindex", "int32", NULL,
+    object_property_add(obj, "bootindex", "int32", &int32_type_info,
                         isa_ne2000_get_bootindex,
                         isa_ne2000_set_bootindex, NULL, NULL);
     object_property_set_int(obj, "bootindex", -1, NULL);

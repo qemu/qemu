@@ -25,6 +25,7 @@
 #include "qemu/osdep.h"
 #include "clients.h"
 #include "qapi/error.h"
+#include "qapi/qapi-builtin-type-infos.h"
 #include "qemu/error-report.h"
 #include "qemu/iov.h"
 #include "qemu/module.h"
@@ -238,7 +239,7 @@ static void filter_dump_class_init(ObjectClass *oc, const void *data)
 {
     NetFilterClass *nfc = NETFILTER_CLASS(oc);
 
-    object_class_property_add(oc, "maxlen", "uint32", NULL,
+    object_class_property_add(oc, "maxlen", "uint32", &uint32_type_info,
                               filter_dump_get_maxlen,
                               filter_dump_set_maxlen, NULL, NULL);
     object_class_property_add_str(oc, "file", file_dump_get_filename,

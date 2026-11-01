@@ -27,6 +27,7 @@
 #include "hw/virtio/virtio-balloon.h"
 #include "system/address-spaces.h"
 #include "qapi/error.h"
+#include "qapi/qapi-builtin-type-infos.h"
 #include "qapi/qapi-events-machine.h"
 #include "qapi/visitor.h"
 #include "trace.h"
@@ -1039,7 +1040,8 @@ static void virtio_balloon_instance_init(Object *obj)
     object_property_add(obj, "guest-stats", "guest statistics", NULL,
                         balloon_stats_get_all, NULL, NULL, NULL);
 
-    object_property_add(obj, "guest-stats-polling-interval", "int", NULL,
+    object_property_add(obj, "guest-stats-polling-interval", "int",
+                        &int_type_info,
                         balloon_stats_get_poll_interval,
                         balloon_stats_set_poll_interval,
                         NULL, NULL);

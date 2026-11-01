@@ -1718,7 +1718,8 @@ static void pc_machine_class_init(ObjectClass *oc, const void *data)
     mc->default_ram_id = "pc.ram";
     pcmc->default_smbios_ep_type = SMBIOS_ENTRY_POINT_TYPE_AUTO;
 
-    object_class_property_add(oc, PC_MACHINE_MAX_RAM_BELOW_4G, "size", NULL,
+    object_class_property_add(oc, PC_MACHINE_MAX_RAM_BELOW_4G, "size",
+                              &size_type_info,
                               pc_machine_get_max_ram_below_4g,
                               pc_machine_set_max_ram_below_4g,
                               NULL, NULL);
@@ -1757,14 +1758,16 @@ static void pc_machine_class_init(ObjectClass *oc, const void *data)
         pc_machine_get_default_bus_bypass_iommu,
         pc_machine_set_default_bus_bypass_iommu);
 
-    object_class_property_add(oc, PC_MACHINE_MAX_FW_SIZE, "size", NULL,
+    object_class_property_add(oc, PC_MACHINE_MAX_FW_SIZE, "size",
+                              &size_type_info,
                               pc_machine_get_max_fw_size,
                               pc_machine_set_max_fw_size,
                               NULL, NULL);
     object_class_property_set_description(oc, PC_MACHINE_MAX_FW_SIZE,
         "Maximum combined firmware size");
 
-    object_class_property_add(oc, PC_MACHINE_SMBIOS_EP, "str", NULL,
+    object_class_property_add(oc, PC_MACHINE_SMBIOS_EP, "str",
+                              &str_type_info,
                               pc_machine_get_smbios_ep,
                               pc_machine_set_smbios_ep,
                               NULL, NULL);

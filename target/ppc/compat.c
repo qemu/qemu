@@ -23,6 +23,7 @@
 #include "kvm_ppc.h"
 #include "system/cpus.h"
 #include "qemu/error-report.h"
+#include "qapi/qapi-builtin-type-infos.h"
 #include "qapi/error.h"
 #include "qapi/visitor.h"
 #include "cpu-models.h"
@@ -335,7 +336,7 @@ void ppc_compat_add_property(Object *obj, const char *name,
     gchar *names, *desc;
     int i;
 
-    object_property_add(obj, name, "string", NULL,
+    object_property_add(obj, name, "string", &str_type_info,
                         ppc_compat_prop_get, ppc_compat_prop_set, NULL,
                         compat_pvr);
 

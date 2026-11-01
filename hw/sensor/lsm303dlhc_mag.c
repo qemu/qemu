@@ -25,6 +25,7 @@
 #include "hw/i2c/i2c.h"
 #include "migration/vmstate.h"
 #include "qapi/error.h"
+#include "qapi/qapi-builtin-type-infos.h"
 #include "qapi/visitor.h"
 #include "qemu/module.h"
 #include "qemu/log.h"
@@ -509,19 +510,19 @@ static void lsm303dlhc_mag_reset(DeviceState *dev)
  */
 static void lsm303dlhc_mag_initfn(Object *obj)
 {
-    object_property_add(obj, "mag-x", "int", NULL,
+    object_property_add(obj, "mag-x", "int", &int_type_info,
                         lsm303dlhc_mag_get_x,
                         lsm303dlhc_mag_set_x, NULL, NULL);
 
-    object_property_add(obj, "mag-y", "int", NULL,
+    object_property_add(obj, "mag-y", "int", &int_type_info,
                         lsm303dlhc_mag_get_y,
                         lsm303dlhc_mag_set_y, NULL, NULL);
 
-    object_property_add(obj, "mag-z", "int", NULL,
+    object_property_add(obj, "mag-z", "int", &int_type_info,
                         lsm303dlhc_mag_get_z,
                         lsm303dlhc_mag_set_z, NULL, NULL);
 
-    object_property_add(obj, "temperature", "int", NULL,
+    object_property_add(obj, "temperature", "int", &int_type_info,
                         lsm303dlhc_mag_get_temperature,
                         lsm303dlhc_mag_set_temperature, NULL, NULL);
 }

@@ -24,6 +24,7 @@
 #include "qemu/config-file.h"
 #include "qemu/error-report.h"
 #include "qapi/error.h"
+#include "qapi/qapi-builtin-type-infos.h"
 #include "hw/pci/msi.h"
 #include "hw/pci/msix.h"
 #include "hw/s390x/adapter.h"
@@ -4302,15 +4303,15 @@ static void kvm_accel_class_init(ObjectClass *oc, const void *data)
     object_class_property_set_description(oc, "kernel-irqchip",
         "Configure KVM in-kernel irqchip");
 
-    object_class_property_add(oc, "kvm-shadow-mem", "int", NULL,
+    object_class_property_add(oc, "kvm-shadow-mem", "int", &int_type_info,
                               kvm_get_kvm_shadow_mem, kvm_set_kvm_shadow_mem,
                               NULL, NULL);
     object_class_property_set_description(oc, "kvm-shadow-mem",
         "KVM shadow MMU size");
 
-    object_class_property_add(oc, "dirty-ring-size", "uint32", NULL,
-                              kvm_get_dirty_ring_size,
-                              kvm_set_dirty_ring_size,
+    object_class_property_add(oc, "dirty-ring-size", "uint32",
+                              &uint32_type_info,
+                              kvm_get_dirty_ring_size, kvm_set_dirty_ring_size,
                               NULL, NULL);
     object_class_property_set_description(oc, "dirty-ring-size",
         "Size of KVM dirty page ring buffer (default: 0, i.e. use bitmap)");

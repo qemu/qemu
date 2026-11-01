@@ -27,6 +27,7 @@
 #include "hw/core/qdev-properties.h"
 #include "qom/object.h"
 #include "qapi/error.h"
+#include "qapi/qapi-builtin-type-infos.h"
 #include "qapi/visitor.h"
 
 
@@ -171,11 +172,11 @@ static void prop2_accessor(Object *obj, Visitor *v, const char *name,
 
 static void dynamic_instance_init(Object *obj)
 {
-    object_property_add(obj, "prop1", "uint32", NULL, prop1_accessor,
-                        prop1_accessor,
+    object_property_add(obj, "prop1", "uint32", &uint32_type_info,
+                        prop1_accessor, prop1_accessor,
                         NULL, NULL);
-    object_property_add(obj, "prop2", "uint32", NULL, prop2_accessor,
-                        prop2_accessor,
+    object_property_add(obj, "prop2", "uint32", &uint32_type_info,
+                        prop2_accessor, prop2_accessor,
                         NULL, NULL);
 }
 

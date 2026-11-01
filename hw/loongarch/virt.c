@@ -1512,10 +1512,10 @@ static void virt_class_init(ObjectClass *oc, const void *data)
     object_class_property_set_description(oc, "highmem-mmio",
                                           "Set on/off to enable/disable high "
                                           "memory region for PCI MMIO");
-    object_class_property_add(oc, "highmem-mmio-size", "size", NULL,
-                                   virt_get_highmem_mmio_size,
-                                   virt_set_highmem_mmio_size,
-                                   NULL, NULL);
+    object_class_property_add(oc, "highmem-mmio-size", "size", &size_type_info,
+                              virt_get_highmem_mmio_size,
+                              virt_set_highmem_mmio_size,
+                              NULL, NULL);
     object_class_property_set_description(oc, "highmem-mmio-size",
                                           "Set the high memory region size "
                                           "for PCI MMIO");

@@ -417,9 +417,9 @@ static void x86_machine_class_init(ObjectClass *oc, const void *data)
                                           "The string may be up to 8 bytes in size");
 
     object_class_property_add(oc, X86_MACHINE_BUS_LOCK_RATELIMIT, "uint64_t",
-                                NULL,
-                                x86_machine_get_bus_lock_ratelimit,
-                                x86_machine_set_bus_lock_ratelimit, NULL, NULL);
+                              &uint64_type_info,
+                              x86_machine_get_bus_lock_ratelimit,
+                              x86_machine_set_bus_lock_ratelimit, NULL, NULL);
     object_class_property_set_description(oc, X86_MACHINE_BUS_LOCK_RATELIMIT,
             "Set the ratelimit for the bus locks acquired in VMs");
 

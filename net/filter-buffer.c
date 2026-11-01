@@ -10,6 +10,7 @@
 #include "net/filter.h"
 #include "net/queue.h"
 #include "qapi/error.h"
+#include "qapi/qapi-builtin-type-infos.h"
 #include "qemu/timer.h"
 #include "qemu/iov.h"
 #include "qapi/qapi-builtin-visit.h"
@@ -182,7 +183,7 @@ static void filter_buffer_class_init(ObjectClass *oc, const void *data)
 {
     NetFilterClass *nfc = NETFILTER_CLASS(oc);
 
-    object_class_property_add(oc, "interval", "uint32", NULL,
+    object_class_property_add(oc, "interval", "uint32", &uint32_type_info,
                               filter_buffer_get_interval,
                               filter_buffer_set_interval, NULL, NULL);
 

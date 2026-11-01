@@ -28,6 +28,7 @@
 #include "hw/i2c/i2c.h"
 #include "migration/vmstate.h"
 #include "qapi/error.h"
+#include "qapi/qapi-builtin-type-infos.h"
 #include "qapi/visitor.h"
 #include "qemu/module.h"
 #include "qom/object.h"
@@ -350,16 +351,16 @@ static void tmp421_class_init(ObjectClass *klass, const void *data)
     dc->vmsd = &vmstate_tmp421;
     sc->dev = (DeviceInfo *) data;
 
-    object_class_property_add(klass, "temperature0", "int", NULL,
+    object_class_property_add(klass, "temperature0", "int", &int_type_info,
                               tmp421_get_temperature,
                               tmp421_set_temperature, NULL, NULL);
-    object_class_property_add(klass, "temperature1", "int", NULL,
+    object_class_property_add(klass, "temperature1", "int", &int_type_info,
                               tmp421_get_temperature,
                               tmp421_set_temperature, NULL, NULL);
-    object_class_property_add(klass, "temperature2", "int", NULL,
+    object_class_property_add(klass, "temperature2", "int", &int_type_info,
                               tmp421_get_temperature,
                               tmp421_set_temperature, NULL, NULL);
-    object_class_property_add(klass, "temperature3", "int", NULL,
+    object_class_property_add(klass, "temperature3", "int", &int_type_info,
                               tmp421_get_temperature,
                               tmp421_set_temperature, NULL, NULL);
 }

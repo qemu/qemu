@@ -26,6 +26,7 @@
 
 #include "qemu/osdep.h"
 #include "qapi/error.h"
+#include "qapi/qapi-builtin-type-infos.h"
 #include "qapi/visitor.h"
 #include "hw/pci/pci.h"
 #include "migration/vmstate.h"
@@ -379,7 +380,8 @@ void ich9_pm_add_class_properties(ObjectClass *oc, ptrdiff_t pm_offset)
                                    PM_REG_FIELD(acpi_pci_hotplug.root),
                                    object_property_allow_set_link,
                                    OBJ_PROP_LINK_STRONG);
-    object_class_property_add(oc, ACPI_PM_PROP_GPE0_BLK, "uint32", NULL,
+    object_class_property_add(oc, ACPI_PM_PROP_GPE0_BLK, "uint32",
+                              &uint32_type_info,
                               ich9_pm_get_gpe0_blk,
                               NULL, NULL, NULL);
     object_class_property_add_uint8_ptr(oc, ACPI_PM_PROP_S3_DISABLED,

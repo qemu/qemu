@@ -17,6 +17,7 @@
 #include "hw/hexagon/hex-subsys.h"
 #include "hw/core/loader.h"
 #include "qapi/error.h"
+#include "qapi/qapi-builtin-type-infos.h"
 #include "qapi/visitor.h"
 #include "qemu/error-report.h"
 #include "qemu/log.h"
@@ -153,7 +154,8 @@ static void hexagon_sim_set_subsystem_base(Object *obj, Visitor *v,
 
 static void add_dsp_properties(ObjectClass *oc)
 {
-    object_class_property_add(oc, "subsystem-base", "uint32", NULL,
+    object_class_property_add(oc, "subsystem-base", "uint32",
+                              &uint32_type_info,
                               hexagon_sim_get_subsystem_base,
                               hexagon_sim_set_subsystem_base, NULL, NULL);
     object_class_property_set_description(oc, "subsystem-base",

@@ -14,6 +14,7 @@
 #include "qemu/osdep.h"
 #include "qom/object_interfaces.h"
 #include "qapi/error.h"
+#include "qapi/qapi-builtin-type-infos.h"
 #include "block/thread-pool.h"
 #include "system/event-loop-base.h"
 
@@ -104,15 +105,18 @@ static void event_loop_base_class_init(ObjectClass *klass,
     ucc->complete = event_loop_base_complete;
     ucc->prepare_delete = event_loop_base_prepare_delete;
 
-    object_class_property_add(klass, "aio-max-batch", "int64", NULL,
+    object_class_property_add(klass, "aio-max-batch", "int64",
+                              &int64_type_info,
                               event_loop_base_get_param,
                               event_loop_base_set_param,
                               NULL, &aio_max_batch_info);
-    object_class_property_add(klass, "thread-pool-min", "int64", NULL,
+    object_class_property_add(klass, "thread-pool-min", "int64",
+                              &int64_type_info,
                               event_loop_base_get_param,
                               event_loop_base_set_param,
                               NULL, &thread_pool_min_info);
-    object_class_property_add(klass, "thread-pool-max", "int64", NULL,
+    object_class_property_add(klass, "thread-pool-max", "int64",
+                              &int64_type_info,
                               event_loop_base_get_param,
                               event_loop_base_set_param,
                               NULL, &thread_pool_max_info);

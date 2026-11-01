@@ -32,6 +32,7 @@
 #include "hw/core/qdev-properties.h"
 #include "hw/core/sysbus.h"
 #include "qapi/error.h"
+#include "qapi/qapi-builtin-type-infos.h"
 #include "migration/vmstate.h"
 #include "qapi/visitor.h"
 #include "qemu/error-report.h"
@@ -388,22 +389,22 @@ static void i440fx_pcihost_class_init(ObjectClass *klass, const void *data)
     dc->user_creatable = false;
 
     object_class_property_add(klass, PCI_HOST_PROP_PCI_HOLE_START, "uint32",
-                              NULL,
+                              &uint32_type_info,
                               i440fx_pcihost_get_pci_hole_start,
                               NULL, NULL, NULL);
 
     object_class_property_add(klass, PCI_HOST_PROP_PCI_HOLE_END, "uint32",
-                              NULL,
+                              &uint32_type_info,
                               i440fx_pcihost_get_pci_hole_end,
                               NULL, NULL, NULL);
 
     object_class_property_add(klass, PCI_HOST_PROP_PCI_HOLE64_START, "uint64",
-                              NULL,
+                              &uint64_type_info,
                               i440fx_pcihost_get_pci_hole64_start,
                               NULL, NULL, NULL);
 
     object_class_property_add(klass, PCI_HOST_PROP_PCI_HOLE64_END, "uint64",
-                              NULL,
+                              &uint64_type_info,
                               i440fx_pcihost_get_pci_hole64_end,
                               NULL, NULL, NULL);
 }

@@ -13,6 +13,7 @@
 
 #include "qemu/osdep.h"
 #include "qemu/cutils.h"
+#include "qapi/qapi-builtin-type-infos.h"
 #include "qapi/visitor.h"
 #include "system/qtest.h"
 #include "hw/core/clock.h"
@@ -185,7 +186,8 @@ static void clock_initfn(Object *obj)
     QLIST_INIT(&clk->children);
 
     if (qtest_enabled()) {
-        object_property_add(obj, "qtest-clock-period", "uint64", NULL,
+        object_property_add(obj, "qtest-clock-period", "uint64",
+                            &uint64_type_info,
                             clock_period_prop_get, NULL, NULL, NULL);
     }
 }

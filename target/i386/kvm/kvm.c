@@ -7107,7 +7107,7 @@ void kvm_arch_accel_class_init(ObjectClass *oc)
     object_class_property_set_description(oc, "notify-vmexit",
                                           "Enable notify VM exit");
 
-    object_class_property_add(oc, "notify-window", "uint32", NULL,
+    object_class_property_add(oc, "notify-window", "uint32", &uint32_type_info,
                               kvm_arch_get_notify_window,
                               kvm_arch_set_notify_window,
                               NULL, NULL);
@@ -7115,7 +7115,7 @@ void kvm_arch_accel_class_init(ObjectClass *oc)
                                           "Clock cycles without an event window "
                                           "after which a notification VM exit occurs");
 
-    object_class_property_add(oc, "xen-version", "uint32", NULL,
+    object_class_property_add(oc, "xen-version", "uint32", &uint32_type_info,
                               kvm_arch_get_xen_version,
                               kvm_arch_set_xen_version,
                               NULL, NULL);
@@ -7124,14 +7124,16 @@ void kvm_arch_accel_class_init(ObjectClass *oc)
                                           "(in XENVER_version form "
                                           "e.g. 0x4000a for 4.10)");
 
-    object_class_property_add(oc, "xen-gnttab-max-frames", "uint16", NULL,
+    object_class_property_add(oc, "xen-gnttab-max-frames", "uint16",
+                              &uint16_type_info,
                               kvm_arch_get_xen_gnttab_max_frames,
                               kvm_arch_set_xen_gnttab_max_frames,
                               NULL, NULL);
     object_class_property_set_description(oc, "xen-gnttab-max-frames",
                                           "Maximum number of grant table frames");
 
-    object_class_property_add(oc, "xen-evtchn-max-pirq", "uint16", NULL,
+    object_class_property_add(oc, "xen-evtchn-max-pirq", "uint16",
+                              &uint16_type_info,
                               kvm_arch_get_xen_evtchn_max_pirq,
                               kvm_arch_set_xen_evtchn_max_pirq,
                               NULL, NULL);

@@ -4254,18 +4254,20 @@ static void virt_machine_class_init(ObjectClass *oc, const void *data)
                                           "Set on/off to enable/disable high "
                                           "memory region for PCI MMIO");
 
-    object_class_property_add(oc, "highmem-mmio-size", "size", NULL,
-                                   virt_get_highmem_mmio_size,
-                                   virt_set_highmem_mmio_size,
-                                   NULL, NULL);
+    object_class_property_add(oc, "highmem-mmio-size", "size",
+                              &size_type_info,
+                              virt_get_highmem_mmio_size,
+                              virt_set_highmem_mmio_size,
+                              NULL, NULL);
     object_class_property_set_description(oc, "highmem-mmio-size",
                                           "Set the high memory region size "
                                           "for PCI MMIO");
 
-    object_class_property_add(oc, "virtio-mmio-transports", "uint8", NULL,
-                                   virt_get_virtio_transports,
-                                   virt_set_virtio_transports,
-                                   NULL, NULL);
+    object_class_property_add(oc, "virtio-mmio-transports", "uint8",
+                              &uint8_type_info,
+                              virt_get_virtio_transports,
+                              virt_set_virtio_transports,
+                              NULL, NULL);
     object_class_property_set_description(oc, "virtio-mmio-transports",
                                           "Set the number of virtio-mmio transports to instantiate");
 

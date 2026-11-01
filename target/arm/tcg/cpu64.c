@@ -20,6 +20,7 @@
 
 #include "qemu/osdep.h"
 #include "qapi/error.h"
+#include "qapi/qapi-builtin-type-infos.h"
 #include "cpu.h"
 #include "qemu/module.h"
 #include "qapi/visitor.h"
@@ -1392,7 +1393,7 @@ void aarch64_max_v8_tcg_initfn(Object *obj)
     /* v8.2: FEAT_SVE */
     cpu->sve_vq.supported = MAKE_64BIT_MASK(0, ARM_MAX_VQ);
     aarch64_add_sve_properties(OBJECT(cpu));
-    object_property_add(OBJECT(cpu), "sve-max-vq", "uint32", NULL,
+    object_property_add(OBJECT(cpu), "sve-max-vq", "uint32", &uint32_type_info,
                         cpu_max_get_sve_max_vq, cpu_max_set_sve_max_vq,
                         NULL, NULL);
 
@@ -1529,7 +1530,8 @@ void aarch64_max_v9_tcg_initfn(Object *obj)
     object_property_add_bool(obj, "x-rme", cpu_arm_get_rme, cpu_arm_set_rme);
 
     /* v9.4: FEAT_RME_GPC2 */
-    object_property_add(obj, "x-l0gptsz", "uint32", NULL, cpu_max_get_l0gptsz,
+    object_property_add(obj, "x-l0gptsz", "uint32", &uint32_type_info,
+                        cpu_max_get_l0gptsz,
                         cpu_max_set_l0gptsz, NULL, NULL);
 }
 

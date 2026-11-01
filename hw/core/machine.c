@@ -1141,7 +1141,7 @@ static void machine_class_init(ObjectClass *oc, const void *data)
     object_class_property_set_description(oc, "smp-cache",
         "Cache properties list for SMP machine");
 
-    object_class_property_add(oc, "phandle-start", "int", NULL,
+    object_class_property_add(oc, "phandle-start", "int", &int_type_info,
                               machine_get_phandle_start,
                               machine_set_phandle_start,
                               NULL, NULL);

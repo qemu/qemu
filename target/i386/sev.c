@@ -3051,7 +3051,8 @@ sev_guest_instance_init(Object *obj)
     sev_guest->policy = DEFAULT_GUEST_POLICY;
     object_property_add_uint32_ptr(obj, "handle", &sev_guest->handle,
                                    OBJ_PROP_FLAG_READWRITE);
-    object_property_add(obj, "policy", "uint32", NULL, sev_guest_get_policy,
+    object_property_add(obj, "policy", "uint32", &uint32_type_info,
+                        sev_guest_get_policy,
                         sev_guest_set_policy, NULL, NULL);
     object_apply_compat_props(obj);
 
@@ -3329,7 +3330,7 @@ sev_snp_guest_class_init(ObjectClass *oc, const void *data)
     x86_klass->adjust_cpuid_features = sev_snp_adjust_cpuid_features;
     x86_klass->kvm_type = sev_snp_kvm_type;
 
-    object_class_property_add(oc, "policy", "uint64", NULL,
+    object_class_property_add(oc, "policy", "uint64", &uint64_type_info,
                               sev_snp_guest_get_policy,
                               sev_snp_guest_set_policy, NULL, NULL);
     object_class_property_add_str(oc, "guest-visible-workarounds",
@@ -3353,7 +3354,7 @@ sev_snp_guest_class_init(ObjectClass *oc, const void *data)
     object_class_property_add_bool(oc, "secure-tsc",
                                   sev_snp_guest_get_secure_tsc,
                                   sev_snp_guest_set_secure_tsc);
-    object_class_property_add(oc, "tsc-frequency", "uint32", NULL,
+    object_class_property_add(oc, "tsc-frequency", "uint32", &uint64_type_info,
                               sev_snp_guest_get_tsc_frequency,
                               sev_snp_guest_set_tsc_frequency, NULL, NULL);
 }

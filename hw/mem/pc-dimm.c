@@ -26,6 +26,7 @@
 #include "hw/mem/nvdimm.h"
 #include "hw/mem/memory-device.h"
 #include "qapi/error.h"
+#include "qapi/qapi-builtin-type-infos.h"
 #include "qapi/visitor.h"
 #include "qemu/module.h"
 #include "system/hostmem.h"
@@ -176,7 +177,7 @@ static void pc_dimm_get_size(Object *obj, Visitor *v, const char *name,
 
 static void pc_dimm_init(Object *obj)
 {
-    object_property_add(obj, PC_DIMM_SIZE_PROP, "uint64", NULL,
+    object_property_add(obj, PC_DIMM_SIZE_PROP, "uint64", &uint64_type_info,
                         pc_dimm_get_size,
                         NULL, NULL, NULL);
 }

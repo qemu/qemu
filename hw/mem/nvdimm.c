@@ -26,6 +26,7 @@
 #include "qemu/module.h"
 #include "qemu/pmem.h"
 #include "qapi/error.h"
+#include "qapi/qapi-builtin-type-infos.h"
 #include "qapi/visitor.h"
 #include "hw/mem/nvdimm.h"
 #include "hw/core/qdev-properties.h"
@@ -99,7 +100,7 @@ static void nvdimm_set_uuid(Object *obj, Visitor *v, const char *name,
 
 static void nvdimm_init(Object *obj)
 {
-    object_property_add(obj, NVDIMM_LABEL_SIZE_PROP, "size", NULL,
+    object_property_add(obj, NVDIMM_LABEL_SIZE_PROP, "size", &size_type_info,
                         nvdimm_get_label_size, nvdimm_set_label_size, NULL,
                         NULL);
 
