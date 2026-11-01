@@ -1,5 +1,6 @@
 riscv_ss = ss.source_set()
-riscv_ss.add(files('aia.c'))
+riscv_ss.add(when: ['CONFIG_RISCV_APLIC', 'CONFIG_RISCV_IMSIC'],
+             if_true: files('aia.c'))
 riscv_ss.add(files('boot.c'))
 riscv_ss.add(files('device-common.c'))
 riscv_ss.add(files('fdt-common.c'))
