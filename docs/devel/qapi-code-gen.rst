@@ -2012,33 +2012,33 @@ Example::
 
     const QLitObject example_qmp_schema_qlit = QLIT_QLIST(((QLitObject[]) {
         QLIT_QDICT(((QLitDictEntry[]) {
-            { "arg-type", QLIT_QSTR("0"), },
+            { "arg-type", QLIT_QSTR("34"), },
             { "meta-type", QLIT_QSTR("command"), },
             { "name", QLIT_QSTR("my-command"), },
-            { "ret-type", QLIT_QSTR("1"), },
+            { "ret-type", QLIT_QSTR("32"), },
             {}
         })),
         QLIT_QDICT(((QLitDictEntry[]) {
-            { "arg-type", QLIT_QSTR("2"), },
+            { "arg-type", QLIT_QSTR("30"), },
             { "meta-type", QLIT_QSTR("event"), },
             { "name", QLIT_QSTR("MY_EVENT"), },
             {}
         })),
-        /* "0" = q_obj_my-command-arg */
+        /* "34" = q_obj_my-command-arg */
         QLIT_QDICT(((QLitDictEntry[]) {
             { "members", QLIT_QLIST(((QLitObject[]) {
                 QLIT_QDICT(((QLitDictEntry[]) {
                     { "name", QLIT_QSTR("arg1"), },
-                    { "type", QLIT_QSTR("[1]"), },
+                    { "type", QLIT_QSTR("[32]"), },
                     {}
                 })),
                 {}
             })), },
             { "meta-type", QLIT_QSTR("object"), },
-            { "name", QLIT_QSTR("0"), },
+            { "name", QLIT_QSTR("34"), },
             {}
         })),
-        /* "1" = UserDefOne */
+        /* "32" = UserDefOne */
         QLIT_QDICT(((QLitDictEntry[]) {
             { "members", QLIT_QLIST(((QLitObject[]) {
                 QLIT_QDICT(((QLitDictEntry[]) {
@@ -2061,22 +2061,22 @@ Example::
                 {}
             })), },
             { "meta-type", QLIT_QSTR("object"), },
-            { "name", QLIT_QSTR("1"), },
+            { "name", QLIT_QSTR("32"), },
             {}
         })),
-        /* "2" = q_empty */
+        /* "30" = q_empty */
         QLIT_QDICT(((QLitDictEntry[]) {
             { "members", QLIT_QLIST(((QLitObject[]) {
                 {}
             })), },
             { "meta-type", QLIT_QSTR("object"), },
-            { "name", QLIT_QSTR("2"), },
+            { "name", QLIT_QSTR("30"), },
             {}
         })),
         QLIT_QDICT(((QLitDictEntry[]) {
-            { "element-type", QLIT_QSTR("1"), },
+            { "element-type", QLIT_QSTR("32"), },
             { "meta-type", QLIT_QSTR("array"), },
-            { "name", QLIT_QSTR("[1]"), },
+            { "name", QLIT_QSTR("[32]"), },
             {}
         })),
         QLIT_QDICT(((QLitDictEntry[]) {

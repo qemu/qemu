@@ -136,6 +136,13 @@ class QAPISchemaDefinition(QAPISchemaEntity):
     def c_name(self) -> str:
         return c_name(self.name)
 
+    def set_ordinal(self, ordinal: int) -> None:
+        pass
+
+    # pylint: disable=unused-argument
+    def introspection_name(self, unmask: bool) -> str:
+        return self.name
+
     def check(self, schema: QAPISchema) -> None:
         assert not self._checked
         super().check(schema)
@@ -323,6 +330,17 @@ class QAPISchemaInclude(QAPISchemaEntity):
 
 
 class QAPISchemaType(QAPISchemaDefinition, ABC):
+    def __init__(
+        self,
+        name: str,
+        info: Optional[QAPISourceInfo],
+        doc: Optional[QAPIDoc],
+        ifcond: Optional[QAPISchemaIfCond] = None,
+        features: Optional[List[QAPISchemaFeature]] = None,
+    ):
+        super().__init__(name, info, doc, ifcond, features)
+        self._masked_name: Optional[str] = None
+
     # Return the C type for common use.
     # For the types we commonly box, this is a pointer type.
     @abstractmethod
@@ -363,6 +381,17 @@ class QAPISchemaType(QAPISchemaDefinition, ABC):
         # Except for arrays; see QAPISchemaArrayType.need_has_if_optional().
         return not self.c_type().endswith(POINTER_SUFFIX)
 
+    def set_ordinal(self, ordinal: int) -> None:
+        assert not self._masked_name
+        self._masked_name = str(ordinal)
+
+    def introspection_name(self, unmask: bool) -> str:
+        # Type names are not part of the external interface.  Hide
+        # them in introspection.  Also saves a few characters on the
+        # wire.
+        assert self._masked_name
+        return self.name if unmask else self._masked_name
+
     def check(self, schema: QAPISchema) -> None:
         super().check(schema)
         for feat in self.features:
@@ -401,6 +430,11 @@ class QAPISchemaBuiltinType(QAPISchemaType):
 
     def doc_type(self) -> str:
         return self.json_type()
+
+    def introspection_name(self, unmask: bool) -> str:
+        if self.json_type() == 'int':
+            return 'int'
+        return self.name
 
     def visit(self, visitor: QAPISchemaVisitor) -> None:
         super().visit(visitor)
@@ -502,6 +536,9 @@ class QAPISchemaArrayType(QAPISchemaType):
         if not elt_doc_type:
             return None
         return 'array of ' + elt_doc_type
+
+    def introspection_name(self, unmask: bool) -> str:
+        return '[' + self.element_type.introspection_name(unmask) + ']'
 
     def visit(self, visitor: QAPISchemaVisitor) -> None:
         super().visit(visitor)
@@ -1182,6 +1219,7 @@ class QAPISchema:
                     "'%s' is already defined\n%s" % (defn.name, where))
             raise QAPISemError(
                 defn.info, "%s is already defined" % other_defn.describe())
+        defn.set_ordinal(len(self._entity_dict))
         self._entity_dict[defn.name] = defn
 
     def lookup_defn(self, name: str) -> Optional[QAPISchemaDefinition]:
@@ -1207,6 +1245,11 @@ class QAPISchema:
             raise QAPISemError(
                 info, "%s uses unknown type '%s'" % (what, name))
         return typ
+
+    def definition_introspection_name(self, name: str, unmask: bool) -> str:
+        defn = self.lookup_defn(name)
+        assert defn
+        return defn.introspection_name(unmask)
 
     def _module_name(self, fname: str) -> str:
         if QAPISchemaModule.is_system_module(fname):
