@@ -1250,8 +1250,6 @@ JSON array of strings.
 To examine a type, start with a command or event using it, then follow
 references by name.
 
-QAPI schema definitions not reachable that way are omitted.
-
 The SchemaInfo for a command has meta-type "command", and variant
 members "arg-type", "ret-type" and "allow-oob".  On the wire, the
 "arguments" member of a client's "execute" command must conform to the
@@ -2012,32 +2010,19 @@ Example::
 
     const QLitObject example_qmp_schema_qlit = QLIT_QLIST(((QLitObject[]) {
         QLIT_QDICT(((QLitDictEntry[]) {
-            { "arg-type", QLIT_QSTR("34"), },
-            { "meta-type", QLIT_QSTR("command"), },
-            { "name", QLIT_QSTR("my-command"), },
-            { "ret-type", QLIT_QSTR("32"), },
+            { "json-type", QLIT_QSTR("string"), },
+            { "meta-type", QLIT_QSTR("builtin"), },
+            { "name", QLIT_QSTR("str"), },
             {}
         })),
+        /* "[str]" = strList */
         QLIT_QDICT(((QLitDictEntry[]) {
-            { "arg-type", QLIT_QSTR("30"), },
-            { "meta-type", QLIT_QSTR("event"), },
-            { "name", QLIT_QSTR("MY_EVENT"), },
+            { "element-type", QLIT_QSTR("str"), },
+            { "meta-type", QLIT_QSTR("array"), },
+            { "name", QLIT_QSTR("[str]"), },
             {}
         })),
-        /* "34" = q_obj_my-command-arg */
-        QLIT_QDICT(((QLitDictEntry[]) {
-            { "members", QLIT_QLIST(((QLitObject[]) {
-                QLIT_QDICT(((QLitDictEntry[]) {
-                    { "name", QLIT_QSTR("arg1"), },
-                    { "type", QLIT_QSTR("[32]"), },
-                    {}
-                })),
-                {}
-            })), },
-            { "meta-type", QLIT_QSTR("object"), },
-            { "name", QLIT_QSTR("34"), },
-            {}
-        })),
+        [Remainder of built-in types omitted...]
         /* "32" = UserDefOne */
         QLIT_QDICT(((QLitDictEntry[]) {
             { "members", QLIT_QLIST(((QLitObject[]) {
@@ -2064,15 +2049,6 @@ Example::
             { "name", QLIT_QSTR("32"), },
             {}
         })),
-        /* "30" = q_empty */
-        QLIT_QDICT(((QLitDictEntry[]) {
-            { "members", QLIT_QLIST(((QLitObject[]) {
-                {}
-            })), },
-            { "meta-type", QLIT_QSTR("object"), },
-            { "name", QLIT_QSTR("30"), },
-            {}
-        })),
         /* "[32]" = UserDefOneList */
         QLIT_QDICT(((QLitDictEntry[]) {
             { "element-type", QLIT_QSTR("32"), },
@@ -2080,22 +2056,31 @@ Example::
             { "name", QLIT_QSTR("[32]"), },
             {}
         })),
+        /* "34" = q_obj_my-command-arg */
         QLIT_QDICT(((QLitDictEntry[]) {
-            { "json-type", QLIT_QSTR("int"), },
-            { "meta-type", QLIT_QSTR("builtin"), },
-            { "name", QLIT_QSTR("int"), },
+            { "members", QLIT_QLIST(((QLitObject[]) {
+                QLIT_QDICT(((QLitDictEntry[]) {
+                    { "name", QLIT_QSTR("arg1"), },
+                    { "type", QLIT_QSTR("[32]"), },
+                    {}
+                })),
+                {}
+            })), },
+            { "meta-type", QLIT_QSTR("object"), },
+            { "name", QLIT_QSTR("34"), },
             {}
         })),
         QLIT_QDICT(((QLitDictEntry[]) {
-            { "json-type", QLIT_QSTR("string"), },
-            { "meta-type", QLIT_QSTR("builtin"), },
-            { "name", QLIT_QSTR("str"), },
+            { "arg-type", QLIT_QSTR("34"), },
+            { "meta-type", QLIT_QSTR("command"), },
+            { "name", QLIT_QSTR("my-command"), },
+            { "ret-type", QLIT_QSTR("32"), },
             {}
         })),
         QLIT_QDICT(((QLitDictEntry[]) {
-            { "json-type", QLIT_QSTR("boolean"), },
-            { "meta-type", QLIT_QSTR("builtin"), },
-            { "name", QLIT_QSTR("bool"), },
+            { "arg-type", QLIT_QSTR("30"), },
+            { "meta-type", QLIT_QSTR("event"), },
+            { "name", QLIT_QSTR("MY_EVENT"), },
             {}
         })),
         {}
