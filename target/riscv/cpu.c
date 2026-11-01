@@ -1730,6 +1730,7 @@ static void prop_pmu_num_get(Object *obj, Visitor *v, const char *name,
 
 static const PropertyInfo prop_pmu_num = {
     .type = "uint8",
+    .qapi_type = &uint8_type_info,
     .description = "pmu-num",
     .get = prop_pmu_num_get,
     .set = prop_pmu_num_set,
@@ -1772,6 +1773,7 @@ static void prop_pmu_mask_get(Object *obj, Visitor *v, const char *name,
 
 static const PropertyInfo prop_pmu_mask = {
     .type = "uint32",
+    .qapi_type = &uint32_type_info,
     .description = "pmu-mask",
     .get = prop_pmu_mask_get,
     .set = prop_pmu_mask_set,
@@ -1804,6 +1806,7 @@ static void prop_mmu_get(Object *obj, Visitor *v, const char *name,
 
 static const PropertyInfo prop_mmu = {
     .type = "bool",
+    .qapi_type = &bool_type_info,
     .description = "mmu",
     .get = prop_mmu_get,
     .set = prop_mmu_set,
@@ -1837,6 +1840,7 @@ static void prop_pmp_get(Object *obj, Visitor *v, const char *name,
 
 static const PropertyInfo prop_pmp = {
     .type = "bool",
+    .qapi_type = &bool_type_info,
     .description = "pmp",
     .get = prop_pmp_get,
     .set = prop_pmp_set,
@@ -1877,6 +1881,7 @@ static void prop_num_pmp_regions_get(Object *obj, Visitor *v, const char *name,
 
 static const PropertyInfo prop_num_pmp_regions = {
     .type = "uint8",
+    .qapi_type = &uint8_type_info,
     .description = "num-pmp-regions",
     .get = prop_num_pmp_regions_get,
     .set = prop_num_pmp_regions_set,
@@ -1915,6 +1920,7 @@ static void prop_pmp_granularity_get(Object *obj, Visitor *v, const char *name,
 
 static const PropertyInfo prop_pmp_granularity = {
     .type = "uint32",
+    .qapi_type = &uint32_type_info,
     .description = "pmp-granularity",
     .get = prop_pmp_granularity_get,
     .set = prop_pmp_granularity_set,
@@ -1991,6 +1997,7 @@ static void prop_priv_spec_get(Object *obj, Visitor *v, const char *name,
 
 static const PropertyInfo prop_priv_spec = {
     .type = "str",
+    .qapi_type = &str_type_info,
     .description = "priv_spec",
     /* FIXME enum? */
     .get = prop_priv_spec_get,
@@ -2024,6 +2031,7 @@ static void prop_vext_spec_get(Object *obj, Visitor *v, const char *name,
 
 static const PropertyInfo prop_vext_spec = {
     .type = "str",
+    .qapi_type = &str_type_info,
     .description = "vext_spec",
     /* FIXME enum? */
     .get = prop_vext_spec_get,
@@ -2108,6 +2116,7 @@ static void prop_elen_get(Object *obj, Visitor *v, const char *name,
 
 static const PropertyInfo prop_elen = {
     .type = "uint16",
+    .qapi_type = &uint16_type_info,
     .description = "elen",
     .get = prop_elen_get,
     .set = prop_elen_set,
@@ -2144,6 +2153,7 @@ static void prop_cbom_blksize_get(Object *obj, Visitor *v, const char *name,
 
 static const PropertyInfo prop_cbom_blksize = {
     .type = "uint16",
+    .qapi_type = &uint16_type_info,
     .description = "cbom_blocksize",
     .get = prop_cbom_blksize_get,
     .set = prop_cbom_blksize_set,
@@ -2180,6 +2190,7 @@ static void prop_cbop_blksize_get(Object *obj, Visitor *v, const char *name,
 
 static const PropertyInfo prop_cbop_blksize = {
     .type = "uint16",
+    .qapi_type = &uint16_type_info,
     .description = "cbop_blocksize",
     .get = prop_cbop_blksize_get,
     .set = prop_cbop_blksize_set,
@@ -2216,6 +2227,7 @@ static void prop_cboz_blksize_get(Object *obj, Visitor *v, const char *name,
 
 static const PropertyInfo prop_cboz_blksize = {
     .type = "uint16",
+    .qapi_type = &uint16_type_info,
     .description = "cboz_blocksize",
     .get = prop_cboz_blksize_get,
     .set = prop_cboz_blksize_set,
@@ -2252,6 +2264,7 @@ static void prop_mvendorid_get(Object *obj, Visitor *v, const char *name,
 
 static const PropertyInfo prop_mvendorid = {
     .type = "uint32",
+    .qapi_type = &uint32_type_info,
     .description = "mvendorid",
     .get = prop_mvendorid_get,
     .set = prop_mvendorid_set,
@@ -2288,6 +2301,7 @@ static void prop_mimpid_get(Object *obj, Visitor *v, const char *name,
 
 static const PropertyInfo prop_mimpid = {
     .type = "uint64",
+    .qapi_type = &uint64_type_info,
     .description = "mimpid",
     .get = prop_mimpid_get,
     .set = prop_mimpid_set,
@@ -2345,6 +2359,7 @@ static void prop_marchid_get(Object *obj, Visitor *v, const char *name,
 
 static const PropertyInfo prop_marchid = {
     .type = "uint64",
+    .qapi_type = &uint64_type_info,
     .description = "marchid",
     .get = prop_marchid_get,
     .set = prop_marchid_set,
