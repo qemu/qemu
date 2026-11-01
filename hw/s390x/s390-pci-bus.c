@@ -35,6 +35,7 @@
 #include "system/runstate.h"
 
 #include "trace.h"
+#include "qapi/qapi-builtin-type-infos.h"
 
 S390pciState *s390_get_phb(void)
 {
@@ -1852,6 +1853,7 @@ static void s390_pci_set_fid(Object *obj, Visitor *v, const char *name,
 
 static const PropertyInfo s390_pci_fid_propinfo = {
     .type = "uint32",
+    .qapi_type = &uint32_type_info,
     .description = "zpci_fid",
     .get = s390_pci_get_fid,
     .set = s390_pci_set_fid,
