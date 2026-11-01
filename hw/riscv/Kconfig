@@ -6,6 +6,7 @@ config RISCV_NUMA
 
 config IBEX
     bool
+    select SSI
 
 config RISCV_DEVICE_COMMON
     bool
