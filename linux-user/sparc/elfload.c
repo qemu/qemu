@@ -90,6 +90,7 @@ abi_ulong get_elf_hwcap(CPUState *cs)
     r |= features & CPU_FEATURE_FMAF ? HWCAP_SPARC_FMAF : 0;
     r |= features & CPU_FEATURE_VIS3 ? HWCAP_SPARC_VIS3 : 0;
     r |= features & CPU_FEATURE_IMA ? HWCAP_SPARC_IMA : 0;
+    r |= features & CPU_FEATURE_CRYPTO ? HWCAP_SPARC_CRYPTO : 0;
 #endif
 
     return r;

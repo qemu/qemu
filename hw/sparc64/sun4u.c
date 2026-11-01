@@ -121,6 +121,52 @@ static void fw_cfg_boot_set(void *opaque, const char *boot_device,
     fw_cfg_modify_i16(opaque, FW_CFG_BOOT_DEVICE, boot_device[0]);
 }
 
+/*
+ * OpenBIOS copies this list to the cpu node's qemu,hwcap-list property
+ * for Linux, which gets it from the machine description on sun4v.
+ */
+static void fw_cfg_build_hwcap_list(FWCfgState *fw_cfg, SPARCCPU *cpu)
+{
+    static const struct {
+        uint32_t mask;
+        const char *name;
+    } capabilities[] = {
+        { 0, "popc" },
+        { CPU_FEATURE_FSMULD, "fsmuld" },
+        { CPU_FEATURE_VIS1, "vis" },
+        { CPU_FEATURE_VIS2, "vis2" },
+        { CPU_FEATURE_FMAF, "fmaf" },
+        { CPU_FEATURE_VIS3, "vis3" },
+        { CPU_FEATURE_IMA, "ima" },
+        /* The groups in the CFR value, see CFR_* in target/sparc/translate.c */
+        { CPU_FEATURE_CRYPTO, "aes" },
+        { CPU_FEATURE_CRYPTO, "sha1" },
+        { CPU_FEATURE_CRYPTO, "sha256" },
+        { CPU_FEATURE_CRYPTO, "sha512" },
+        { CPU_FEATURE_CRYPTO, "crc32c" },
+    };
+    uint32_t features = cpu->env.def.features;
+    GByteArray *array;
+    size_t len;
+
+    if (!(features & CPU_FEATURE_CRYPTO)) {
+        return;
+    }
+
+    array = g_byte_array_new();
+    for (size_t i = 0; i < ARRAY_SIZE(capabilities); i++) {
+        if ((features & capabilities[i].mask) == capabilities[i].mask) {
+            const char *name = capabilities[i].name;
+
+            g_byte_array_append(array, (const guint8 *)name, strlen(name) + 1);
+        }
+    }
+
+    len = array->len;
+    fw_cfg_add_file(fw_cfg, "etc/sparc64/hwcap-list",
+                    g_byte_array_free(array, FALSE), len);
+}
+
 static int sun4u_NVRAM_set_params(Nvram *nvram, uint16_t NVRAM_size,
                                   const char *arch, ram_addr_t RAM_size,
                                   const char *boot_devices,
@@ -717,6 +763,7 @@ static void sun4uv_init(MemoryRegion *address_space_mem,
     fw_cfg_add_i16(fw_cfg, FW_CFG_SPARC64_WIDTH, graphic_width);
     fw_cfg_add_i16(fw_cfg, FW_CFG_SPARC64_HEIGHT, graphic_height);
     fw_cfg_add_i16(fw_cfg, FW_CFG_SPARC64_DEPTH, graphic_depth);
+    fw_cfg_build_hwcap_list(fw_cfg, cpu);
 
     qemu_register_boot_set(fw_cfg_boot_set, fw_cfg);
 
