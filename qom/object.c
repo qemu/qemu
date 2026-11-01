@@ -1770,44 +1770,6 @@ uint64_t object_property_get_uint(Object *obj, const char *name,
     return retval;
 }
 
-typedef struct EnumProperty {
-    const QEnumLookup *lookup;
-    int (*get)(Object *, Error **);
-    void (*set)(Object *, int, Error **);
-} EnumProperty;
-
-int object_property_get_enum(Object *obj, const char *name,
-                             const char *typename, Error **errp)
-{
-    char *str;
-    int ret;
-    ObjectProperty *prop = object_property_find_err(obj, name, errp);
-    EnumProperty *enumprop;
-
-    if (prop == NULL) {
-        return -1;
-    }
-
-    if (!g_str_equal(prop->type, typename)) {
-        error_setg(errp, "Property %s on %s is not '%s' enum type",
-                   name, object_class_get_name(
-                       object_get_class(obj)), typename);
-        return -1;
-    }
-
-    enumprop = prop->opaque;
-
-    str = object_property_get_str(obj, name, errp);
-    if (!str) {
-        return -1;
-    }
-
-    ret = qapi_enum_parse(enumprop->lookup, str, -1, errp);
-    g_free(str);
-
-    return ret;
-}
-
 bool object_property_parse(Object *obj, const char *name,
                            const char *string, Error **errp)
 {
@@ -2538,6 +2500,12 @@ object_class_property_add_bool(ObjectClass *klass, const char *name,
                                      prop);
 }
 
+typedef struct EnumProperty {
+    const QEnumLookup *lookup;
+    int (*get)(Object *, Error **);
+    void (*set)(Object *, int, Error **);
+} EnumProperty;
+
 static void property_get_enum(Object *obj, Visitor *v, const char *name,
                               void *opaque, Error **errp)
 {
@@ -2604,6 +2572,38 @@ object_class_property_add_enum(ObjectClass *klass, const char *name,
                                      set ? property_set_enum : NULL,
                                      NULL,
                                      prop);
+}
+
+int object_property_get_enum(Object *obj, const char *name,
+                             const char *typename, Error **errp)
+{
+    char *str;
+    int ret;
+    ObjectProperty *prop = object_property_find_err(obj, name, errp);
+    EnumProperty *enumprop;
+
+    if (prop == NULL) {
+        return -1;
+    }
+
+    if (!g_str_equal(prop->type, typename)) {
+        error_setg(errp, "Property %s on %s is not '%s' enum type",
+                   name, object_class_get_name(
+                       object_get_class(obj)), typename);
+        return -1;
+    }
+
+    enumprop = prop->opaque;
+
+    str = object_property_get_str(obj, name, errp);
+    if (!str) {
+        return -1;
+    }
+
+    ret = qapi_enum_parse(enumprop->lookup, str, -1, errp);
+    g_free(str);
+
+    return ret;
 }
 
 typedef struct TMProperty {
