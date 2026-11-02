@@ -15,6 +15,7 @@
 
 #include "qemu/osdep.h"
 #include "qapi/error.h"
+#include "qapi/qapi-type-infos-common.h"
 #include "qapi/visitor.h"
 #include "scsi/constants.h"
 #include "hw/core/irq.h"
@@ -3234,17 +3235,6 @@ static void ufs_init_hc(UfsHc *u)
     ufs_fault_inject_init(u);
 }
 
-const QEnumLookup UfsFaultInjectMode_lookup = {
-    .array = (const char *const[]) {
-        [UFS_FAULT_INJECT_ABORT_SUCCESS] = "abort-success",
-        [UFS_FAULT_INJECT_ABORT_FAILED] = "abort-failed",
-        [UFS_FAULT_INJECT_IN_TRANSITION] = "in-transition",
-        [UFS_FAULT_INJECT_TIMEOUT] = "timeout",
-        [UFS_FAULT_INJECT_SSU_TIMEOUT] = "ssu-timeout",
-    },
-    .size = UFS_FAULT_INJECT_MODE_MAX,
-};
-
 static void ufs_prop_get_fault_inject_tag(Object *obj, Visitor *v,
                                           const char *name, void *opaque,
                                           Error **errp)
@@ -3300,6 +3290,7 @@ static void ufs_prop_set_default_fault_inject_tag(ObjectProperty *op,
 
 const PropertyInfo ufs_prop_fault_inject_tag = {
     .type = "uint32",
+    .qapi_type = &uint32_type_info,
     .description = "Task tag to hold for fault injection",
     .get = ufs_prop_get_fault_inject_tag,
     .set = ufs_prop_set_fault_inject_tag,
@@ -3309,9 +3300,9 @@ const PropertyInfo ufs_prop_fault_inject_tag = {
 
 const PropertyInfo ufs_prop_fault_inject_mode = {
     .type = "UfsFaultInjectMode",
+    .qapi_type = &UfsFaultInjectMode_type_info,
     .description = "Fault injection mode: abort-success, abort-failed, "
                    "in-transition, timeout, ssu-timeout",
-    .enum_table = &UfsFaultInjectMode_lookup,
     .get = qdev_propinfo_get_enum,
     .set = qdev_propinfo_set_enum,
     .set_default_value = qdev_propinfo_set_default_value_enum,

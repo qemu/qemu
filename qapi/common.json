@@ -245,3 +245,33 @@
     'tm_hour': 'int32',
     'tm_min': 'int32',
     'tm_sec': 'int32' } }
+
+##
+# @UfsFaultInjectMode:
+#     Fault injection modes for x-fault-inject-mode property.
+#     Controls how the held transfer request and subsequent Task
+#     Management Request (TMR) are resolved by the controller:
+#
+# @abort-success: TMR ABORT_TASK aborts the held request, clears its
+#     state, and returns SUCCESS (COMPL).
+#
+# @abort-failed: TMR ABORT_TASK returns TASK_MANAGEMENT_FUNC_FAILED,
+#     forcing host driver to escalate to Host Reset.
+#
+# @in-transition: TMR QUERY_TASK releases the held request to execute
+#     normally through the SCSI layer and returns the real task status
+#     (SUCCEEDED while the command is still in flight); ABORT_TASK
+#     cancels the held request and returns FUNCTION_COMPLETE.
+#
+# @timeout: TMR ABORT_TASK does not complete or clear doorbell,
+#     triggering hardware-level TMR timeout.
+#
+# @ssu-timeout: Intercepts SCSI START_STOP (0x1B) commands targeting
+#     the UFS Device WLUN when x-fault-inject-tag is armed.
+#
+# Since: 11.2
+##
+{ 'enum': 'UfsFaultInjectMode',
+  'prefix': 'UFS_FAULT_INJECT',
+  'data': [ 'abort-success', 'abort-failed', 'in-transition', 'timeout',
+            'ssu-timeout' ] }

@@ -91,39 +91,6 @@ typedef struct UfsLu {
 } UfsLu;
 
 /*
- * Fault injection modes for x-fault-inject-mode property.
- * Controls how the held transfer request and subsequent Task Management
- * Request (TMR) are resolved by the controller:
- *
- * UFS_FAULT_INJECT_ABORT_SUCCESS: TMR ABORT_TASK aborts the held request,
- *                                 clears its state, and returns SUCCESS
- *                                 (COMPL).
- * UFS_FAULT_INJECT_ABORT_FAILED:  TMR ABORT_TASK returns
- *                                 TASK_MANAGEMENT_FUNC_FAILED, forcing host
- *                                 driver to escalate to Host Reset.
- * UFS_FAULT_INJECT_IN_TRANSITION: TMR QUERY_TASK releases the held request to
- *                                 execute normally through the SCSI layer and
- *                                 returns the real task status (SUCCEEDED while
- *                                 the command is still in flight);
- *                                 ABORT_TASK cancels the held request and
- *                                 returns FUNCTION_COMPLETE.
- * UFS_FAULT_INJECT_TIMEOUT:       TMR ABORT_TASK does not complete or clear
- *                                 doorbell, triggering hardware-level TMR
- *                                 timeout.
- * UFS_FAULT_INJECT_SSU_TIMEOUT:   Intercepts SCSI START_STOP (0x1B) commands
- *                                 targeting the UFS Device WLUN when
- *                                 x-fault-inject-tag is armed.
- */
-typedef enum UfsFaultInjectMode {
-    UFS_FAULT_INJECT_ABORT_SUCCESS = 0,
-    UFS_FAULT_INJECT_ABORT_FAILED,
-    UFS_FAULT_INJECT_IN_TRANSITION,
-    UFS_FAULT_INJECT_TIMEOUT,
-    UFS_FAULT_INJECT_SSU_TIMEOUT,
-    UFS_FAULT_INJECT_MODE_MAX,
-} UfsFaultInjectMode;
-
-/*
  * Sentinel values for x-fault-inject-tag property.
  * Task Tags in UFS are 8-bit (0..255). Values >= 256 are reserved as
  * sentinel flags to preserve full testability of Tag 0.
@@ -375,6 +342,5 @@ void ufs_unrealize(UfsHc *u);
 
 extern const PropertyInfo ufs_prop_fault_inject_tag;
 extern const PropertyInfo ufs_prop_fault_inject_mode;
-extern const QEnumLookup UfsFaultInjectMode_lookup;
 
 #endif /* HW_UFS_UFS_H */
