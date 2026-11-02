@@ -70,4 +70,6 @@ if have_hmp
   system_ss.add(files('rocker/rocker-hmp-cmds.c'))
 endif
 
+system_ss.add(when: 'CONFIG_RASPI', if_true: files('bcm2838_genet.c'))
+
 subdir('can')
