@@ -409,9 +409,25 @@ struct BCM2838GenetState {
     MemoryRegion regs_mr;
     AddressSpace dma_as;
 
-    BCM2838GenetRegs regs;
-    BCM2838GenetPhyRegs phy_regs;
-    BCM2838GenetPhyShdRegs phy_shd_regs;
+    /*
+     * The register blocks are named structs that contain nothing but
+     * uint32_t (MAC) or uint16_t (PHY) fields. Overlay each with an array
+     * of the same element type so that the whole block can be migrated
+     * with a single VMSTATE_UINT32_ARRAY()/VMSTATE_UINT16_ARRAY().
+     */
+    union {
+        BCM2838GenetRegs regs;
+        uint32_t regs_u32[sizeof(BCM2838GenetRegs) / sizeof(uint32_t)];
+    };
+    union {
+        BCM2838GenetPhyRegs phy_regs;
+        uint16_t phy_regs_u16[sizeof(BCM2838GenetPhyRegs) / sizeof(uint16_t)];
+    };
+    union {
+        BCM2838GenetPhyShdRegs phy_shd_regs;
+        uint16_t phy_shd_regs_u16[sizeof(BCM2838GenetPhyShdRegs)
+                                  / sizeof(uint16_t)];
+    };
     BCM2838GenetPhyAuxShdRegs phy_aux_ctl_shd_regs;
     BCM2838GenetPhyExpShdRegs phy_exp_shd_regs;
 

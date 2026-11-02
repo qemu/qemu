@@ -17,6 +17,7 @@
 #include "system/dma.h"
 #include "hw/core/registerfields.h"
 #include "hw/core/resettable.h"
+#include "migration/vmstate.h"
 #include "hw/net/bcm2838_genet.h"
 #include "trace.h"
 
@@ -1135,6 +1136,27 @@ static const Property genet_properties[] = {
     DEFINE_NIC_PROPERTIES(BCM2838GenetState, nic_conf),
 };
 
+static const VMStateDescription vmstate_bcm2838_genet = {
+    .name = "bcm2838-genet",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .fields = (const VMStateField[]) {
+        VMSTATE_UINT32_ARRAY(regs_u32, BCM2838GenetState,
+                             sizeof(BCM2838GenetRegs) / sizeof(uint32_t)),
+        VMSTATE_UINT16_ARRAY(phy_regs_u16, BCM2838GenetState,
+                             sizeof(BCM2838GenetPhyRegs) / sizeof(uint16_t)),
+        VMSTATE_UINT16_ARRAY(phy_shd_regs_u16, BCM2838GenetState,
+                             sizeof(BCM2838GenetPhyShdRegs)
+                             / sizeof(uint16_t)),
+        VMSTATE_UINT16_ARRAY(phy_aux_ctl_shd_regs.regs, BCM2838GenetState,
+                             BCM2838_GENET_PHY_AUX_CTL_REGS_SIZE),
+        VMSTATE_UINT16_2DARRAY(phy_exp_shd_regs.regs, BCM2838GenetState,
+                               BCM2838_GENET_PHY_EXP_SHD_BLOCKS_CNT,
+                               BCM2838_GENET_PHY_EXP_SHD_REGS_CNT),
+        VMSTATE_END_OF_LIST()
+    }
+};
+
 static void bcm2838_genet_class_init(ObjectClass *class, const void *data)
 {
     static ResettablePhases unused_parent_phases;
@@ -1142,6 +1164,7 @@ static void bcm2838_genet_class_init(ObjectClass *class, const void *data)
     ResettableClass *rc = RESETTABLE_CLASS(class);
 
     dc->realize = bcm2838_genet_realize;
+    dc->vmsd = &vmstate_bcm2838_genet;
     resettable_class_set_parent_phases(rc, NULL, bcm2838_genet_reset, NULL,
                                        &unused_parent_phases);
     device_class_set_props(dc, genet_properties);
