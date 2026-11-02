@@ -493,10 +493,6 @@ static void test_migrate(void *obj, void *data, QGuestAllocator *alloc)
         { 333, false }
     };
 
-    if (qpci_check_buggy_msi(pdev)) {
-        return;
-    }
-
     /* create temporary dir and prepare unix socket path for migration */
     tmpfs = g_dir_make_tmp("nvme-test-XXXXXX", &err);
     if (!tmpfs) {
