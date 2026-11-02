@@ -688,7 +688,7 @@ static void decode_0FBC(DisasContext *s, CPUX86State *env, X86OpEntry *entry, ui
         X86_OP_ENTRYwr(TZCNT, G,v, E,v, zextT0), /* 0xf3 */
         X86_OP_ENTRY2(BSF,    G,v, E,v, zextT1), /* 0xf2 */
     };
-    if (!(s->cpuid_ext3_features & CPUID_EXT3_ABM)) {
+    if (!(s->cpuid_7_0_ebx_features & CPUID_7_0_EBX_BMI1)) {
         *entry = opcodes_0FBC[0];
     } else {
         *entry = *decode_by_prefix(s, opcodes_0FBC);
@@ -703,7 +703,7 @@ static void decode_0FBD(DisasContext *s, CPUX86State *env, X86OpEntry *entry, ui
         X86_OP_ENTRYwr(LZCNT, G,v, E,v, zextT0), /* 0xf3 */
         X86_OP_ENTRY2(BSR,    G,v, E,v, zextT1), /* 0xf2 */
     };
-    if (!(s->cpuid_7_0_ebx_features & CPUID_7_0_EBX_BMI1)) {
+    if (!(s->cpuid_ext3_features & CPUID_EXT3_ABM)) {
         *entry = opcodes_0FBD[0];
     } else {
         *entry = *decode_by_prefix(s, opcodes_0FBD);
