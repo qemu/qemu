@@ -293,8 +293,7 @@ typedef struct {
 } BCM2838GenetRegsTdma;
 
 typedef struct {
-    uint8_t flt[BCM2838_GENET_HFB_FILTER_CNT * BCM2838_GENET_HFB_FILTER_SIZE
-        * sizeof(uint32_t)];
+    uint32_t flt[BCM2838_GENET_HFB_FILTER_CNT * BCM2838_GENET_HFB_FILTER_SIZE];
     uint32_t reserved_0x6000[1792];
     uint32_t ctrl;
     uint32_t flt_enable[2];
@@ -388,6 +387,8 @@ struct BCM2838GenetState {
     SysBusDevice parent_obj;
 
     /*< public >*/
+    NICState *nic;
+    NICConf nic_conf;
 
     MemoryRegion regs_mr;
     AddressSpace dma_as;
@@ -401,5 +402,19 @@ struct BCM2838GenetState {
     qemu_irq irq_default;
     qemu_irq irq_prio;
 };
+
+/*
+ * Every field of BCM2838GenetRegs is a uint32_t and the MMIO ops only allow
+ * naturally aligned 4-byte accesses, so a register can be accessed as a
+ * host-order uint32_t at its byte offset; the memory API takes care of the
+ * guest/host byte order difference.
+ */
+static inline uint32_t *bcm2838_genet_reg(BCM2838GenetState *s, hwaddr offset)
+{
+    QEMU_BUILD_BUG_ON(sizeof(BCM2838GenetRegs) % sizeof(uint32_t) != 0);
+    assert(offset % sizeof(uint32_t) == 0);
+
+    return (uint32_t *)((uint8_t *)&s->regs + offset);
+}
 
 #endif /* BCM2838_GENET_H */
