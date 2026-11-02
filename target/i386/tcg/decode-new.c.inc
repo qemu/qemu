@@ -120,7 +120,8 @@
  *
  *    (*)  AMD lists VPBLENDVB as related to SSE4.1 PBLENDVB, which may
  *         explain why it is considered exception class 4.  However,
- *         Intel says that VEX-only instructions should be in class 6...
+ *         the two have different encodings (in 0F38 for SSE, in 0F3A
+ *         for AVX).
  *
  *    (+)  Not found in Intel's table 2-16
  *
@@ -250,6 +251,7 @@
 #define vex2_rep3 .vex_class = 2, .vex_special = X86_VEX_REPScalar,
 #define vex3 .vex_class = 3,
 #define vex4 .vex_class = 4,
+#define sse4 .vex_class = 4, .vex_special = X86_VEX_SSEOnly,
 #define vex4_unal .vex_class = 4, .vex_special = X86_VEX_SSEUnaligned,
 #define vex4_rep5 .vex_class = 4, .vex_special = X86_VEX_REPScalar,
 #define vex5 .vex_class = 5,
@@ -732,10 +734,10 @@ static const X86OpEntry opcodes_0F38_00toEF[240] = {
     [0x06] = X86_OP_ENTRY3(PHSUBD,    V,x,  H,x,   W,x,  vex4 cpuid(SSSE3) mmx avx2_256 p_00_66),
     [0x07] = X86_OP_ENTRY3(PHSUBSW,   V,x,  H,x,   W,x,  vex4 cpuid(SSSE3) mmx avx2_256 p_00_66),
 
-    [0x10] = X86_OP_ENTRY2(PBLENDVB,  V,x,         W,x,  vex4 cpuid(SSE41) avx2_256 p_66),
+    [0x10] = X86_OP_ENTRY2(PBLENDVB,  V,x,         W,x,  sse4 cpuid(SSE41) p_66),
     [0x13] = X86_OP_ENTRY2(VCVTPH2PS, V,x,         W,xh, vex11 chk(W0) cpuid(F16C) p_66),
-    [0x14] = X86_OP_ENTRY2(BLENDVPS,  V,x,         W,x,  vex4 cpuid(SSE41) p_66),
-    [0x15] = X86_OP_ENTRY2(BLENDVPD,  V,x,         W,x,  vex4 cpuid(SSE41) p_66),
+    [0x14] = X86_OP_ENTRY2(BLENDVPS,  V,x,         W,x,  sse4 cpuid(SSE41) p_66),
+    [0x15] = X86_OP_ENTRY2(BLENDVPD,  V,x,         W,x,  sse4 cpuid(SSE41) p_66),
     /* Listed incorrectly as type 4 */
     [0x16] = X86_OP_ENTRY3(VPERMD,    V,qq, H,qq,      W,qq,  vex6 chk(W0) cpuid(AVX2) p_66), /* vpermps */
     [0x17] = X86_OP_ENTRY3(VPTEST,    None,None, V,x,  W,x,   vex4 cpuid(SSE41) p_66),
@@ -3111,6 +3113,12 @@ static bool validate_vex(DisasContext *s, X86DecodedInsn *decode)
             if ((s->modrm >> 6) != 3) {
                 e->s2 = s->prefix & PREFIX_REPNZ ? X86_SIZE_sd : X86_SIZE_ss;
             }
+        }
+        break;
+
+    case X86_VEX_SSEOnly:
+        if (s->prefix & PREFIX_VEX) {
+            goto illegal;
         }
         break;
 

@@ -10,6 +10,7 @@ tests += {
   },
   'test-aes.c': {'cflags': ['-O1', '-msse2', '-maes']},
   'test-i386-adcox.c': {'cflags': ['-O2']},
+  'test-i386-blendv.c': {},
   'test-i386-bmi2.c': {'cflags': ['-O2', '-fwrapv']},
   'test-i386-f2xm1.c': {},
   'test-i386-fbstp.c': {},

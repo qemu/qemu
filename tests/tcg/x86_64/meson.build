@@ -47,6 +47,7 @@ tests += {
     'exe_name': 'test-x86_64'
   },
   '../i386/test-i386-adcox.c': {'cflags': ['-O2']},
+  '../i386/test-i386-blendv.c': {},
   '../i386/test-i386-bmi2.c': {'cflags': ['-O2', '-fwrapv']},
   '../i386/test-idiv-overflow.c': {},
 }

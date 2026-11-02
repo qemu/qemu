@@ -257,6 +257,9 @@ typedef enum X86InsnSpecial {
 typedef enum X86VEXSpecial {
     X86_VEX_None,
 
+    /* SSE and AVX instructions use different encoding */
+    X86_VEX_SSEOnly,
+
     /* Legacy SSE instructions that allow unaligned operands */
     X86_VEX_SSEUnaligned,
 
