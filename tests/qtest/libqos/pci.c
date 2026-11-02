@@ -351,6 +351,59 @@ bool qpci_msix_masked(QPCIDevice *dev, uint16_t entry)
     }
 }
 
+/**
+ * qpci_msix_test_interrupt - test whether MSI-X interrupt has been raised
+ * @dev: PCI device
+ * @msix_entry: MSI-X entry to test
+ * @msix_addr: address of MSI-X message
+ * @msix_data: expected MSI-X message payload
+ *
+ * This tests whether the device has raised an MSI-X interrupt. If the MSI-X
+ * entry is masked, it tests the pending bit array for a pending message
+ * and @msix_addr and @msix_data need not be supplied. If the entry is not
+ * masked, it tests the address for corresponding data to see if the interrupt
+ * fired.
+ *
+ * Note that this does not lower the interrupt, however it does clear the
+ * MSI-X message address to 0 if it is found set. This must be called with
+ * the MSI-X address memory containing either 0 or the value of data, otherwise
+ * it will assert on incorrect message.
+ */
+bool qpci_msix_test_interrupt(QPCIDevice *dev, uint16_t msix_entry,
+                              uint64_t msix_addr, uint32_t msix_data)
+{
+    uint32_t data;
+
+    g_assert(dev->msix_enabled);
+    g_assert_cmpint(msix_entry, <, qpci_msix_table_size(dev));
+
+    if (qpci_msix_masked(dev, msix_entry)) {
+        /* No ISR checking should be done if masked, but read anyway */
+        return qpci_msix_pending(dev, msix_entry);
+    }
+
+    /*
+     * 0 is used as the "not fired" sentinel — callers must program a
+     * non-zero MSI-X data value so the pre-zeroed target memory can be
+     * polled reliably.
+     */
+    g_assert_cmpint(msix_addr, !=, 0);
+    g_assert_cmpint(msix_data, !=, 0);
+
+    /* MSI-X payload is written in little-endian format */
+    qtest_memread(dev->bus->qts, msix_addr, &data, sizeof(data));
+    data = le32_to_cpu(data);
+    if (data == 0) {
+        return false;
+    }
+
+    /* got a message, ensure it matches expected value then clear it. */
+    g_assert_cmphex(data, ==, msix_data);
+    qtest_memset(dev->bus->qts, msix_addr, 0, sizeof(data));
+
+    return true;
+}
+
 uint16_t qpci_msix_table_size(QPCIDevice *dev)
 {
     uint8_t addr;
