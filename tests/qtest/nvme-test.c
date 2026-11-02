@@ -517,8 +517,6 @@ static void test_migrate(void *obj, void *data, QGuestAllocator *alloc)
     test_migrate_setup_nvme_ctrl(ctrl);
     test_migrate_send_nvme_reqs(ctrl, test_reqs, ARRAY_SIZE(test_reqs));
 
-    qpci_iounmap(ctrl->pdev, ctrl->bar);
-
     dest_cmdline = g_string_new(qos_get_current_command_line());
     g_string_append_printf(dest_cmdline, " -incoming %s", uri);
 
@@ -528,8 +526,8 @@ static void test_migrate(void *obj, void *data, QGuestAllocator *alloc)
     /* Get access to PCI device from destination VM */
     nvme = qos_allocate_objects(to, &ctrl->alloc);
     pdev = &nvme->dev;
+    qpci_migrate_fixup(pdev, ctrl->pdev);
     ctrl->pdev = pdev;
-    ctrl->bar = qpci_iomap(ctrl->pdev, 0, NULL);
     g_assert(pdev->bus->qts == to);
 
     /* Migrate VM */
