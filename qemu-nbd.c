@@ -28,6 +28,7 @@
 #include "system/runstate.h" /* for qemu_system_killed() prototype */
 #include "block/block_int.h"
 #include "block/nbd.h"
+#include "block/dirty-bitmap.h"
 #include "qemu/main-loop.h"
 #include "qemu/module.h"
 #include "qemu/option.h"
@@ -71,6 +72,7 @@
 #define QEMU_NBD_OPT_SELINUX_LABEL   266
 #define QEMU_NBD_OPT_TLSHOSTNAME     267
 #define QEMU_NBD_OPT_HANDSHAKE_LIMIT 268
+#define QEMU_NBD_OPT_ALL_BITMAPS     269
 
 #define MBR_SIZE 512
 
@@ -109,6 +111,7 @@ static void usage(const char *name)
 "  -o, --offset=OFFSET       offset into the image\n"
 "  -A, --allocation-depth    expose the allocation depth\n"
 "  -B, --bitmap=NAME         expose a persistent dirty bitmap\n"
+"      --all-bitmaps         expose all persistent dirty bitmaps\n"
 "\n"
 "General purpose options:\n"
 "  -L, --list                list exports available from another NBD server\n"
@@ -530,6 +533,48 @@ static void qemu_nbd_shutdown(void)
     bdrv_close_all();
 }
 
+/* Helpers to implement --all-bitmaps option. */
+static bool is_duplicate_bitmap(BlockDirtyBitmapOrStrList *bitmaps,
+                                const char *name)
+{
+    /* Treat an anonymous bitmap as a duplicate. */
+    if (!name) {
+        return true;
+    }
+    for (; bitmaps; bitmaps = bitmaps->next) {
+        if (bitmaps->value->type == QTYPE_QSTRING &&
+            strcmp(bitmaps->value->u.local, name) == 0) {
+            return true;
+        }
+    }
+    return false;
+}
+
+static void collect_all_bitmaps(BlockDriverState *bs,
+                                BlockDirtyBitmapOrStrList **bitmaps)
+{
+    GLOBAL_STATE_CODE();
+    GRAPH_RDLOCK_GUARD_MAINLOOP();
+
+    for (; bs; bs = bdrv_filter_or_cow_bs(bs)) {
+        for (BdrvDirtyBitmap *bm = bdrv_dirty_bitmap_first(bs); bm;
+             bm = bdrv_dirty_bitmap_next(bm)) {
+            const char *name = bdrv_dirty_bitmap_name(bm);
+            BlockDirtyBitmapOrStr *el;
+
+            if (is_duplicate_bitmap(*bitmaps, name)) {
+                continue;
+            }
+            el = g_new(BlockDirtyBitmapOrStr, 1);
+            *el = (BlockDirtyBitmapOrStr) {
+                .type = QTYPE_QSTRING,
+                .u.local = g_strdup(name),
+            };
+            QAPI_LIST_PREPEND(*bitmaps, el);
+        }
+    }
+}
+
 int main(int argc, char **argv)
 {
     BlockBackend *blk;
@@ -553,6 +598,7 @@ int main(int argc, char **argv)
         { "offset", required_argument, NULL, 'o' },
         { "read-only", no_argument, NULL, 'r' },
         { "allocation-depth", no_argument, NULL, 'A' },
+        { "all-bitmaps", no_argument, NULL, QEMU_NBD_OPT_ALL_BITMAPS },
         { "bitmap", required_argument, NULL, 'B' },
         { "connect", required_argument, NULL, 'c' },
         { "disconnect", no_argument, NULL, 'd' },
@@ -602,6 +648,7 @@ int main(int argc, char **argv)
     const char *export_description = NULL;
     BlockDirtyBitmapOrStrList *bitmaps = NULL;
     bool alloc_depth = false;
+    bool all_bitmaps = false;
     const char *tlscredsid = NULL;
     const char *tlshostname = NULL;
     bool imageOpts = false;
@@ -725,6 +772,9 @@ int main(int argc, char **argv)
         case 'A':
             alloc_depth = true;
             break;
+        case QEMU_NBD_OPT_ALL_BITMAPS:
+            all_bitmaps = true;
+            break;
         case 'B':
             {
                 BlockDirtyBitmapOrStr *el = g_new(BlockDirtyBitmapOrStr, 1);
@@ -837,7 +887,8 @@ int main(int argc, char **argv)
         }
         if (export_name || export_description || dev_offset ||
             opts.device || disconnect || fmt || sn_id_or_name || bitmaps ||
-            alloc_depth || seen_aio || seen_discard || seen_cache) {
+            all_bitmaps || alloc_depth || seen_aio || seen_discard ||
+            seen_cache) {
             error_report("List mode is incompatible with per-device settings");
             exit(EXIT_FAILURE);
         }
@@ -1183,6 +1234,10 @@ int main(int argc, char **argv)
     if (ret < 0) {
         error_reportf_err(local_err, "Failed to load snapshot: ");
         exit(EXIT_FAILURE);
+    }
+
+    if (all_bitmaps) {
+        collect_all_bitmaps(orig_bs, &bitmaps);
     }
 
     bs->detect_zeroes = detect_zeroes;

@@ -1,0 +1,88 @@
+#!/usr/bin/env bash
+# group: quick
+#
+# SPDX-License-Identifier: GPL-2.0-or-later
+#
+# Copyright Red Hat, Inc.
+#
+# Test the accept-read-only-device option on a loop device
+
+seq="$(basename $0)"
+echo "QA output created by $seq"
+
+status=1	# failure is the default!
+
+_cleanup() {
+    if [ -n "$loopdev" ]; then
+        sudo losetup --detach "$loopdev"
+    fi
+
+    _cleanup_test_img
+}
+
+trap "_cleanup; exit \$status" 0 1 2 3 15
+
+# get standard environment, filters and checks
+cd ..
+. ./common.rc
+. ./common.filter
+
+_supported_fmt raw
+_supported_proto file
+_supported_os Linux
+
+do_run_qemu()
+{
+    echo Testing: "$@"
+    $QEMU -nographic -qmp stdio -nodefaults "$@"
+    echo
+}
+
+run_qemu()
+{
+    printf '{"execute":"qmp_capabilities"}\n{"execute":"quit"}' |
+    do_run_qemu "$@" 2>&1 | _filter_testdir | _filter_qemu | _filter_qmp |
+        _filter_generated_node_ids | _filter_imgfmt |
+        _filter_actual_image_size | _filter_img_info |
+        sed -e "s#/dev/loop[0-9]\\+#LOOPDEV#g"
+}
+
+if ! sudo -n losetup &>/dev/null; then
+    _notrun "sudo losetup not available"
+fi
+
+if ! command -v blockdev >/dev/null 2>&1; then
+    _notrun "blockdev tool not available"
+fi
+
+echo
+echo "=== Start QEMU on a loop device after blockdev --setro ==="
+echo
+
+_make_test_img -f $IMGFMT 1M
+
+loopdev=$(sudo losetup --find --show "$TEST_IMG")
+if [ -z "$loopdev" ]; then
+    _fail
+fi
+
+sudo blockdev --setro "$loopdev"
+sudo chmod a+rw "$loopdev"
+
+run_qemu \
+    -blockdev host_device,node-name=disk,filename="$loopdev" \
+    -device virtio-blk,drive=disk
+
+run_qemu \
+    -blockdev host_device,node-name=disk,filename="$loopdev",accept-read-only-device=off \
+    -device virtio-blk,drive=disk
+
+run_qemu \
+    -blockdev host_device,node-name=disk,filename="$loopdev",accept-read-only-device=on \
+    -device virtio-blk,drive=disk
+
+# success, all done
+echo
+echo '*** done'
+rm -f $seq.full
+status=0

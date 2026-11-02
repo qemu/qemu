@@ -195,6 +195,13 @@ typedef struct VmdkGrainMarker {
     uint8_t  data[];
 } QEMU_PACKED VmdkGrainMarker;
 
+typedef struct EosMarker {
+    uint64_t val;
+    uint32_t size;
+    uint32_t type;
+    uint8_t pad[512 - 16];
+} QEMU_PACKED EosMarker;
+
 enum {
     MARKER_END_OF_STREAM    = 0,
     MARKER_GRAIN_TABLE      = 1,
@@ -987,12 +994,7 @@ vmdk_open_vmdk4(BlockDriverState *bs, BdrvChild *file, int flags,
             VMDK4Header header;
             uint8_t pad[512 - 4 - sizeof(VMDK4Header)];
 
-            struct {
-                uint64_t val;
-                uint32_t size;
-                uint32_t type;
-                uint8_t pad[512 - 16];
-            } QEMU_PACKED eos_marker;
+            EosMarker eos_marker;
         } QEMU_PACKED footer;
 
         ret = bdrv_pread(file, bs->file->bs->total_sectors * 512 - 1536,
@@ -1730,16 +1732,25 @@ get_cluster_offset(BlockDriverState *bs, VmdkExtent *extent,
         cluster_sector = extent->next_cluster_sector;
         extent->next_cluster_sector += extent->cluster_sectors;
 
-        /* First of all we write grain itself, to avoid race condition
-         * that may to corrupt the image.
-         * This problem may occur because of insufficient space on host disk
-         * or inappropriate VM shutdown.
+        /*
+         * Stream optimized (compressed) extents do not have to be
+         * pre-allocated, as compressed writes always cover the whole
+         * cluster, and will align on 512 byte chunks.
          */
-        ret = get_whole_cluster(bs, extent, cluster_sector * BDRV_SECTOR_SIZE,
-                                offset, skip_start_bytes, skip_end_bytes,
-                                zeroed);
-        if (ret) {
-            return ret;
+        if (!extent->compressed) {
+            /*
+             * First of all we write grain itself, to avoid race condition
+             * that may to corrupt the image.
+             * This problem may occur because of insufficient space on host disk
+             * or inappropriate VM shutdown.
+             */
+            ret = get_whole_cluster(bs, extent,
+                                    cluster_sector * BDRV_SECTOR_SIZE,
+                                    offset, skip_start_bytes, skip_end_bytes,
+                                    zeroed);
+            if (ret) {
+                return ret;
+            }
         }
         if (m_data) {
             m_data->new_allocation = true;
@@ -2173,23 +2184,29 @@ vmdk_co_pwritev_compressed(BlockDriverState *bs, int64_t offset, int64_t bytes,
                            QEMUIOVector *qiov)
 {
     if (bytes == 0) {
-        /* The caller will write bytes 0 to signal EOF.
-         * When receive it, we align EOF to a sector boundary. */
+        /* The caller will write bytes 0 to signal EOF. */
         BDRVVmdkState *s = bs->opaque;
-        int i, ret;
+        int ret;
         int64_t length;
+        QEMU_AUTO_VFREE EosMarker *eos_marker = NULL;
 
-        for (i = 0; i < s->num_extents; i++) {
-            length = bdrv_co_getlength(s->extents[i].file->bs);
-            if (length < 0) {
-                return length;
-            }
-            length = QEMU_ALIGN_UP(length, BDRV_SECTOR_SIZE);
-            ret = bdrv_co_truncate(s->extents[i].file, length, false,
-                                   PREALLOC_MODE_OFF, 0, NULL);
-            if (ret < 0) {
-                return ret;
-            }
+        /* Stream optimized disks should only contain a single extent. */
+        assert(s->num_extents == 1);
+
+        /*
+         * Stream optimized disks end with an EOS marker,
+         * consisting of 512 null bytes.
+         */
+        eos_marker = qemu_blockalign0(bs, sizeof(EosMarker));
+        length = bdrv_co_getlength(s->extents[0].file->bs);
+        if (length < 0) {
+            return length;
+        }
+        length = QEMU_ALIGN_UP(length, BDRV_SECTOR_SIZE);
+        ret = bdrv_co_pwrite(s->extents[0].file, length, sizeof(EosMarker),
+                             eos_marker, 0);
+        if (ret < 0) {
+            return ret;
         }
         return 0;
     }
@@ -2237,8 +2254,9 @@ vmdk_init_extent(BlockBackend *blk, int64_t filesize, bool flat, bool compress,
     } else {
         header.version = 1;
     }
-    header.flags = VMDK4_FLAG_RGD | VMDK4_FLAG_NL_DETECT
-                   | (compress ? VMDK4_FLAG_COMPRESS | VMDK4_FLAG_MARKER : 0)
+    header.flags =  VMDK4_FLAG_NL_DETECT
+                   | (compress ?
+                      VMDK4_FLAG_COMPRESS | VMDK4_FLAG_MARKER : VMDK4_FLAG_RGD)
                    | (zeroed_grain ? VMDK4_FLAG_ZERO_GRAIN : 0);
     header.compressAlgorithm = compress ? VMDK4_COMPRESSION_DEFLATE : 0;
     header.capacity = filesize / BDRV_SECTOR_SIZE;
@@ -2253,8 +2271,16 @@ vmdk_init_extent(BlockBackend *blk, int64_t filesize, bool flat, bool compress,
 
     header.desc_offset = 1;
     header.desc_size = 20;
-    header.rgd_offset = header.desc_offset + header.desc_size;
-    header.gd_offset = header.rgd_offset + gd_sectors + (gt_size * gt_count);
+
+    if (compress) {
+        header.rgd_offset = 0;
+        header.gd_offset = header.desc_offset + header.desc_size;
+    } else {
+        header.rgd_offset = header.desc_offset + header.desc_size;
+        header.gd_offset =
+            header.rgd_offset + gd_sectors + (gt_size * gt_count);
+    }
+
     header.grain_offset =
         ROUND_UP(header.gd_offset + gd_sectors + (gt_size * gt_count),
                  header.granularity);
@@ -2294,21 +2320,26 @@ vmdk_init_extent(BlockBackend *blk, int64_t filesize, bool flat, bool compress,
         goto exit;
     }
 
-    /* write grain directory */
+    /* write backup grain directory */
     gd_buf_size = gd_sectors * BDRV_SECTOR_SIZE;
     gd_buf = g_malloc0(gd_buf_size);
-    for (i = 0, tmp = le64_to_cpu(header.rgd_offset) + gd_sectors;
-         i < gt_count; i++, tmp += gt_size) {
-        gd_buf[i] = cpu_to_le32(tmp);
-    }
-    ret = blk_co_pwrite(blk, le64_to_cpu(header.rgd_offset) * BDRV_SECTOR_SIZE,
-                        gd_buf_size, gd_buf, 0);
-    if (ret < 0) {
-        error_setg_errno(errp, -ret, "failed to write VMDK grain directory");
-        goto exit;
+
+    if (!compress) {
+        for (i = 0, tmp = le64_to_cpu(header.rgd_offset) + gd_sectors;
+             i < gt_count; i++, tmp += gt_size) {
+            gd_buf[i] = cpu_to_le32(tmp);
+        }
+        ret = blk_co_pwrite(blk,
+                            le64_to_cpu(header.rgd_offset) * BDRV_SECTOR_SIZE,
+                            gd_buf_size, gd_buf, 0);
+        if (ret < 0) {
+            error_setg_errno(errp, -ret,
+                             "failed to write VMDK backup grain directory");
+            goto exit;
+        }
     }
 
-    /* write backup grain directory */
+    /* write grain directory */
     for (i = 0, tmp = le64_to_cpu(header.gd_offset) + gd_sectors;
          i < gt_count; i++, tmp += gt_size) {
         gd_buf[i] = cpu_to_le32(tmp);
@@ -2317,7 +2348,7 @@ vmdk_init_extent(BlockBackend *blk, int64_t filesize, bool flat, bool compress,
                         gd_buf_size, gd_buf, 0);
     if (ret < 0) {
         error_setg_errno(errp, -ret,
-                         "failed to write VMDK backup grain directory");
+                         "failed to write VMDK grain directory");
     }
 
     ret = 0;

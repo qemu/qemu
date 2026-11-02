@@ -559,7 +559,7 @@ static char *get_dm_name(int fd, Error **errp)
 static bool multipathd_cmd(int fd, const char *cmd, Error **errp)
 {
     const unsigned int timeout_ms = 60000;
-    char *reply = NULL;
+    g_autofree char *reply = NULL;
     int last_errno;
     int ret;
 
@@ -568,11 +568,16 @@ static bool multipathd_cmd(int fd, const char *cmd, Error **errp)
     if (reply && strcmp(reply, "ok\n") != 0) {
         error_setg(errp, "mpath_process_cmd(%d, \"%s\") replied \"%s\"",
                    fd, cmd, reply);
-        free(reply);
         return false;
     }
-    free(reply);
     if (ret == -1) {
+        /*
+         * It should already be NULL but the mpath_process_cmd() documentation
+         * only defines it when the function returns success, so don't depend
+         * on its value when ret == -1.
+         */
+        reply = NULL;
+
         error_setg_errno(errp, last_errno,
                          "mpath_process_cmd(%d, \"%s\") failed",
                          fd, cmd);

@@ -177,6 +177,7 @@ typedef struct BDRVRawState {
     bool has_laio_fdsync:1;
     bool use_linux_io_uring:1;
     bool use_mpath:1;
+    bool accept_read_only_device:1;
     int page_cache_inconsistent; /* errno from fdatasync failure */
     bool has_fallocate;
     bool needs_alignment;
@@ -513,7 +514,7 @@ static void raw_probe_alignment(BlockDriverState *bs, int fd, Error **errp)
     }
 }
 
-static int check_hdev_writable(int fd)
+static int check_hdev_writable(BlockDriverState *bs, int fd)
 {
 #if defined(BLKROGET)
     /* Linux block devices can be configured "read-only" using blockdev(8).
@@ -523,9 +524,18 @@ static int check_hdev_writable(int fd)
      * bdrv_open() is supposed to fail if the disk is read-only.  Explicitly
      * check for read-only block devices so that Linux block devices behave
      * properly.
+     *
+     * Users can use the accept-read-only-device option to skip the check if
+     * they deliberately open a read-only block device as writable, e.g. because
+     * it may become read-write later.
      */
+    BDRVRawState *s = bs->opaque;
     struct stat st;
     int readonly = 0;
+
+    if (s->accept_read_only_device) {
+        return 0;
+    }
 
     if (fstat(fd, &st)) {
         return -errno;
@@ -619,6 +629,11 @@ static QemuOptsList raw_runtime_opts = {
             .name = "x-check-cache-dropped",
             .type = QEMU_OPT_BOOL,
             .help = "check that page cache was dropped on live migration (default: off)"
+        },
+        {
+            .name = "accept-read-only-device",
+            .type = QEMU_OPT_BOOL,
+            .help = "allow opening a read-only device as read-write (default: off)"
         },
         { /* end of list */ }
     },
@@ -737,8 +752,10 @@ static int raw_open_common(BlockDriverState *bs, QDict *options,
     s->fd = fd;
 
     /* Check s->open_flags rather than bdrv_flags due to auto-read-only */
+    s->accept_read_only_device =
+        qemu_opt_get_bool(opts, "accept-read-only-device", false);
     if (s->open_flags & O_RDWR) {
-        ret = check_hdev_writable(s->fd);
+        ret = check_hdev_writable(bs, s->fd);
         if (ret < 0) {
             error_setg_errno(errp, -ret, "The device is not writable");
             goto fail;
@@ -1116,7 +1133,7 @@ static int raw_reconfigure_getfd(BlockDriverState *bs, int flags,
     }
 
     if (fd != -1 && (*open_flags & O_RDWR)) {
-        ret = check_hdev_writable(fd);
+        ret = check_hdev_writable(bs, fd);
         if (ret < 0) {
             qemu_close(fd);
             error_setg_errno(errp, -ret, "The device is not writable");
