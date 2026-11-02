@@ -223,10 +223,12 @@ static void nvme_init_cq(nvme_ctrl *ctrl, nvme_cq *cq, uint16_t db_idx,
 
 static int nvme_cqe_pending(nvme_cq *cq)
 {
-    uint16_t status = qtest_readw(
-        cq->common.ctrl->pdev->bus->qts,
-        PHYS_ADDR_OF(NvmeCqe, cq->phys_cqe, [cq->head].status));
-    return (status & 1) == cq->phase;
+    uint16_t status;
+
+    qtest_memread(cq->common.ctrl->pdev->bus->qts,
+                  PHYS_ADDR_OF(NvmeCqe, cq->phys_cqe, [cq->head].status),
+                  &status, sizeof(status));
+    return (le16_to_cpu(status) & 1) == cq->phase;
 }
 
 static int nvme_is_cqe_success(NvmeCqe *cqe)
@@ -253,8 +255,8 @@ static NvmeCqe nvme_handle_cqe(nvme_sq *sq)
     }
     cq->head = cq_next_head;
 
-    if (cqe.sq_head != sq->head) {
-        sq->head = cqe.sq_head;
+    if (le16_to_cpu(cqe.sq_head) != sq->head) {
+        sq->head = le16_to_cpu(cqe.sq_head);
         g_test_message("sq %p head = %u", sq, sq->head);
     }
 
@@ -298,15 +300,14 @@ static uint64_t nvme_get_next_sqe(nvme_sq *sq, uint8_t opcode,
     qtest_memset(sq->common.ctrl->pdev->bus->qts,
                  phys_sqe, 0, sizeof(NvmeCmd));
 
-    #define GUEST_MEM_WRITE(fn, phys_addr, val) \
-        fn(sq->common.ctrl->pdev->bus->qts, phys_addr, (val))
+    #define GUEST_MEM_WRITE(phys_addr, val) \
+        qtest_memwrite(sq->common.ctrl->pdev->bus->qts, phys_addr, &val, sizeof(val))
 
-    GUEST_MEM_WRITE(qtest_writeb,
-                    PHYS_ADDR_OF_FIELD(NvmeCmd, phys_sqe, opcode), opcode);
-    GUEST_MEM_WRITE(qtest_writew,
-                    PHYS_ADDR_OF_FIELD(NvmeCmd, phys_sqe, cid), cid);
-    GUEST_MEM_WRITE(qtest_writeq,
-                    PHYS_ADDR_OF_FIELD(NvmeCmd, phys_sqe, dptr.prp1), prp1);
+    GUEST_MEM_WRITE(PHYS_ADDR_OF_FIELD(NvmeCmd, phys_sqe, opcode), opcode);
+    cid = cpu_to_le16(cid);
+    GUEST_MEM_WRITE(PHYS_ADDR_OF_FIELD(NvmeCmd, phys_sqe, cid), cid);
+    prp1 = cpu_to_le64(prp1);
+    GUEST_MEM_WRITE(PHYS_ADDR_OF_FIELD(NvmeCmd, phys_sqe, dptr.prp1), prp1);
 
     #undef GUEST_MEM_WRITE
 
@@ -344,7 +345,7 @@ static uint64_t nvme_admin_identify_ctrl(nvme_ctrl *ctrl,
 
     GUEST_MEM_WRITE(qtest_writel,
                     PHYS_ADDR_OF_FIELD(NvmeCmd, phys_cmd_identify, nsid), 0);
-    GUEST_MEM_WRITE(qtest_writel,
+    GUEST_MEM_WRITE(qtest_writeb,
                     PHYS_ADDR_OF_FIELD(NvmeIdentify, phys_cmd_identify, cns),
                     NVME_ID_CNS_CTRL);
 
