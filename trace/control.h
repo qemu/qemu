@@ -102,39 +102,21 @@ static const char * trace_event_get_name(TraceEvent *ev);
  * @id: Event identifier name.
  *
  * Get the tracing state of an event, both static and the QEMU dynamic state.
- *
- * If the event has the disabled property, the check will have no performance
- * impact.
  */
 #define trace_event_get_state(id)                       \
-    ((id ##_ENABLED) && trace_event_get_state_dynamic_by_id(id))
+    (trace_event_get_state_dynamic_by_id(id))
 
 /**
  * trace_event_get_state_backends:
  * @id: Event identifier name.
  *
- * Get the tracing state of an event, both static and dynamic state from all
+ * Get the tracing state of an event from all
  * compiled-in backends.
  *
- * If the event has the disabled property, the check will have no performance
- * impact.
- *
- * Returns: true if at least one backend has the event enabled and the event
- * does not have the disabled property.
+ * Returns: true if at least one backend has the event enabled
  */
 #define trace_event_get_state_backends(id)              \
-    ((id ##_ENABLED) && id ##_BACKEND_DSTATE())
-
-/**
- * trace_event_get_state_static:
- * @id: Event identifier.
- *
- * Get the static tracing state of an event.
- *
- * Use the define 'TRACE_${EVENT_NAME}_ENABLED' for compile-time checks (it will
- * be set to 1 or 0 according to the presence of the disabled property).
- */
-static bool trace_event_get_state_static(TraceEvent *ev);
+    (id ##_BACKEND_DSTATE())
 
 /**
  * trace_event_get_state_dynamic:
@@ -148,7 +130,6 @@ static bool trace_event_get_state_dynamic(TraceEvent *ev);
  *
  * Set the dynamic tracing state of an event.
  *
- * Pre-condition: trace_event_get_state_static(ev) == true
  */
 void trace_event_set_state_dynamic(TraceEvent *ev, bool state);
 

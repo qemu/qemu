@@ -12,8 +12,6 @@
 
 void trace_event_set_state_dynamic(TraceEvent *ev, bool state)
 {
-    assert(trace_event_get_state_static(ev));
-
     bool state_pre = *ev->dstate;
     if (state_pre != state) {
         if (state) {

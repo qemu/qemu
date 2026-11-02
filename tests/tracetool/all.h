@@ -10,8 +10,6 @@ extern TraceEvent _TRACE_TEST_BLAH_EVENT;
 extern TraceEvent _TRACE_TEST_WIBBLE_EVENT;
 extern uint8_t _TRACE_TEST_BLAH_DSTATE;
 extern uint8_t _TRACE_TEST_WIBBLE_DSTATE;
-#define TRACE_TEST_BLAH_ENABLED 1
-#define TRACE_TEST_WIBBLE_ENABLED 1
 #ifndef SDT_USE_VARIADIC
 #define SDT_USE_VARIADIC 1
 #endif
@@ -57,17 +55,17 @@ static inline void trace_test_blah(void *context, const char *filename)
         qemu_loglevel_mask(LOG_TRACE)) {
 #line 4 "trace-events"
             qemu_log("test_blah " "Blah context=%p filename=%s" "\n", context, filename);
-#line 61 "all.h"
+#line 59 "all.h"
     }
     tracepoint(qemu, test_blah, context, filename);
     if (trace_event_get_state(TRACE_TEST_BLAH)) {
 #line 4 "trace-events"
         ftrace_write("test_blah " "Blah context=%p filename=%s" "\n" , context, filename);
-#line 67 "all.h"
+#line 65 "all.h"
         _simple_trace_test_blah(context, filename);
 #line 4 "trace-events"
         syslog(LOG_INFO, "test_blah " "Blah context=%p filename=%s" , context, filename);
-#line 71 "all.h"
+#line 69 "all.h"
     }
 }
 
@@ -86,17 +84,17 @@ static inline void trace_test_wibble(void *context, int value)
         qemu_loglevel_mask(LOG_TRACE)) {
 #line 5 "trace-events"
             qemu_log("test_wibble " "Wibble context=%p value=%d" "\n", context, value);
-#line 90 "all.h"
+#line 88 "all.h"
     }
     tracepoint(qemu, test_wibble, context, value);
     if (trace_event_get_state(TRACE_TEST_WIBBLE)) {
 #line 5 "trace-events"
         ftrace_write("test_wibble " "Wibble context=%p value=%d" "\n" , context, value);
-#line 96 "all.h"
+#line 94 "all.h"
         _simple_trace_test_wibble(context, value);
 #line 5 "trace-events"
         syslog(LOG_INFO, "test_wibble " "Wibble context=%p value=%d" , context, value);
-#line 100 "all.h"
+#line 98 "all.h"
     }
 }
 #endif /* TRACE_TESTSUITE_GENERATED_TRACERS_H */

@@ -10,8 +10,6 @@ extern TraceEvent _TRACE_TEST_BLAH_EVENT;
 extern TraceEvent _TRACE_TEST_WIBBLE_EVENT;
 extern uint8_t _TRACE_TEST_BLAH_DSTATE;
 extern uint8_t _TRACE_TEST_WIBBLE_DSTATE;
-#define TRACE_TEST_BLAH_ENABLED 1
-#define TRACE_TEST_WIBBLE_ENABLED 1
 void _simple_trace_test_blah(void *context, const char *filename);
 void _simple_trace_test_wibble(void *context, int value);
 

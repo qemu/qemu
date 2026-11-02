@@ -39,12 +39,10 @@ def generate(events, backend, group):
                 '    .id = 0,',
                 '#endif',
                 '    .name = \"%(name)s\",',
-                '    .sstate = %(sstate)s,',
                 '    .dstate = &%(dstate)s',
                 '};',
                 event = e.api(e.QEMU_EVENT),
                 name = e.name,
-                sstate = "TRACE_%s_ENABLED" % e.name.upper(),
                 dstate = e.api(e.QEMU_DSTATE))
 
         out('TraceEvent *%(group)s_trace_events[] = {',

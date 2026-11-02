@@ -10,8 +10,6 @@ extern TraceEvent _TRACE_TEST_BLAH_EVENT;
 extern TraceEvent _TRACE_TEST_WIBBLE_EVENT;
 extern uint8_t _TRACE_TEST_BLAH_DSTATE;
 extern uint8_t _TRACE_TEST_WIBBLE_DSTATE;
-#define TRACE_TEST_BLAH_ENABLED 1
-#define TRACE_TEST_WIBBLE_ENABLED 1
 #include <syslog.h>
 
 
@@ -24,7 +22,7 @@ static inline void trace_test_blah(void *context, const char *filename)
     if (trace_event_get_state(TRACE_TEST_BLAH)) {
 #line 4 "trace-events"
         syslog(LOG_INFO, "test_blah " "Blah context=%p filename=%s" , context, filename);
-#line 28 "syslog.h"
+#line 26 "syslog.h"
     }
 }
 
@@ -37,7 +35,7 @@ static inline void trace_test_wibble(void *context, int value)
     if (trace_event_get_state(TRACE_TEST_WIBBLE)) {
 #line 5 "trace-events"
         syslog(LOG_INFO, "test_wibble " "Wibble context=%p value=%d" , context, value);
-#line 41 "syslog.h"
+#line 39 "syslog.h"
     }
 }
 #endif /* TRACE_TESTSUITE_GENERATED_TRACERS_H */

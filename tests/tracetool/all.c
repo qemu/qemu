@@ -12,7 +12,6 @@ TraceEvent _TRACE_TEST_BLAH_EVENT = {
     .id = 0,
 #endif
     .name = "test_blah",
-    .sstate = TRACE_TEST_BLAH_ENABLED,
     .dstate = &_TRACE_TEST_BLAH_DSTATE
 };
 TraceEvent _TRACE_TEST_WIBBLE_EVENT = {
@@ -20,7 +19,6 @@ TraceEvent _TRACE_TEST_WIBBLE_EVENT = {
     .id = 0,
 #endif
     .name = "test_wibble",
-    .sstate = TRACE_TEST_WIBBLE_ENABLED,
     .dstate = &_TRACE_TEST_WIBBLE_DSTATE
 };
 TraceEvent *testsuite_trace_events[] = {

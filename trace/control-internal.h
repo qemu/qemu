@@ -33,12 +33,6 @@ static inline const char * trace_event_get_name(TraceEvent *ev)
     return ev->name;
 }
 
-static inline bool trace_event_get_state_static(TraceEvent *ev)
-{
-    assert(ev != NULL);
-    return ev->sstate;
-}
-
 /* it's on fast path, avoid consistency checks (asserts) */
 #define trace_event_get_state_dynamic_by_id(id) \
     (unlikely(trace_events_enabled_count) && _ ## id ## _DSTATE)

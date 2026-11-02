@@ -167,15 +167,6 @@ static void do_trace_enable_events(const char *line_buf)
 
     trace_event_iter_init_pattern(&iter, line_ptr);
     while ((ev = trace_event_iter_next(&iter)) != NULL) {
-        if (!trace_event_get_state_static(ev)) {
-            if (!is_pattern) {
-                warn_report("trace event '%s' is not traceable",
-                            line_ptr);
-                return;
-            }
-            continue;
-        }
-
         /* start tracing */
         trace_event_set_state_dynamic(ev, enable);
         if (!is_pattern) {

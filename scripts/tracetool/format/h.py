@@ -38,14 +38,6 @@ def generate(events, backend, group):
         for e in events:
             out('#define %s 0' % e.api(e.QEMU_DSTATE))
 
-    # static state
-    for e in events:
-        if 'disable' in e.properties:
-            enabled = 0
-        else:
-            enabled = 1
-        out('#define TRACE_%s_ENABLED %d' % (e.name.upper(), enabled))
-
     backend.generate_begin(events, group)
 
     for e in events:

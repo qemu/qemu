@@ -16,8 +16,6 @@
 # @TraceEventState:
 #     State of a tracing event.
 #
-# @unavailable: The event is statically disabled.
-#
 # @disabled: The event is dynamically disabled.
 #
 # @enabled: The event is dynamically enabled.
@@ -25,7 +23,7 @@
 # Since: 2.2
 ##
 { 'enum': 'TraceEventState',
-  'data': ['unavailable', 'disabled', 'enabled'] }
+  'data': ['disabled', 'enabled'] }
 
 ##
 # @TraceEventInfo:
@@ -69,6 +67,7 @@
 # @enable: Whether to enable tracing.
 #
 # @ignore-unavailable: Do not match unavailable events with @name.
+#      Deprecated: since 11.2
 #
 # Since: 2.2
 #

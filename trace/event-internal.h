@@ -14,7 +14,6 @@
  * TraceEvent:
  * @id: Unique event identifier.
  * @name: Event name.
- * @sstate: Static tracing state.
  * @dstate: Dynamic tracing state
  *
  * Opaque generic description of a tracing event.
@@ -24,7 +23,6 @@ typedef struct TraceEvent {
     uint32_t id;
 #endif
     const char * name;
-    const bool sstate;
     uint8_t *dstate;
 } TraceEvent;
 

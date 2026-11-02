@@ -14,7 +14,6 @@
 void trace_event_set_state_dynamic(TraceEvent *ev, bool state)
 {
     bool state_pre;
-    assert(trace_event_get_state_static(ev));
 
     /*
      * We ignore the "vcpu" property here, since there's no target code. Then
