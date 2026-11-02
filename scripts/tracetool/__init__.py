@@ -177,6 +177,11 @@ RUST_VARARGS_SMALL_TYPES = {
 
 def validate_type(name):
     bits = name.split(" ")
+
+    if "long" in bits and "int" in bits:
+        raise ValueError("Invalid use of 'int' typename in %s, "
+                         "use 'long' alone" % name)
+
     for bit in bits:
         bit = re.sub(r"\*", "", bit)
         if bit == "":
