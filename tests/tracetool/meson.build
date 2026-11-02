@@ -5,6 +5,7 @@ test_env.set('PYTHONPATH', meson.project_source_root() / 'scripts')
 test_env.set('PYTHONIOENCODING', 'utf-8')
 
 backends = [
+    'nop',
     'dtrace',
     'ftrace',
     'log',
