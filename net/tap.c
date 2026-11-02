@@ -1252,7 +1252,9 @@ int net_init_tap(const Netdev *netdev, const char *name,
     return 0;
 
 fail:
-    close(fd);
+    if (fd != -1) {
+        close(fd);
+    }
     net_free_fds(fds, queues);
     net_free_fds(vhost_fds, queues);
     return -1;
