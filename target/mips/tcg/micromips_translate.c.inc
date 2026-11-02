@@ -113,7 +113,6 @@ enum {
     BLTZALC = 0x38,
     BLTUC = 0x38,
     SW16 = 0x3a,
-    LI16 = 0x3b,
     JALX32 = 0x3c,
     JAL32 = 0x3d,
     BLEZC = 0x3d,
@@ -191,7 +190,6 @@ enum {
     /* The following can be distinguished by their lower 6 bits. */
     BREAK32 = 0x07,
     INS = 0x0c,
-    LSA = 0x0f,
     ALIGN = 0x1f,
     EXT = 0x2c,
     POOL32AXF = 0x3c,
@@ -606,13 +604,6 @@ enum {
     ADDIUR1SP = 0x1
 };
 
-static int mmreg(int r)
-{
-    static const int map[] = { 16, 17, 2, 3, 4, 5, 6, 7 };
-
-    return map[r];
-}
-
 /* Used for 16-bit store instructions.  */
 static int mmreg2(int r)
 {
@@ -638,7 +629,7 @@ static int mmreg2(int r)
 
 static void gen_addiur1sp(DisasContext *ctx)
 {
-    int rd = mmreg(uMIPS_RD(ctx->opcode));
+    int rd = gpr3_m16(ctx, uMIPS_RD(ctx->opcode));
 
     gen_arith_imm(ctx, OPC_ADDIU, rd, 29, ((ctx->opcode >> 1) & 0x3f) << 2);
 }
@@ -646,8 +637,8 @@ static void gen_addiur1sp(DisasContext *ctx)
 static void gen_addiur2(DisasContext *ctx)
 {
     static const int decoded_imm[] = { 1, 4, 8, 12, 16, 20, 24, -1 };
-    int rd = mmreg(uMIPS_RD(ctx->opcode));
-    int rs = mmreg(uMIPS_RS(ctx->opcode));
+    int rd = gpr3_m16(ctx, uMIPS_RD(ctx->opcode));
+    int rs = gpr3_m16(ctx, uMIPS_RS(ctx->opcode));
 
     gen_arith_imm(ctx, OPC_ADDIU, rd, rs, decoded_imm[ZIMM(ctx->opcode, 1, 3)]);
 }
@@ -682,8 +673,8 @@ static void gen_andi16(DisasContext *ctx)
 {
     static const int decoded_imm[] = { 128, 1, 2, 3, 4, 7, 8, 15, 16,
                                  31, 32, 63, 64, 255, 32768, 65535 };
-    int rd = mmreg(uMIPS_RD(ctx->opcode));
-    int rs = mmreg(uMIPS_RS(ctx->opcode));
+    int rd = gpr3_m16(ctx, uMIPS_RD(ctx->opcode));
+    int rs = gpr3_m16(ctx, uMIPS_RS(ctx->opcode));
     int encoded = ZIMM(ctx->opcode, 0, 4);
 
     gen_logic_imm(ctx, OPC_ANDI, rd, rs, decoded_imm[encoded]);
@@ -735,8 +726,8 @@ static void gen_ldst_multiple(DisasContext *ctx, uint32_t opc, int reglist,
 
 static void gen_pool16c_insn(DisasContext *ctx)
 {
-    int rd = mmreg((ctx->opcode >> 3) & 0x7);
-    int rs = mmreg(ctx->opcode & 0x7);
+    int rd = gpr3_m16(ctx, (ctx->opcode >> 3) & 0x7);
+    int rs = gpr3_m16(ctx, ctx->opcode & 0x7);
 
     switch (((ctx->opcode) >> 4) & 0x3f) {
     case NOT16 + 0:
@@ -873,8 +864,8 @@ static inline void gen_movep(DisasContext *ctx, int enc_dest, int enc_rt,
 
 static void gen_pool16c_r6_insn(DisasContext *ctx)
 {
-    int rt = mmreg((ctx->opcode >> 7) & 0x7);
-    int rs = mmreg((ctx->opcode >> 4) & 0x7);
+    int rt = gpr3_m16(ctx, (ctx->opcode >> 7) & 0x7);
+    int rs = gpr3_m16(ctx, (ctx->opcode >> 4) & 0x7);
 
     switch (ctx->opcode & 0xf) {
     case R6_NOT16:
@@ -1799,10 +1790,6 @@ static void decode_micromips32_opc(CPUMIPSState *env, DisasContext *ctx)
         case INS:
             gen_bitops(ctx, OPC_INS, rt, rs, rr, rd);
             return;
-        case LSA:
-            check_insn(ctx, ISA_MIPS_R6);
-            gen_lsa(ctx, rd, rt, rs, extract32(ctx->opcode, 9, 2) + 1);
-            break;
         case ALIGN:
             check_insn(ctx, ISA_MIPS_R6);
             gen_align(ctx, 32, rd, rs, rt, extract32(ctx->opcode, 9, 2));
@@ -2858,7 +2845,7 @@ static void decode_micromips32_opc(CPUMIPSState *env, DisasContext *ctx)
             }
         } else {
             /* ADDIUPC */
-            int reg = mmreg(ZIMM(ctx->opcode, 23, 3));
+            int reg = gpr3_m16(ctx, ZIMM(ctx->opcode, 23, 3));
             offset = SIMM(ctx->opcode, 0, 23) << 2;
 
             gen_addiupc(ctx, reg, offset, 0, 0);
@@ -2979,7 +2966,9 @@ static void decode_micromips32_opc(CPUMIPSState *env, DisasContext *ctx)
 
 static int decode_isa_micromips(CPUMIPSState *env, DisasContext *ctx)
 {
+    uint32_t opcode;
     uint32_t op;
+    bool is_16bit;
 
     /* make sure instructions are on a halfword boundary */
     if (ctx->base.pc_next & 0x1) {
@@ -2988,45 +2977,65 @@ static int decode_isa_micromips(CPUMIPSState *env, DisasContext *ctx)
         return 2;
     }
 
+    opcode = translator_lduw_end(env, &ctx->base, ctx->base.pc_next,
+                                 mo_endian(ctx));
+    ctx->opcode = opcode;
     op = (ctx->opcode >> 10) & 0x3f;
+    switch (op & 0x7) { /* MSB-3..MSB-5 */
+    case 0:
+    /* POOL32A, POOL32B, POOL32I, POOL32C */
+    case 4:
+    /* ADDI32, ADDIU32, ORI32, XORI32, SLTI32, SLTIU32, ANDI32, JALX32 */
+    case 5:
+    /* LBU32, LHU32, POOL32F, JALS32, BEQ32, BNE32, J32, JAL32 */
+    case 6:
+    /* SB32, SH32, ADDIUPC, SWC132, SDC132, SW32 */
+    case 7:
+    /* LB32, LH32, LWC132, LDC132, LW32 */
+        is_16bit = false;
+        break;
+    case 1:
+    /* POOL16A, POOL16B, POOL16C, LWGP16, POOL16F */
+    case 2:
+    /* LBU16, LHU16, LWSP16, LW16, SB16, SH16, SWSP16, SW16 */
+    case 3:
+    /* MOVE16, ANDI16, POOL16D, POOL16E, BEQZ16, BNEZ16, B16, LI16 */
+        is_16bit = true;
+        break;
+    default:
+        g_assert_not_reached();
+    }
+
     /* Enforce properly-sized instructions in a delay slot */
-    if (ctx->hflags & MIPS_HFLAG_BDS_STRICT) {
-        switch (op & 0x7) { /* MSB-3..MSB-5 */
-        case 0:
-        /* POOL32A, POOL32B, POOL32I, POOL32C */
-        case 4:
-        /* ADDI32, ADDIU32, ORI32, XORI32, SLTI32, SLTIU32, ANDI32, JALX32 */
-        case 5:
-        /* LBU32, LHU32, POOL32F, JALS32, BEQ32, BNE32, J32, JAL32 */
-        case 6:
-        /* SB32, SH32, ADDIUPC, SWC132, SDC132, SW32 */
-        case 7:
-        /* LB32, LH32, LWC132, LDC132, LW32 */
-            if (ctx->hflags & MIPS_HFLAG_BDS16) {
-                gen_reserved_instruction(ctx);
-                return 2;
-            }
-            break;
-        case 1:
-        /* POOL16A, POOL16B, POOL16C, LWGP16, POOL16F */
-        case 2:
-        /* LBU16, LHU16, LWSP16, LW16, SB16, SH16, SWSP16, SW16 */
-        case 3:
-        /* MOVE16, ANDI16, POOL16D, POOL16E, BEQZ16, BNEZ16, B16, LI16 */
-            if (ctx->hflags & MIPS_HFLAG_BDS32) {
-                gen_reserved_instruction(ctx);
-                return 2;
-            }
-            break;
+    if ((ctx->hflags & MIPS_HFLAG_BDS_STRICT)
+        && (ctx->hflags & (is_16bit ? MIPS_HFLAG_BDS32 : MIPS_HFLAG_BDS16))) {
+        gen_reserved_instruction(ctx);
+        return 2;
+    }
+
+    if (is_16bit) {
+        if (decode_isa_micromips16(ctx, opcode)) {
+            return 2;
+        }
+    } else {
+        opcode <<= 16;
+        opcode |= translator_lduw_end(env, &ctx->base, ctx->base.pc_next + 2,
+                                      mo_endian(ctx));
+        if (cpu_supports_isa(env, ISA_MIPS_R6)
+            && decode_isa_micromips32_r6(ctx, opcode)) {
+            return 4;
+        }
+        if (decode_isa_micromips32(ctx, opcode)) {
+            return 4;
         }
     }
 
     switch (op) {
     case POOL16A:
         {
-            int rd = mmreg(uMIPS_RD(ctx->opcode));
-            int rs1 = mmreg(uMIPS_RS1(ctx->opcode));
-            int rs2 = mmreg(uMIPS_RS2(ctx->opcode));
+            int rd = gpr3_m16(ctx, uMIPS_RD(ctx->opcode));
+            int rs1 = gpr3_m16(ctx, uMIPS_RS1(ctx->opcode));
+            int rs2 = gpr3_m16(ctx, uMIPS_RS2(ctx->opcode));
             uint32_t opc = 0;
 
             switch (ctx->opcode & 0x1) {
@@ -3050,8 +3059,8 @@ static int decode_isa_micromips(CPUMIPSState *env, DisasContext *ctx)
         break;
     case POOL16B:
         {
-            int rd = mmreg(uMIPS_RD(ctx->opcode));
-            int rs = mmreg(uMIPS_RS(ctx->opcode));
+            int rd = gpr3_m16(ctx, uMIPS_RD(ctx->opcode));
+            int rs = gpr3_m16(ctx, uMIPS_RS(ctx->opcode));
             int amount = (ctx->opcode >> 1) & 0x7;
             uint32_t opc = 0;
             amount = amount == 0 ? 8 : amount;
@@ -3077,7 +3086,7 @@ static int decode_isa_micromips(CPUMIPSState *env, DisasContext *ctx)
         break;
     case LWGP16:
         {
-            int rd = mmreg(uMIPS_RD(ctx->opcode));
+            int rd = gpr3_m16(ctx, uMIPS_RD(ctx->opcode));
             int rb = 28;            /* GP */
             int16_t offset = SIMM(ctx->opcode, 0, 7) << 2;
 
@@ -3098,8 +3107,8 @@ static int decode_isa_micromips(CPUMIPSState *env, DisasContext *ctx)
         break;
     case LBU16:
         {
-            int rd = mmreg(uMIPS_RD(ctx->opcode));
-            int rb = mmreg(uMIPS_RS(ctx->opcode));
+            int rd = gpr3_m16(ctx, uMIPS_RD(ctx->opcode));
+            int rb = gpr3_m16(ctx, uMIPS_RS(ctx->opcode));
             int16_t offset = ZIMM(ctx->opcode, 0, 4);
             offset = (offset == 0xf ? -1 : offset);
 
@@ -3108,8 +3117,8 @@ static int decode_isa_micromips(CPUMIPSState *env, DisasContext *ctx)
         break;
     case LHU16:
         {
-            int rd = mmreg(uMIPS_RD(ctx->opcode));
-            int rb = mmreg(uMIPS_RS(ctx->opcode));
+            int rd = gpr3_m16(ctx, uMIPS_RD(ctx->opcode));
+            int rb = gpr3_m16(ctx, uMIPS_RS(ctx->opcode));
             int16_t offset = ZIMM(ctx->opcode, 0, 4) << 1;
 
             gen_ld(ctx, OPC_LHU, rd, rb, offset);
@@ -3126,8 +3135,8 @@ static int decode_isa_micromips(CPUMIPSState *env, DisasContext *ctx)
         break;
     case LW16:
         {
-            int rd = mmreg(uMIPS_RD(ctx->opcode));
-            int rb = mmreg(uMIPS_RS(ctx->opcode));
+            int rd = gpr3_m16(ctx, uMIPS_RD(ctx->opcode));
+            int rb = gpr3_m16(ctx, uMIPS_RS(ctx->opcode));
             int16_t offset = ZIMM(ctx->opcode, 0, 4) << 2;
 
             gen_ld(ctx, OPC_LW, rd, rb, offset);
@@ -3136,7 +3145,7 @@ static int decode_isa_micromips(CPUMIPSState *env, DisasContext *ctx)
     case SB16:
         {
             int rd = mmreg2(uMIPS_RD(ctx->opcode));
-            int rb = mmreg(uMIPS_RS(ctx->opcode));
+            int rb = gpr3_m16(ctx, uMIPS_RS(ctx->opcode));
             int16_t offset = ZIMM(ctx->opcode, 0, 4);
 
             gen_st(ctx, OPC_SB, rd, rb, offset);
@@ -3145,7 +3154,7 @@ static int decode_isa_micromips(CPUMIPSState *env, DisasContext *ctx)
     case SH16:
         {
             int rd = mmreg2(uMIPS_RD(ctx->opcode));
-            int rb = mmreg(uMIPS_RS(ctx->opcode));
+            int rb = gpr3_m16(ctx, uMIPS_RS(ctx->opcode));
             int16_t offset = ZIMM(ctx->opcode, 0, 4) << 1;
 
             gen_st(ctx, OPC_SH, rd, rb, offset);
@@ -3163,7 +3172,7 @@ static int decode_isa_micromips(CPUMIPSState *env, DisasContext *ctx)
     case SW16:
         {
             int rd = mmreg2(uMIPS_RD(ctx->opcode));
-            int rb = mmreg(uMIPS_RS(ctx->opcode));
+            int rb = gpr3_m16(ctx, uMIPS_RS(ctx->opcode));
             int16_t offset = ZIMM(ctx->opcode, 0, 4) << 2;
 
             gen_st(ctx, OPC_SW, rd, rb, offset);
@@ -3208,19 +3217,10 @@ static int decode_isa_micromips(CPUMIPSState *env, DisasContext *ctx)
     case BNEZ16: /* BNEZC16 */
     case BEQZ16: /* BEQZC16 */
         gen_compute_branch(ctx, op == BNEZ16 ? OPC_BNE : OPC_BEQ, 2,
-                           mmreg(uMIPS_RD(ctx->opcode)),
+                           gpr3_m16(ctx, uMIPS_RD(ctx->opcode)),
                            0, sextract32(ctx->opcode, 0, 7) << 1,
                            (ctx->insn_flags & ISA_MIPS_R6) ? 0 : 4);
 
-        break;
-    case LI16:
-        {
-            int reg = mmreg(uMIPS_RD(ctx->opcode));
-            int imm = ZIMM(ctx->opcode, 0, 7);
-
-            imm = (imm == 0x7f ? -1 : imm);
-            tcg_gen_movi_tl(cpu_gpr[reg], imm);
-        }
         break;
     case RES_29:
     case RES_31:

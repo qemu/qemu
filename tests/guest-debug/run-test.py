@@ -23,7 +23,12 @@ def get_args():
     parser = argparse.ArgumentParser(description="A gdbstub test runner")
     parser.add_argument("--qemu", help="Qemu binary for test",
                         required=True)
-    parser.add_argument("--qargs", help="Qemu arguments for test")
+    parser.add_argument("--qargs",
+                        help="Qemu arguments for test. In system mode, "
+                             "@BINARY@ is replaced by the --binary path; "
+                             "without it the path is appended last "
+                             "(so qargs must end with an option taking "
+                             "it, e.g. -kernel)")
     parser.add_argument("--pargs", help="Program arguments for test")
     parser.add_argument("--kargs", help="Kernel args to --append")
     parser.add_argument("--binary", help="Binary to debug")
@@ -86,10 +91,17 @@ if __name__ == '__main__':
         qemu_cmd.extend(shlex.split(args.qargs))
 
     if "system" in args.qemu:
-        # for system mode we assume qargs has set-up for binary if
-        # indeed we have set one.
+        # In system mode the binary is passed to QEMU one of two ways:
+        # - qargs contains @BINARY@ (e.g. "-device loader,file=@BINARY@"):
+        #   substitute the binary path there;
+        # - otherwise qargs must end with an option taking a filename
+        #   (e.g. -kernel): append the binary path.
         if args.binary:
-            qemu_cmd.append(args.binary)
+            if any("@BINARY@" in arg for arg in qemu_cmd):
+                qemu_cmd = [arg.replace("@BINARY@", args.binary)
+                            for arg in qemu_cmd]
+            else:
+                qemu_cmd.append(args.binary)
         if not args.no_suspend:
             qemu_cmd.append("-S")
         qemu_cmd.extend(["-gdb", f"unix:path={socket_name},server=on"])

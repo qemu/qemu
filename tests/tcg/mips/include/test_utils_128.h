@@ -27,6 +27,8 @@
 #include <inttypes.h>
 #include <string.h>
 
+#include "../../include/tap.h"
+
 #define PRINT_RESULTS    0
 #define PRINT_FAILURES   0
 
@@ -41,26 +43,22 @@ static inline int32_t check_results_128(const char *isa_ase_name,
 {
 #if PRINT_RESULTS
     uint32_t ii;
-    printf("\n");
     for (ii = 0; ii < test_count; ii++) {
         uint64_t a, b;
         memcpy(&a, (b128_result + 2 * ii), 8);
         memcpy(&b, (b128_result + 2 * ii + 1), 8);
         if (ii % 8 != 0) {
-            printf("        { 0x%016llxULL, 0x%016llxULL, },\n", a, b);
+            TAP_INFO("        { 0x%016llxULL, 0x%016llxULL, },", a, b);
         } else {
-            printf("        { 0x%016llxULL, 0x%016llxULL, },    /* %3d  */\n",
-                   a, b, ii);
+            TAP_INFO("        { 0x%016llxULL, 0x%016llxULL, },    /* %3d  */",
+                     a, b, ii);
         }
     }
-    printf("\n");
 #endif
     uint32_t i;
     uint32_t pass_count = 0;
     uint32_t fail_count = 0;
 
-    printf("| %-10s \t| %-20s\t| %-16s \t|",
-           isa_ase_name, group_name, instruction_name);
     for (i = 0; i < test_count; i++) {
         if ((b128_result[2 * i] == b128_expect[2 * i]) &&
             (b128_result[2 * i + 1] == b128_expect[2 * i + 1])) {
@@ -70,28 +68,26 @@ static inline int32_t check_results_128(const char *isa_ase_name,
             uint32_t ii;
             uint64_t a, b;
 
-            printf("\n");
-
-            printf("FAILURE for test case %d!\n", i);
+            TAP_INFO("FAILURE for test case %d!", i);
 
             memcpy(&a, (b128_expect + 2 * i), 8);
             memcpy(&b, (b128_expect + 2 * i + 1), 8);
-            printf("Expected result : { 0x%016llxULL, 0x%016llxULL, },\n",
-                   a, b);
+            TAP_INFO("Expected result : { 0x%016llxULL, 0x%016llxULL, },",
+                     a, b);
 
             memcpy(&a, (b128_result + 2 * i), 8);
             memcpy(&b, (b128_result + 2 * i + 1), 8);
-            printf("Actual result   : { 0x%016llxULL, 0x%016llxULL, },\n",
-                   a, b);
-
-            printf("\n");
+            TAP_INFO("Actual result   : { 0x%016llxULL, 0x%016llxULL, },",
+                     a, b);
 #endif
             fail_count++;
         }
     }
 
-    printf(" PASS: %3d \t| FAIL: %3d \t| elapsed time: %5.2f ms \t|\n",
-           pass_count, fail_count, elapsed_time);
+    TAP_INFO("%-10s \t| %-20s\t| %-16s \t| PASS: %3d \t| FAIL: %3d \t| "
+             "elapsed time: %5.2f ms \t|",
+             isa_ase_name, group_name, instruction_name,
+             pass_count, fail_count, elapsed_time);
 
     if (fail_count > 0) {
         return -1;

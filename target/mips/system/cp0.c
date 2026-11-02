@@ -24,7 +24,7 @@
 #include "exec/cputlb.h"
 
 /* Called for updates to CP0_Status.  */
-void sync_c0_status(CPUMIPSState *env, CPUMIPSState *cpu, int tc)
+void sync_c0_status(const CPUMIPSState *env, CPUMIPSState *cpu, int tc)
 {
     int32_t tcstatus, *tcst;
     uint32_t v = cpu->CP0_Status;

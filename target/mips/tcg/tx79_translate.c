@@ -255,7 +255,7 @@ static bool trans_parallel_compare(DisasContext *ctx, arg_r *a,
     for (int i = 0; i < (64 / wlen); i++) {
         tcg_gen_sextract_i64(t0, ax, wlen * i, wlen);
         tcg_gen_sextract_i64(t1, bx, wlen * i, wlen);
-        tcg_gen_movcond_i64(cond, t2, t1, t0, c1, c0);
+        tcg_gen_movcond_i64(cond, t2, t0, t1, c1, c0);
         tcg_gen_deposit_i64(cpu_gpr[a->rd], cpu_gpr[a->rd], t2, wlen * i, wlen);
     }
     /* Upper half */
@@ -264,7 +264,7 @@ static bool trans_parallel_compare(DisasContext *ctx, arg_r *a,
     for (int i = 0; i < (64 / wlen); i++) {
         tcg_gen_sextract_i64(t0, ax, wlen * i, wlen);
         tcg_gen_sextract_i64(t1, bx, wlen * i, wlen);
-        tcg_gen_movcond_i64(cond, t2, t1, t0, c1, c0);
+        tcg_gen_movcond_i64(cond, t2, t0, t1, c1, c0);
         tcg_gen_deposit_i64(cpu_gpr_hi[a->rd], cpu_gpr_hi[a->rd], t2, wlen * i, wlen);
     }
     return true;
@@ -273,7 +273,7 @@ static bool trans_parallel_compare(DisasContext *ctx, arg_r *a,
 /* Parallel Compare for Greater Than Byte */
 static bool trans_PCGTB(DisasContext *ctx, arg_r *a)
 {
-    return trans_parallel_compare(ctx, a, TCG_COND_GE, 8);
+    return trans_parallel_compare(ctx, a, TCG_COND_GT, 8);
 }
 
 /* Parallel Compare for Equal Byte */
@@ -285,7 +285,7 @@ static bool trans_PCEQB(DisasContext *ctx, arg_r *a)
 /* Parallel Compare for Greater Than Halfword */
 static bool trans_PCGTH(DisasContext *ctx, arg_r *a)
 {
-    return trans_parallel_compare(ctx, a, TCG_COND_GE, 16);
+    return trans_parallel_compare(ctx, a, TCG_COND_GT, 16);
 }
 
 /* Parallel Compare for Equal Halfword */
@@ -297,7 +297,7 @@ static bool trans_PCEQH(DisasContext *ctx, arg_r *a)
 /* Parallel Compare for Greater Than Word */
 static bool trans_PCGTW(DisasContext *ctx, arg_r *a)
 {
-    return trans_parallel_compare(ctx, a, TCG_COND_GE, 32);
+    return trans_parallel_compare(ctx, a, TCG_COND_GT, 32);
 }
 
 /* Parallel Compare for Equal Word */

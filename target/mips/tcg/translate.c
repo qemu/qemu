@@ -1624,6 +1624,17 @@ bool decode_64bit_enabled(DisasContext *ctx)
 }
 
 /*
+ * Map the 3-bit register field of MIPS16e and microMIPS
+ * 16-bit encodings to a GPR index.
+ */
+int gpr3_m16(DisasContext *ctx, int x)
+{
+    static const int map[8] = { 16, 17, 2, 3, 4, 5, 6, 7 };
+
+    return map[x];
+}
+
+/*
  * This code generates a "reserved instruction" exception if cpu is not
  * 64-bit or 64-bit instructions are not enabled.
  */
@@ -1701,7 +1712,7 @@ static inline void check_cp0_mt(DisasContext *ctx)
  * This code generates a "reserved instruction" exception if the
  * Config5 NMS bit is set.
  */
-static inline void check_nms(DisasContext *ctx)
+void check_nms(DisasContext *ctx)
 {
     if (unlikely(ctx->CP0_Config5 & (1 << CP0C5_NMS))) {
         gen_reserved_instruction(ctx);
@@ -15050,6 +15061,9 @@ static void decode_opc(CPUMIPSState *env, DisasContext *ctx)
         gen_set_label(l1);
     }
 
+    ctx->opcode = translator_ldl_end(env, &ctx->base, ctx->base.pc_next,
+                                     mo_endian(ctx));
+
     /* Transition to the auto-generated decoder.  */
 
     /* Vendor specific extensions */
@@ -15175,21 +15189,13 @@ static void mips_tr_translate_insn(DisasContextBase *dcbase, CPUState *cs)
 
     is_slot = ctx->hflags & MIPS_HFLAG_BMASK;
     if (ctx->insn_flags & ISA_NANOMIPS32) {
-        ctx->opcode = translator_lduw_end(env, &ctx->base, ctx->base.pc_next,
-                                          mo_endian(ctx));
         insn_bytes = decode_isa_nanomips(env, ctx);
     } else if (!(ctx->hflags & MIPS_HFLAG_M16)) {
-        ctx->opcode = translator_ldl_end(env, &ctx->base, ctx->base.pc_next,
-                                         mo_endian(ctx));
         insn_bytes = 4;
         decode_opc(env, ctx);
     } else if (ctx->insn_flags & ASE_MICROMIPS) {
-        ctx->opcode = translator_lduw_end(env, &ctx->base, ctx->base.pc_next,
-                                          mo_endian(ctx));
         insn_bytes = decode_isa_micromips(env, ctx);
     } else if (ctx->insn_flags & ASE_MIPS16) {
-        ctx->opcode = translator_lduw_end(env, &ctx->base, ctx->base.pc_next,
-                                          mo_endian(ctx));
         insn_bytes = decode_ase_mips16e(env, ctx);
     } else {
         gen_reserved_instruction(ctx);

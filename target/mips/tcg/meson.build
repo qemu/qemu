@@ -1,5 +1,13 @@
 gen = [
+  decodetree.process('mips16e_16.decode', extra_args: ['--decode=decode_ase_mips16e_16', '--insnwidth=16']),
+  decodetree.process('mips16e_32.decode', extra_args: ['--decode=decode_ase_mips16e_32']),
+  decodetree.process('micromips16.decode', extra_args: ['--decode=decode_isa_micromips16', '--insnwidth=16']),
+  decodetree.process('micromips32.decode', extra_args: ['--decode=decode_isa_micromips32']),
+  decodetree.process('micromips32_r6.decode', extra_args: ['--decode=decode_isa_micromips32_r6']),
   decodetree.process('rel6.decode', extra_args: ['--decode=decode_isa_rel6']),
+  decodetree.process('nanomips16.decode', extra_args: ['--decode=decode_isa_nanomips16', '--insnwidth=16']),
+  decodetree.process('nanomips32.decode', extra_args: ['--decode=decode_isa_nanomips32']),
+  decodetree.process('nanomips48.decode', extra_args: ['--decode=decode_isa_nanomips48', '--insnwidth=48']),
   decodetree.process('msa.decode', extra_args: '--decode=decode_ase_msa'),
   decodetree.process('tx79.decode', extra_args: '--static-decode=decode_tx79'),
   decodetree.process('vr54xx.decode', extra_args: '--decode=decode_ext_vr54xx'),
@@ -11,13 +19,17 @@ gen = [
 
 mips_ss.add(gen)
 mips_ss.add(files(
+  'comput_translate.c',
   'dsp_helper.c',
   'exception.c',
   'fpu_helper.c',
   'ldst_helper.c',
   'lmmi_helper.c',
+  'micromips_translate.c',
+  'mips16e_translate.c',
   'msa_helper.c',
   'msa_translate.c',
+  'nanomips_translate.c',
   'octeon_crypto.c',
   'op_helper.c',
   'rel6_translate.c',

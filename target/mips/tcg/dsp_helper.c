@@ -3683,7 +3683,7 @@ void HELPER(wrdsp)(target_ulong rs, target_ulong mask_num, CPUMIPSState *env)
     cpu_wrdsp(rs, mask_num, env);
 }
 
-uint32_t cpu_rddsp(uint32_t mask_num, CPUMIPSState *env)
+uint32_t cpu_rddsp(uint32_t mask_num, const CPUMIPSState *env)
 {
     uint8_t  mask[6];
     uint32_t ruler, i;

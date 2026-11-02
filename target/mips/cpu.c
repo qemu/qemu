@@ -21,6 +21,7 @@
 #include "qemu/osdep.h"
 #include "qemu/cutils.h"
 #include "qemu/qemu-print.h"
+#include "qemu/target-info.h"
 #include "qemu/error-report.h"
 #include "qapi/error.h"
 #include "cpu.h"
@@ -500,10 +501,11 @@ static void mips_cpu_disas_set_info(const CPUState *cs, disassemble_info *info)
         info->cap_insn_split = 6;
         cap_mode = CS_MODE_NANOMIPS;
     } else {
-        info->endian = TARGET_BIG_ENDIAN ? BFD_ENDIAN_BIG
-                                         : BFD_ENDIAN_LITTLE;
-        info->print_insn = TARGET_BIG_ENDIAN ? print_insn_big_mips
-                                             : print_insn_little_mips;
+        bool big_endian = mips_env_is_bigendian(env);
+
+        info->endian = big_endian ? BFD_ENDIAN_BIG : BFD_ENDIAN_LITTLE;
+        info->print_insn = big_endian ? print_insn_big_mips
+                                      : print_insn_little_mips;
 
         if (env->hflags & MIPS_HFLAG_M16) {
             cap_mode = (env->insn_flags & ASE_MICROMIPS
@@ -636,6 +638,7 @@ static void mips_cpu_initfn(Object *obj)
     cpu->count_div = clock_new(OBJECT(obj), "clk-div-count");
     cpu->count_clock = clock_new(OBJECT(obj), "clk-count");
     env->cpu_model = mcc->cpu_def;
+    cpu->is_big_endian = target_big_endian();
 }
 
 static char *mips_cpu_type_name(const char *cpu_model)
@@ -665,7 +668,7 @@ static const struct SysemuCPUOps mips_sysemu_ops = {
 #endif
 
 static const Property mips_cpu_properties[] = {
-    DEFINE_PROP_BOOL("big-endian", MIPSCPU, is_big_endian, TARGET_BIG_ENDIAN),
+    DEFINE_PROP_BOOL("big-endian", MIPSCPU, is_big_endian, false),
 };
 
 #ifdef CONFIG_TCG

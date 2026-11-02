@@ -1,11 +1,15 @@
 /*
  * Test Octeon-specific user-mode instructions.
  *
+ * Authors:
+ *   James Hilliard
+ *   Philippe Mathieu-Daudé
+ *
  * SPDX-License-Identifier: GPL-2.0-or-later
  */
 
-#include <assert.h>
 #include <stdint.h>
+#include "../include/tap.h"
 
 static uint64_t octeon_baddu(uint64_t rs, uint64_t rt)
 {
@@ -35,6 +39,21 @@ static uint64_t octeon_dmul(uint64_t rs, uint64_t rt)
         : [rd] "=r" (rd)
         : [rs] "r" (rs), [rt] "r" (rt)
         : "$8", "$9", "$10");
+
+    return rd;
+}
+
+static uint64_t octeon_pop(uint64_t rs)
+{
+    uint64_t rd;
+
+    asm volatile(
+        "move $8, %[rs]\n\t"
+        ".word 0x7100502c\n\t" /* pop $10, $8 */
+        "move %[rd], $10\n\t"
+        : [rd] "=r" (rd)
+        : [rs] "r" (rs)
+        : "$8", "$10");
 
     return rd;
 }
@@ -385,36 +404,40 @@ static uint64_t octeon_rdhwr31_non_decreasing(void)
 
 int main(void)
 {
-    assert(octeon_baddu(0x123, 0x0f0) == 0x13);
-    assert(octeon_dmul(0x12345678, 0x10) == 0x123456780);
-    assert(octeon_dpop(0xf0f0f0f0f0f0f0f0ULL) == 32);
-    assert(octeon_seq(0xabc, 0xabc) == 1);
-    assert(octeon_seq(0xabc, 0xdef) == 0);
-    assert(octeon_sne(0xabc, 0xabc) == 0);
-    assert(octeon_sne(0xabc, 0xdef) == 1);
-    assert(octeon_qmac_lo(0x0003000000000000ULL, 2, 1) == 13);
-    assert(octeon_qmacs_state(1, 1, 0x7ffffffe) == 0x17fffffffULL);
-    assert(octeon_qmacs_state(0x8000, 0x8000, 0) == 0x17fffffffULL);
-    assert(octeon_vmulu(5, 7, 11) == 46);
-    assert(octeon_vmm0(5, 13, 7, 11) == 59);
-    assert(octeon_vmm0_zeroes_mpl1() == 0);
-    assert(octeon_mtp0_zeroes_p1() == 0);
-    assert(octeon_cop2_key0_readback(0x1122334455667788ULL) ==
-           0x1122334455667788ULL);
-    assert(octeon_cop2_key2_readback(0x8877665544332211ULL) ==
-           0x8877665544332211ULL);
-    assert(octeon_cop2_key3_readback(0x0102030405060708ULL) ==
-           0x0102030405060708ULL);
-    assert(octeon_cop2_keylength_readback(0xa5) == 1);
-    assert(octeon_cop2_hsh_dat0_readback(0x0102030405060708ULL) ==
-           0x0102030405060708ULL);
-    assert(octeon_cop2_crc_len_readback(0xb5) == 5);
-    assert(octeon_cop2_crc_poly_reflect_readback(0x12345678) == 0x482c6a1e);
-    assert(octeon_cop2_gfm_mul_reflect_write_readback(
-               0x0123456789abcdefULL) == 0xf7b3d591e6a2c480ULL);
-    assert(octeon_cop2_gfm_mul_reflect_readback(
-               0xfedcba9876543210ULL) == 0x084c2a6e195d3b7fULL);
-    assert(octeon_rdhwr31_non_decreasing());
+    TAP_START();
+    TAP_CHECK(octeon_baddu(0x123, 0x0f0) == 0x13);
+    TAP_CHECK(octeon_dmul(0x12345678, 0x10) == 0x123456780);
+    TAP_CHECK(octeon_pop(0) == 0);
+    TAP_CHECK(octeon_pop(0xf0f0f0f0) == 16);
+    TAP_CHECK(octeon_pop(0xffffffff00000001ULL) == 1); /* low 32 bits only */
+    TAP_CHECK(octeon_dpop(0xf0f0f0f0f0f0f0f0ULL) == 32);
+    TAP_CHECK(octeon_seq(0xabc, 0xabc) == 1);
+    TAP_CHECK(octeon_seq(0xabc, 0xdef) == 0);
+    TAP_CHECK(octeon_sne(0xabc, 0xabc) == 0);
+    TAP_CHECK(octeon_sne(0xabc, 0xdef) == 1);
+    TAP_CHECK(octeon_qmac_lo(0x0003000000000000ULL, 2, 1) == 13);
+    TAP_CHECK(octeon_qmacs_state(1, 1, 0x7ffffffe) == 0x17fffffffULL);
+    TAP_CHECK(octeon_qmacs_state(0x8000, 0x8000, 0) == 0x17fffffffULL);
+    TAP_CHECK(octeon_vmulu(5, 7, 11) == 46);
+    TAP_CHECK(octeon_vmm0(5, 13, 7, 11) == 59);
+    TAP_CHECK(octeon_vmm0_zeroes_mpl1() == 0);
+    TAP_CHECK(octeon_mtp0_zeroes_p1() == 0);
+    TAP_CHECK(octeon_cop2_key0_readback(0x1122334455667788ULL) ==
+              0x1122334455667788ULL);
+    TAP_CHECK(octeon_cop2_key2_readback(0x8877665544332211ULL) ==
+              0x8877665544332211ULL);
+    TAP_CHECK(octeon_cop2_key3_readback(0x0102030405060708ULL) ==
+              0x0102030405060708ULL);
+    TAP_CHECK(octeon_cop2_keylength_readback(0xa5) == 1);
+    TAP_CHECK(octeon_cop2_hsh_dat0_readback(0x0102030405060708ULL) ==
+              0x0102030405060708ULL);
+    TAP_CHECK(octeon_cop2_crc_len_readback(0xb5) == 5);
+    TAP_CHECK(octeon_cop2_crc_poly_reflect_readback(0x12345678) == 0x482c6a1e);
+    TAP_CHECK(octeon_cop2_gfm_mul_reflect_write_readback(
+                  0x0123456789abcdefULL) == 0xf7b3d591e6a2c480ULL);
+    TAP_CHECK(octeon_cop2_gfm_mul_reflect_readback(
+                  0xfedcba9876543210ULL) == 0x084c2a6e195d3b7fULL);
+    TAP_CHECK(octeon_rdhwr31_non_decreasing());
 
-    return 0;
+    return tap_done();
 }

@@ -1281,7 +1281,7 @@ struct MIPSCPUClass {
 };
 
 void cpu_wrdsp(uint32_t rs, uint32_t mask_num, CPUMIPSState *env);
-uint32_t cpu_rddsp(uint32_t mask_num, CPUMIPSState *env);
+uint32_t cpu_rddsp(uint32_t mask_num, const CPUMIPSState *env);
 
 /*
  * MMU modes definitions. We carefully match the indices with our
@@ -1413,7 +1413,7 @@ void cpu_mips_clock_init(MIPSCPU *cpu);
 #endif /* !CONFIG_USER_ONLY */
 
 /* helper.c */
-target_ulong exception_resume_pc(CPUMIPSState *env);
+target_ulong exception_resume_pc(const CPUMIPSState *env);
 
 /* fpu.c */
 void cpu_mips_restore_fp_status(CPUMIPSState *env);

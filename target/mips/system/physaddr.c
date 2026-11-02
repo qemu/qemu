@@ -75,7 +75,7 @@ static int is_seg_am_mapped(unsigned int am, bool eu, int mmu_idx)
     };
 }
 
-static int get_seg_physical_address(CPUMIPSState *env, hwaddr *physical,
+static int get_seg_physical_address(const CPUMIPSState *env, hwaddr *physical,
                                     int *prot, target_ulong real_address,
                                     MMUAccessType access_type, int mmu_idx,
                                     unsigned int am, bool eu,
@@ -99,8 +99,9 @@ static int get_seg_physical_address(CPUMIPSState *env, hwaddr *physical,
     }
 }
 
-static int get_segctl_physical_address(CPUMIPSState *env, hwaddr *physical,
-                                       int *prot, target_ulong real_address,
+static int get_segctl_physical_address(const CPUMIPSState *env,
+                                       hwaddr *physical, int *prot,
+                                       target_ulong real_address,
                                        MMUAccessType access_type, int mmu_idx,
                                        uint16_t segctl, target_ulong segmask)
 {
@@ -113,7 +114,7 @@ static int get_segctl_physical_address(CPUMIPSState *env, hwaddr *physical,
                                     pa & ~(hwaddr)segmask);
 }
 
-int get_physical_address(CPUMIPSState *env, hwaddr *physical,
+int get_physical_address(const CPUMIPSState *env, hwaddr *physical,
                          int *prot, target_ulong real_address,
                          MMUAccessType access_type, int mmu_idx)
 {

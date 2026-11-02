@@ -11,6 +11,11 @@
 #include "qemu/osdep.h"
 #include "translate.h"
 
+static int plus_1(DisasContext *ctx, int x)
+{
+    return x + 1;
+}
+
 /* Include the auto-generated decoders.  */
 #include "decode-rel6.c.inc"
 
@@ -23,7 +28,7 @@ bool trans_REMOVED(DisasContext *ctx, arg_REMOVED *a)
 
 static bool trans_LSA(DisasContext *ctx, arg_r *a)
 {
-    return gen_lsa(ctx, a->rd, a->rt, a->rs, a->sa + 1);
+    return gen_lsa(ctx, a->rd, a->rt, a->rs, a->sa);
 }
 
 static bool trans_DLSA(DisasContext *ctx, arg_r *a)
@@ -31,7 +36,7 @@ static bool trans_DLSA(DisasContext *ctx, arg_r *a)
     if (TARGET_LONG_BITS != 64) {
         return false;
     }
-    return gen_dlsa(ctx, a->rd, a->rt, a->rs, a->sa + 1);
+    return gen_dlsa(ctx, a->rd, a->rt, a->rs, a->sa);
 }
 
 static bool trans_CRC32(DisasContext *ctx, arg_special3_crc *a)

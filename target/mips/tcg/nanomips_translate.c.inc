@@ -57,7 +57,6 @@ enum {
 
     NM_POOL32S      = 0x30,
     NM_P_BRI        = 0x32,
-    NM_LI16         = 0x34,
     NM_SWGP16       = 0x35,
     NM_P16_BR       = 0x36,
 
@@ -86,7 +85,6 @@ enum {
 
 /* P48I instruction pool */
 enum {
-    NM_LI48        = 0x00,
     NM_ADDIU48     = 0x01,
     NM_ADDIUGP48   = 0x02,
     NM_ADDIUPC48   = 0x03,
@@ -399,7 +397,6 @@ enum {
 /* POOL32A7 instruction pool */
 enum {
     NM_P_LSX        = 0x00,
-    NM_LSA          = 0x01,
     NM_EXTW         = 0x03,
     NM_POOL32AXF    = 0x07,
 };
@@ -3625,9 +3622,6 @@ static int decode_nanomips_32_48_opc(CPUMIPSState *env, DisasContext *ctx)
             case NM_P_LSX:
                 gen_p_lsx(ctx, rd, rs, rt);
                 break;
-            case NM_LSA:
-                gen_lsa(ctx, rd, rt, rs, extract32(ctx->opcode, 9, 2));
-                break;
             case NM_EXTW:
                 gen_ext(ctx, 32, rd, rs, rt, extract32(ctx->opcode, 6, 5));
                 break;
@@ -3669,12 +3663,6 @@ static int decode_nanomips_32_48_opc(CPUMIPSState *env, DisasContext *ctx)
                                        mo_endian(ctx));
             target_long addr_off = extract32(ctx->opcode, 0, 16) | insn << 16;
             switch (extract32(ctx->opcode, 16, 5)) {
-            case NM_LI48:
-                check_nms(ctx);
-                if (rt != 0) {
-                    tcg_gen_movi_tl(cpu_gpr[rt], addr_off);
-                }
-                break;
             case NM_ADDIU48:
                 check_nms(ctx);
                 if (rt != 0) {
@@ -4463,10 +4451,11 @@ static int decode_nanomips_32_48_opc(CPUMIPSState *env, DisasContext *ctx)
 
 static int decode_isa_nanomips(CPUMIPSState *env, DisasContext *ctx)
 {
+    uint64_t opcode;
     uint32_t op;
-    int rt = decode_gpr_gpr3(NANOMIPS_EXTRACT_RT3(ctx->opcode));
-    int rs = decode_gpr_gpr3(NANOMIPS_EXTRACT_RS3(ctx->opcode));
-    int rd = decode_gpr_gpr3(NANOMIPS_EXTRACT_RD3(ctx->opcode));
+    int rt;
+    int rs;
+    int rd;
     int offset;
     int imm;
 
@@ -4478,6 +4467,34 @@ static int decode_isa_nanomips(CPUMIPSState *env, DisasContext *ctx)
         return 2;
     }
 
+    opcode = translator_lduw_end(env, &ctx->base, ctx->base.pc_next,
+                                 mo_endian(ctx));
+    ctx->opcode = opcode;
+    if (extract32(opcode, 12, 1)) {
+        /* Major opcodes with bit 2 set are 16-bit */
+        if (decode_isa_nanomips16(ctx, opcode)) {
+            return 2;
+        }
+    } else {
+        opcode <<= 16;
+        opcode |= translator_lduw_end(env, &ctx->base, ctx->base.pc_next + 2,
+                                      mo_endian(ctx));
+        if (extract32(opcode, 26, 6) == NM_P48I) {
+            opcode <<= 16;
+            opcode |= translator_lduw_end(env, &ctx->base,
+                                          ctx->base.pc_next + 4,
+                                          mo_endian(ctx));
+            if (decode_isa_nanomips48(ctx, opcode)) {
+                return 6;
+            }
+        } else if (decode_isa_nanomips32(ctx, opcode)) {
+            return 4;
+        }
+    }
+
+    rt = decode_gpr_gpr3(NANOMIPS_EXTRACT_RT3(ctx->opcode));
+    rs = decode_gpr_gpr3(NANOMIPS_EXTRACT_RS3(ctx->opcode));
+    rd = decode_gpr_gpr3(NANOMIPS_EXTRACT_RD3(ctx->opcode));
     op = extract32(ctx->opcode, 10, 6);
     switch (op) {
     case NM_P16_MV:
@@ -4601,15 +4618,6 @@ static int decode_isa_nanomips(CPUMIPSState *env, DisasContext *ctx)
         default:
             gen_reserved_instruction(ctx);
             break;
-        }
-        break;
-    case NM_LI16:
-        {
-            imm = extract32(ctx->opcode, 0, 7);
-            imm = (imm == 0x7f ? -1 : imm);
-            if (rt != 0) {
-                tcg_gen_movi_tl(cpu_gpr[rt], imm);
-            }
         }
         break;
     case NM_ANDI16:

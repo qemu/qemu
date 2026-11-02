@@ -1,0 +1,11 @@
+# microMIPS32 32-bit instruction set extensions
+#
+# Copyright (C) 2021  Philippe Mathieu-Daudé
+#
+# SPDX-License-Identifier: GPL-2.0-or-later
+#
+# Reference: MIPS Architecture for Programmers, Volume II-B
+#            microMIPS32 Instruction Set
+#            (Document Number: MD00582)
+#            microMIPS64 Instruction Set
+#            (Document Number: MD00594)

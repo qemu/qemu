@@ -152,6 +152,7 @@ void check_cp1_enabled(DisasContext *ctx);
 void check_cp1_64bitmode(DisasContext *ctx);
 void check_cp1_registers(DisasContext *ctx, int regs);
 void check_cop1x(DisasContext *ctx);
+void check_nms(DisasContext *ctx);
 
 void gen_base_offset_addr(DisasContext *ctx, TCGv addr, int base, int offset);
 void gen_base_index_addr(DisasContext *ctx, TCGv addr, int base, int index);
@@ -169,6 +170,7 @@ void gen_store_fpr32(DisasContext *ctx, TCGv_i32 t, int reg);
 void gen_store_fpr64(DisasContext *ctx, TCGv_i64 t, int reg);
 int get_fp_bit(int cc);
 
+void gen_li(DisasContext *ctx, int rd, int imm);
 void gen_lx(DisasContext *ctx, int rd, int base, int index, MemOp mop);
 void gen_ldxs(DisasContext *ctx, int base, int index, int rd);
 void gen_align(DisasContext *ctx, int wordsz, int rd, int rs, int rt, int bp);
@@ -224,9 +226,18 @@ void mxu_translate_init(void);
 bool decode_ase_mxu(DisasContext *ctx, uint32_t insn);
 
 bool decode_64bit_enabled(DisasContext *ctx);
+int gpr3_m16(DisasContext *ctx, int x);
 
 /* decodetree generated */
+bool decode_isa_micromips16(DisasContext *ctx, uint16_t insn);
+bool decode_isa_micromips32(DisasContext *ctx, uint32_t insn);
+bool decode_isa_micromips32_r6(DisasContext *ctx, uint32_t insn);
+bool decode_isa_nanomips16(DisasContext *ctx, uint16_t insn);
+bool decode_isa_nanomips32(DisasContext *ctx, uint32_t insn);
+bool decode_isa_nanomips48(DisasContext *ctx, uint64_t insn);
 bool decode_isa_rel6(DisasContext *ctx, uint32_t insn);
+bool decode_ase_mips16e_16(DisasContext *ctx, uint16_t insn);
+bool decode_ase_mips16e_32(DisasContext *ctx, uint32_t insn);
 bool decode_ase_msa(DisasContext *ctx, uint32_t insn);
 bool decode_ext_txx9(DisasContext *ctx, uint32_t insn);
 bool decode_ext_loongson(DisasContext *ctx, uint32_t insn);

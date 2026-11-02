@@ -164,7 +164,6 @@ static inline bool check_msa_enabled(DisasContext *ctx)
     return true;
 }
 
-typedef void gen_helper_piv(TCGv_ptr, TCGv_i32, TCGv);
 typedef void gen_helper_pii(TCGv_ptr, TCGv_i32, TCGv_i32);
 typedef void gen_helper_piii(TCGv_ptr, TCGv_i32, TCGv_i32, TCGv_i32);
 typedef void gen_helper_piiii(TCGv_ptr, TCGv_i32, TCGv_i32, TCGv_i32, TCGv_i32);
@@ -174,9 +173,6 @@ typedef void gen_helper_piiii(TCGv_ptr, TCGv_i32, TCGv_i32, TCGv_i32, TCGv_i32);
         gen_func##_b, gen_func##_h, gen_func##_w, gen_func##_d \
     }; \
     TRANS(NAME, trans_func, NAME##_tab[a->df])
-
-#define TRANS_DF_iv(NAME, trans_func, gen_func) \
-    TRANS_DF_x(iv, NAME, trans_func, gen_func)
 
 #define TRANS_DF_ii(NAME, trans_func, gen_func) \
     TRANS_DF_x(ii, NAME, trans_func, gen_func)
@@ -758,29 +754,115 @@ TRANS(FTINT_U,  trans_msa_2rf, gen_helper_msa_ftint_u_df);
 TRANS(FFINT_S,  trans_msa_2rf, gen_helper_msa_ffint_s_df);
 TRANS(FFINT_U,  trans_msa_2rf, gen_helper_msa_ffint_u_df);
 
-static bool trans_msa_ldst(DisasContext *ctx, arg_msa_i *a,
-                           gen_helper_piv *gen_msa_ldst)
+/*
+ * Byte pattern: ab.cd.ef.gh -> ba.dc.fe.bg
+ */
+static void gen_bswap16x4_i64(TCGv_i64 dst, TCGv_i64 src)
 {
-    TCGv taddr;
+    uint64_t m = 0x00ff00ff00ff00ffull;
+    TCGv_i64 t0 = tcg_temp_new_i64();
+    TCGv_i64 t1 = tcg_temp_new_i64();
+                                        /* src = abcdefgh */
+    tcg_gen_andi_i64(t0, src, m);       /*  t0 = .b.d.f.h */
+    tcg_gen_shli_i64(t0, t0, 8);        /*  t0 = b.d.f.h. */
+    tcg_gen_shri_i64(t1, src, 8);       /*  t1 = habcdefg */
+    tcg_gen_andi_i64(t1, t1, m);        /*  t1 = .a.c.e.g */
+    tcg_gen_or_i64(dst, t0, t1);        /* dst = badcfebg */
+}
+
+/*
+ * Byte pattern: abcd.efgh -> dcba.hgfe
+ */
+static void gen_bswap32x2_i64(TCGv_i64 dst, TCGv_i64 src)
+{
+    tcg_gen_bswap64_i64(dst, src);
+    tcg_gen_rotri_i64(dst, dst, 32);
+}
+
+static bool trans_msa_ldst(DisasContext *ctx, arg_msa_i *a, bool is_load)
+{
+    static const MemOp mo_atom_df[4] = {
+        MO_ATOM_NONE,
+        MO_ATOM_SUBALIGN, /* Slightly stronger than required */
+        MO_ATOM_SUBALIGN, /* Slightly stronger than required */
+        MO_ATOM_IFALIGN_PAIR
+    };
+    TCGv_i128 t16;
+    TCGv_va addr;
+    MemOp mop;
+    int idx = a->wd << 1;
+    TCGv_i64 d0 = msa_wr_d[idx +  FP_ENDIAN_IDX];
+    TCGv_i64 d1 = msa_wr_d[idx + !FP_ENDIAN_IDX];
 
     if (!check_msa_enabled(ctx)) {
         return true;
     }
 
-    taddr = tcg_temp_new();
+    addr = tcgv_va_temp_new();
+    gen_base_offset_addr(ctx, addr, a->ws, a->sa << a->df);
 
-    gen_base_offset_addr(ctx, taddr, a->ws, a->sa << a->df);
-    gen_msa_ldst(tcg_env, tcg_constant_i32(a->wd), taddr);
+    t16 = tcg_temp_new_i128();
+
+    mop = MO_128 | MO_LE;
+    mop |= mo_atom_df[a->df];
+
+    if (a->df == 3 && mo_endian(ctx) != MO_LE) {
+        TCGv_i64 saved_d0 = d0;
+
+        mop = (mop & ~MO_BSWAP) | MO_BE;
+        d0 = d1;
+        d1 = saved_d0;
+    }
+
+    if (is_load) {
+        tcg_gen_qemu_ld_i128(t16, addr, ctx->mem_idx, mop);
+        tcg_gen_extr_i128_i64(d0, d1, t16);
+    }
+
+    if (mo_endian(ctx) != MO_LE && a->df != 3) {
+        if (!is_load) {
+            TCGv_i64 temp_d0 = tcg_temp_new_i64();
+            TCGv_i64 temp_d1 = tcg_temp_new_i64();
+
+            tcg_gen_mov_i64(temp_d0, d0);
+            tcg_gen_mov_i64(temp_d1, d1);
+            d0 = temp_d0;
+            d1 = temp_d1;
+        }
+
+        switch (a->df) {
+        case 1:
+            gen_bswap16x4_i64(d0, d0);
+            gen_bswap16x4_i64(d1, d1);
+            break;
+        case 2:
+            gen_bswap32x2_i64(d0, d0);
+            gen_bswap32x2_i64(d1, d1);
+            break;
+        }
+    }
+
+    if (!is_load) {
+        tcg_gen_concat_i64_i128(t16, d0, d1);
+        tcg_gen_qemu_st_i128(t16, addr, ctx->mem_idx, mop);
+    }
 
     return true;
 }
 
-TRANS_DF_iv(LD, trans_msa_ldst, gen_helper_msa_ld);
-TRANS_DF_iv(ST, trans_msa_ldst, gen_helper_msa_st);
+static bool trans_LD(DisasContext *ctx, arg_msa_i *a)
+{
+    return trans_msa_ldst(ctx, a, true);
+}
+
+static bool trans_ST(DisasContext *ctx, arg_msa_i *a)
+{
+    return trans_msa_ldst(ctx, a, false);
+}
 
 static bool trans_LSA(DisasContext *ctx, arg_r *a)
 {
-    return gen_lsa(ctx, a->rd, a->rt, a->rs, a->sa + 1);
+    return gen_lsa(ctx, a->rd, a->rt, a->rs, a->sa);
 }
 
 static bool trans_DLSA(DisasContext *ctx, arg_r *a)
@@ -788,5 +870,5 @@ static bool trans_DLSA(DisasContext *ctx, arg_r *a)
     if (TARGET_LONG_BITS != 64) {
         return false;
     }
-    return gen_dlsa(ctx, a->rd, a->rt, a->rs, a->sa + 1);
+    return gen_dlsa(ctx, a->rd, a->rt, a->rs, a->sa);
 }
