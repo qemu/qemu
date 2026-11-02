@@ -5,8 +5,8 @@
 #include "qemu/module.h"
 #include "trace-testsuite.h"
 
-uint16_t _TRACE_TEST_BLAH_DSTATE;
-uint16_t _TRACE_TEST_WIBBLE_DSTATE;
+uint8_t _TRACE_TEST_BLAH_DSTATE;
+uint8_t _TRACE_TEST_WIBBLE_DSTATE;
 TraceEvent _TRACE_TEST_BLAH_EVENT = {
 #ifdef CONFIG_TRACE_SIMPLE
     .id = 0,

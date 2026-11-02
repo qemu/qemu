@@ -25,7 +25,7 @@ typedef struct TraceEvent {
 #endif
     const char * name;
     const bool sstate;
-    uint16_t *dstate;
+    uint8_t *dstate;
 } TraceEvent;
 
 #endif /* TRACE__EVENT_INTERNAL_H */

@@ -32,7 +32,7 @@ def generate(events, backend, group):
             event = e.api(e.QEMU_EVENT))
 
     for e in events:
-        out('extern uint16_t %s;' % e.api(e.QEMU_DSTATE))
+        out('extern uint8_t %s;' % e.api(e.QEMU_DSTATE))
 
     # static state
     for e in events:

@@ -30,7 +30,7 @@ def generate(events, backend, group):
         '')
 
     for e in events:
-        out('uint16_t %s;' % e.api(e.QEMU_DSTATE))
+        out('uint8_t %s;' % e.api(e.QEMU_DSTATE))
 
     for e in events:
         out('TraceEvent %(event)s = {',
