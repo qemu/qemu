@@ -1394,7 +1394,7 @@ int hvf_arch_init_vcpu(CPUState *cpu)
     int i;
 
     if (__builtin_available(macOS 15.2, *)) {
-        if (hvf_arm_sme2_supported()) {
+        if (cpu_isar_feature(aa64_sme, arm_cpu)) {
             sregs_match_len += ARRAY_SIZE(hvf_sreg_list_sme2) + 1;
         }
 
@@ -1444,7 +1444,7 @@ int hvf_arch_init_vcpu(CPUState *cpu)
         }
     }
     if (__builtin_available(macOS 15.2, *)) {
-        if (hvf_arm_sme2_supported()) {
+        if (cpu_isar_feature(aa64_sme, arm_cpu)) {
             for (i = 0; i < ARRAY_SIZE(hvf_sreg_list_sme2); i++) {
                 hv_sys_reg_t hvf_id = hvf_sreg_list_sme2[i].sreg;
                 uint64_t kvm_id = HVF_TO_KVMID(hvf_id);
