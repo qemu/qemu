@@ -418,6 +418,10 @@ void arm_cpu_record_sigsegv(CPUState *cs, vaddr addr,
      * For now, it's easiest to deliver the fault normally.
      */
     cpu_restore_state(cs, ra);
+    if (access_type == MMU_INST_FETCH && !cpu->env.thumb && (addr & 3)) {
+        /* Misaligned PC faults take precedence over insn abort */
+        fi.type = ARMFault_Alignment;
+    }
     arm_deliver_fault(cpu, addr, access_type, MMU_USER_IDX, &fi);
 }
 
