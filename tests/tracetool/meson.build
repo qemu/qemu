@@ -11,7 +11,8 @@ backends = [
     'log',
     'simple',
     'syslog',
-    'ust'
+    'ust',
+    'all'
 ]
 
 # The tracetool-test.py program has portability problems on Windows.

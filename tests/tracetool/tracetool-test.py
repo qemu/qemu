@@ -14,16 +14,16 @@ def get_formats(backend):
         "c",
         "h",
     ]
-    if backend in {"nop", "dtrace", "ftrace", "log", "simple", "syslog"}:
+    if backend in {"nop", "dtrace", "ftrace", "log", "simple", "syslog", "all"}:
         formats += ["rs"]
-    if backend == "dtrace":
+    if backend in {"dtrace", "all"}:
         formats += [
             "d",
             "log-stap",
             "simpletrace-stap",
             "stap",
         ]
-    if backend == "ust":
+    if backend in {"ust", "all"}:
         formats += [
             "ust-events-c",
             "ust-events-h",
@@ -36,8 +36,12 @@ def test_tracetool_one(tracetool, backend, fmt, src_dir, build_dir):
     actual_file = Path(build_dir, rel_filename)
     expect_file = Path(src_dir, rel_filename)
 
+    backends = backend
+    if backends == "all":
+        backends = "dtrace,ftrace,log,simple,syslog,ust"
+
     args = [sys.executable, tracetool,
-            f"--format={fmt}", f"--backends={backend}", "--group=testsuite"]
+            f"--format={fmt}", f"--backends={backends}", "--group=testsuite"]
 
     if fmt.find("stap") != -1:
         args += ["--binary=qemu", "--probe-prefix=qemu"]
