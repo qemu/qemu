@@ -1179,7 +1179,7 @@ void audio_run(AudioMixengBackend *s, const char *msg)
     audio_run_in(s);
     audio_run_capture(s);
 
-    if (trace_event_get_state(TRACE_AUDIO_RUN_POLL)) {
+    if (trace_event_get_state_backends(TRACE_AUDIO_RUN_POLL)) {
         /* Convert seconds to microseconds for trace event */
         int64_t elapsed_us = g_timer_elapsed(s->run_timer, NULL) * MICROSECONDS_PER_SECOND;
         trace_audio_run_poll(msg, elapsed_us);
