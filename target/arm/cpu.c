@@ -387,6 +387,10 @@ static void arm_cpu_reset_hold(Object *obj, ResetType type)
                 env->vfp.smcr_el[1] = FIELD_DP64(env->vfp.smcr_el[1],
                                                  SMCR, FA64, 1);
             }
+            if (cpu_isar_feature(aa64_sme2, cpu)) {
+                env->vfp.smcr_el[1] = FIELD_DP64(env->vfp.smcr_el[1],
+                                                 SMCR, EZT0, 1);
+            }
         }
         /*
          * Enable 48-bit address space (TODO: take reserved_va into account).
