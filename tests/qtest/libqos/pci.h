@@ -75,6 +75,7 @@ struct QPCIDevice
     bool bars_mapped[QPCI_NUM_REGIONS];
     QPCIBar bars[QPCI_NUM_REGIONS];
     bool msix_enabled;
+    bool msix_table_bar_iomap, msix_pba_bar_iomap;
     QPCIBar msix_table_bar, msix_pba_bar;
     uint64_t msix_table_off, msix_pba_off;
 };
