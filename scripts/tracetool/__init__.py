@@ -362,8 +362,6 @@ class Event(object):
         The event name.
     fmt : str
         The event format string.
-    properties : set(str)
-        Properties of the event.
     args : Arguments
         The event arguments.
     lineno : int
@@ -373,23 +371,18 @@ class Event(object):
 
     """
 
-    _CRE = re.compile(r"((?P<props>[\w\s]+)\s+)?"
-                      r"(?P<name>\w+)"
+    _CRE = re.compile(r"(?P<name>\w+)"
                       r"\((?P<args>[^)]*)\)"
                       r"\s*"
                       r"(?P<fmt>\".+)?"
                       r"\s*")
 
-    _VALID_PROPS = set(["disable"])
-
-    def __init__(self, name, props, fmt, args, lineno, filename):
+    def __init__(self, name, fmt, args, lineno, filename):
         """
         Parameters
         ----------
         name : string
             Event name.
-        props : list of str
-            Property names.
         fmt : str
             Event printing format string.
         args : Arguments
@@ -401,7 +394,6 @@ class Event(object):
 
         """
         self.name = name
-        self.properties = props
         self.fmt = fmt
         self.args = args
         self.lineno = int(lineno)
@@ -410,11 +402,6 @@ class Event(object):
         if len(args) > 10:
             raise ValueError("Event '%s' has more than maximum permitted "
                              "argument count" % name)
-
-        unknown_props = set(self.properties) - self._VALID_PROPS
-        if len(unknown_props) > 0:
-            raise ValueError("Unknown properties: %s"
-                             % ", ".join(unknown_props))
 
 
     @staticmethod
@@ -435,7 +422,6 @@ class Event(object):
         groups = m.groupdict('')
 
         name = groups["name"]
-        props = groups["props"].split()
         fmt = groups["fmt"]
         if fmt.find("%m") != -1:
             raise ValueError("Event format '%m' is forbidden, pass the error "
@@ -448,14 +434,13 @@ class Event(object):
 
         args = Arguments.build(groups["args"])
 
-        return Event(name, props, fmt, args, lineno, posix_relpath(filename))
+        return Event(name, fmt, args, lineno, posix_relpath(filename))
 
     def __repr__(self):
         """Evaluable string representation for this object."""
-        return "Event('%s %s(%s) %s')" % (" ".join(self.properties),
-                                          self.name,
-                                          self.args,
-                                          self.fmt)
+        return "Event('%s(%s) %s')" % (self.name,
+                                       self.args,
+                                       self.fmt)
     # Star matching on PRI is dangerous as one might have multiple
     # arguments with that format, hence the non-greedy version of it.
     _FMT = re.compile(r"(%[\d\.]*\w+|%.*?PRI\S+)")

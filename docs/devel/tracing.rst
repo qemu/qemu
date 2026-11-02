@@ -230,9 +230,6 @@ The "nop" backend generates empty trace event functions so that the compiler
 can optimize out trace events completely.  This imposes no performance
 penalty.
 
-Note that regardless of the selected trace backend, events with the "disable"
-property will be generated with the "nop" backend.
-
 Log
 ---
 
@@ -366,30 +363,14 @@ To facilitate simple usage of systemtap where there merely needs to be printf
 logging of certain probes, a helper script "qemu-trace-stap" is provided.
 Consult its manual page for guidance on its usage.
 
-Trace event properties
+Trace event conditions
 ======================
 
-Each event in the "trace-events-all" file can be prefixed with a space-separated
-list of zero or more of the following event properties.
-
-"disable"
----------
-
-If a specific trace event is going to be invoked a huge number of times, this
-might have a noticeable performance impact even when the event is
-programmatically disabled.
-
-In this case you should declare such event with the "disable" property. This
-will effectively disable the event at compile time (by using the "nop" backend),
-thus having no performance impact at all on regular builds (i.e., unless you
-edit the "trace-events-all" file).
-
-In addition, there might be cases where relatively complex computations must be
+There might be cases where relatively complex computations must be
 performed to generate values that are only used as arguments for a trace
 function. In these cases you can use 'trace_event_get_state_backends()' to
-guard such computations, so they are skipped if the event has been either
-compile-time disabled or run-time disabled. If the event is compile-time
-disabled, this check will have no performance impact.
+guard such computations, so they are skipped if the event is not currently
+enabled:
 
 ::
 

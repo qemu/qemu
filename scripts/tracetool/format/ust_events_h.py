@@ -16,9 +16,6 @@ from tracetool import out
 
 
 def generate(events, backend, group):
-    events = [e for e in events
-              if "disabled" not in e.properties]
-
     if group == "all":
         include = "trace-ust-all.h"
     else:

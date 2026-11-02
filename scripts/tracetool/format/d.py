@@ -30,9 +30,6 @@ RESERVED_WORDS = (
 
 
 def generate(events, backend, group):
-    events = [e for e in events
-              if "disable" not in e.properties]
-
     # SystemTap's dtrace(1) warns about empty "provider qemu {}" but is happy
     # with an empty file.  Avoid the warning.
     # But dtrace on macOS can't deal with empty files.
