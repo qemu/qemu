@@ -158,7 +158,7 @@ bool pcie_sriov_pf_init(PCIDevice *dev, uint16_t offset,
     BusState *bus = qdev_get_parent_bus(&dev->qdev);
     int32_t devfn = dev->devfn + vf_offset;
 
-    if (pfs && g_hash_table_contains(pfs, dev->qdev.id)) {
+    if (pfs && dev->qdev.id && g_hash_table_contains(pfs, dev->qdev.id)) {
         error_setg(errp, "attaching user-created SR-IOV VF unsupported");
         return false;
     }
@@ -230,7 +230,6 @@ void pcie_sriov_pf_init_vf_bar(PCIDevice *dev, int region_num,
     assert(sriov_cap > 0);
     assert(region_num >= 0);
     assert(region_num < PCI_SRIOV_NUM_BARS);
-    assert(region_num != PCI_ROM_SLOT);
 
     wmask = ~(size - 1);
     addr = sriov_cap + PCI_SRIOV_BAR + region_num * 4;
@@ -344,6 +343,8 @@ int16_t pcie_sriov_pf_init_from_user_created_vfs(PCIDevice *dev,
     dev->exp.sriov_pf.vf = vfs;
     dev->exp.sriov_pf.vf_user_created = true;
 
+    assert(vfs[0]->io_regions[PCI_ROM_SLOT].size == 0);
+
     for (i = 0; i < PCI_SRIOV_NUM_BARS; i++) {
         PCIIORegion *region = &vfs[0]->io_regions[i];
 
@@ -387,6 +388,25 @@ bool pcie_sriov_register_device(PCIDevice *dev, Error **errp)
         }
 
         g_ptr_array_add(pf, dev);
+    }
+
+    return true;
+}
+
+bool pcie_sriov_check_after_realize(PCIDevice *dev, Error **errp)
+{
+    if (!dev->exp.sriov_pf.vf && dev->qdev.id &&
+        pfs && g_hash_table_contains(pfs, dev->qdev.id)) {
+        error_setg(errp, "attaching user-created SR-IOV VF unsupported");
+        return false;
+    }
+
+    if (dev->sriov_pf) {
+        /* some devices might clear their PCIe capability during realization */
+        if (!pci_is_express(dev)) {
+            error_setg(errp, "PCI Express is required for SR-IOV VF");
+            return false;
+        }
     }
 
     return true;

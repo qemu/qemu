@@ -2329,10 +2329,8 @@ static void pci_qdev_realize(DeviceState *qdev, Error **errp)
         pci_dev->cap_present |= QEMU_PCIE_CAP_CXL;
     }
 
-    pci_dev = do_pci_register_device(pci_dev,
-                                     object_get_typename(OBJECT(qdev)),
-                                     pci_dev->devfn, errp);
-    if (pci_dev == NULL) {
+    if (!do_pci_register_device(pci_dev, object_get_typename(OBJECT(qdev)),
+                                pci_dev->devfn, errp)) {
         pci_unregister_acpi_index(pci_dev);
         return;
     }
@@ -2349,6 +2347,11 @@ static void pci_qdev_realize(DeviceState *qdev, Error **errp)
             do_pci_unregister_device(pci_dev);
             return;
         }
+    }
+
+    if (!pcie_sriov_check_after_realize(pci_dev, errp)) {
+        pci_qdev_unrealize(DEVICE(pci_dev));
+        return;
     }
 
     /*

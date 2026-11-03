@@ -206,6 +206,11 @@ void ahci_pci_enable(AHCIQState *ahci)
 
 }
 
+void ahci_pci_disable(AHCIQState *ahci)
+{
+    stop_ahci_device(ahci);
+}
+
 /**
  * Map BAR5/ABAR, and engage the PCI device.
  */
@@ -216,6 +221,12 @@ void start_ahci_device(AHCIQState *ahci)
 
     /* turns on pci.cmd.iose, pci.cmd.mse and pci.cmd.bme */
     qpci_device_enable(ahci->dev);
+}
+
+void stop_ahci_device(AHCIQState *ahci)
+{
+    /* Unmap AHCI's ABAR (no-op if not mapped) */
+    qpci_iounmap(ahci->dev, ahci->hba_bar);
 }
 
 /**
@@ -239,6 +250,7 @@ void ahci_hba_enable(AHCIQState *ahci)
     uint8_t num_cmd_slots;
 
     g_assert(ahci != NULL);
+    g_assert(ahci->hba_bar.mapped);
 
     /* Set GHC.AE to 1 */
     ahci_set(ahci, AHCI_GHC, AHCI_GHC_AE);
