@@ -1052,7 +1052,10 @@ vmdk_open_vmdk4(BlockDriverState *bs, BdrvChild *file, int flags,
         error_setg(errp, "L2 table size too big");
         return -EINVAL;
     }
-
+    if (le64_to_cpu(header.granularity) > 0x200000) {
+        error_setg(errp, "Invalid granularity, image may be corrupt");
+        return -EFBIG;
+    }
     l1_entry_sectors = le32_to_cpu(header.num_gtes_per_gt)
                         * le64_to_cpu(header.granularity);
     if (l1_entry_sectors == 0) {
