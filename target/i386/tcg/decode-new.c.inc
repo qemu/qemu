@@ -1615,8 +1615,7 @@ static void decode_group1A(DisasContext *s, CPUX86State *env, X86OpEntry *entry,
         *entry = UNKNOWN_OPCODE;
     } else {
         entry->gen = gen_POP;
-        /* The address must use the value of ESP after the pop.  */
-        s->popl_esp_hack = 1 << mo_pushpop(s, s->dflag);
+        entry->special = X86_SPECIAL_PopESP;
     }
 }
 
@@ -1811,10 +1810,10 @@ static const X86OpEntry opcodes_root[256] = {
     [0xA1] = X86_OP_ENTRY3(MOV, 0,v, O,v, None, None), /* rAX, Ov */
     [0xA2] = X86_OP_ENTRY3(MOV, O,b, 0,b, None, None), /* Ob, AL */
     [0xA3] = X86_OP_ENTRY3(MOV, O,v, 0,v, None, None), /* Ov, rAX */
-    [0xA4] = X86_OP_ENTRYrr(MOVS, Y,b, X,b),
-    [0xA5] = X86_OP_ENTRYrr(MOVS, Y,v, X,v),
-    [0xA6] = X86_OP_ENTRYrr(CMPS, Y,b, X,b),
-    [0xA7] = X86_OP_ENTRYrr(CMPS, Y,v, X,v),
+    [0xA4] = X86_OP_ENTRY0(MOVS),
+    [0xA5] = X86_OP_ENTRY0(MOVS),
+    [0xA6] = X86_OP_ENTRY0(CMPS),
+    [0xA7] = X86_OP_ENTRY0(CMPS),
 
     [0xB0] = X86_OP_ENTRY3(MOV, LoBits,b, I,b, None, None),
     [0xB1] = X86_OP_ENTRY3(MOV, LoBits,b, I,b, None, None),
@@ -1917,10 +1916,10 @@ static const X86OpEntry opcodes_root[256] = {
     [0x69] = X86_OP_ENTRY3(IMUL3, G,v, E,v, I,z, sextT0),
     [0x6A] = X86_OP_ENTRYr(PUSH, I,b),
     [0x6B] = X86_OP_ENTRY3(IMUL3, G,v, E,v, I,b, sextT0),
-    [0x6C] = X86_OP_ENTRYrr(INS, Y,b, 2,w), /* DX */
-    [0x6D] = X86_OP_ENTRYrr(INS, Y,z, 2,w), /* DX */
-    [0x6E] = X86_OP_ENTRYrr(OUTS, X,b, 2,w), /* DX */
-    [0x6F] = X86_OP_ENTRYrr(OUTS, X,z, 2,w), /* DX */
+    [0x6C] = X86_OP_ENTRYr(INS, 2,w), /* DX */
+    [0x6D] = X86_OP_ENTRYr(INS, 2,w), /* DX */
+    [0x6E] = X86_OP_ENTRYr(OUTS, 2,w), /* DX */
+    [0x6F] = X86_OP_ENTRYr(OUTS, 2,w), /* DX */
 
     [0x78] = X86_OP_ENTRYr(Jcc, J,b),
     [0x79] = X86_OP_ENTRYr(Jcc, J,b),
@@ -1952,13 +1951,13 @@ static const X86OpEntry opcodes_root[256] = {
 
     [0xA8] = X86_OP_ENTRYrr(TEST, 0,b, I,b),   /* AL, Ib */
     [0xA9] = X86_OP_ENTRYrr(TEST, 0,v, I,z),   /* rAX, Iz */
-    [0xAA] = X86_OP_ENTRYwr(STOS, Y,b, 0,b),
-    [0xAB] = X86_OP_ENTRYwr(STOS, Y,v, 0,v),
+    [0xAA] = X86_OP_ENTRYr(STOS, 0,b),
+    [0xAB] = X86_OP_ENTRYr(STOS, 0,v),
     /* Manual writeback because REP LODS (!) has to write EAX/RAX after every LODS.  */
-    [0xAC] = X86_OP_ENTRYr(LODS, X,b),
-    [0xAD] = X86_OP_ENTRYr(LODS, X,v),
-    [0xAE] = X86_OP_ENTRYrr(SCAS, 0,b, Y,b),
-    [0xAF] = X86_OP_ENTRYrr(SCAS, 0,v, Y,v),
+    [0xAC] = X86_OP_ENTRY0(LODS),
+    [0xAD] = X86_OP_ENTRY0(LODS),
+    [0xAE] = X86_OP_ENTRYr(SCAS, 0,b),
+    [0xAF] = X86_OP_ENTRYr(SCAS, 0,v),
 
     [0xB8] = X86_OP_ENTRYwr(MOV, LoBits,v, I,v),
     [0xB9] = X86_OP_ENTRYwr(MOV, LoBits,v, I,v),
@@ -2360,8 +2359,8 @@ static void decode_modrm(DisasContext *s, CPUX86State *env,
         }
 
         /* For correct popl handling with esp.  */
-        if (base == R_ESP && s->popl_esp_hack) {
-            disp += s->popl_esp_hack;
+        if (base == R_ESP && decode->e.special == X86_SPECIAL_PopESP) {
+            disp += 1 << mo_pushpop(s, s->dflag);
         }
         if (base == R_EBP || base == R_ESP) {
             def_seg = R_SS;
@@ -2426,6 +2425,12 @@ static void decode_modrm(DisasContext *s, CPUX86State *env,
     decode->mem = (AddressParts){ def_seg, base, index, scale, disp };
 }
 
+static bool is_mmx(const DisasContext *s, const X86OpEntry *e)
+{
+    return (e->special == X86_SPECIAL_MMX &&
+            !(s->prefix & (PREFIX_REPZ | PREFIX_REPNZ | PREFIX_DATA)));
+}
+
 static bool decode_op_size(DisasContext *s, X86OpEntry *e, X86OpSize size, MemOp *ot)
 {
     switch (size) {
@@ -2471,8 +2476,7 @@ static bool decode_op_size(DisasContext *s, X86OpEntry *e, X86OpSize size, MemOp
         return true;
 
     case X86_SIZE_dq: /* SSE/AVX 128-bit */
-        if (e->special == X86_SPECIAL_MMX &&
-            !(s->prefix & (PREFIX_DATA | PREFIX_REPZ | PREFIX_REPNZ))) {
+        if (is_mmx(s, e)) {
             *ot = MO_64;
             return true;
         }
@@ -2490,8 +2494,7 @@ static bool decode_op_size(DisasContext *s, X86OpEntry *e, X86OpSize size, MemOp
         return true;
 
     case X86_SIZE_x:  /* 128/256-bit, based on operand size */
-        if (e->special == X86_SPECIAL_MMX &&
-            !(s->prefix & (PREFIX_DATA | PREFIX_REPZ | PREFIX_REPNZ))) {
+        if (is_mmx(s, e)) {
             *ot = MO_64;
             return true;
         }
@@ -2548,9 +2551,6 @@ static bool decode_op(DisasContext *s, CPUX86State *env, X86DecodedInsn *decode,
 {
     switch (type) {
     case X86_TYPE_None:  /* Implicit or absent */
-    case X86_TYPE_F:  /* EFLAGS/RFLAGS */
-    case X86_TYPE_X:  /* string source */
-    case X86_TYPE_Y:  /* string destination */
         break;
 
     case X86_TYPE_B:  /* VEX.vvvv selects a GPR, else use modrm */
@@ -2606,8 +2606,7 @@ static bool decode_op(DisasContext *s, CPUX86State *env, X86DecodedInsn *decode,
         goto get_reg;
 
     case X86_TYPE_V:  /* reg in the modrm byte selects an XMM/YMM register */
-        if (decode->e.special == X86_SPECIAL_MMX &&
-            !(s->prefix & (PREFIX_DATA | PREFIX_REPZ | PREFIX_REPNZ))) {
+        if (is_mmx(s, &decode->e)) {
             op->unit = X86_OP_MMX;
         } else {
             op->unit = X86_OP_SSE;
@@ -2626,8 +2625,7 @@ static bool decode_op(DisasContext *s, CPUX86State *env, X86DecodedInsn *decode,
         goto get_modrm;
 
     case X86_TYPE_W:  /* XMM/YMM modrm operand */
-        if (decode->e.special == X86_SPECIAL_MMX &&
-            !(s->prefix & (PREFIX_DATA | PREFIX_REPZ | PREFIX_REPNZ))) {
+        if (is_mmx(s, &decode->e)) {
             op->unit = X86_OP_MMX;
         } else {
             op->unit = X86_OP_SSE;
@@ -2639,8 +2637,7 @@ static bool decode_op(DisasContext *s, CPUX86State *env, X86DecodedInsn *decode,
         goto get_modrm_reg;
 
     case X86_TYPE_U:  /* R/M in the modrm byte selects an XMM/YMM register */
-        if (decode->e.special == X86_SPECIAL_MMX &&
-            !(s->prefix & (PREFIX_DATA | PREFIX_REPZ | PREFIX_REPNZ))) {
+        if (is_mmx(s, &decode->e)) {
             op->unit = X86_OP_MMX;
         } else {
             op->unit = X86_OP_SSE;
@@ -3136,12 +3133,15 @@ static bool validate_vex(DisasContext *s, X86DecodedInsn *decode)
     case 4:
     case 5:
     case 7:
-        if (s->prefix & PREFIX_VEX) {
+        if (is_mmx(s, e)) {
+            if (s->prefix & PREFIX_VEX) {
+                goto illegal;
+            }
+        } else if (s->prefix & PREFIX_VEX) {
             if (!(s->flags & HF_AVX_EN_MASK)) {
                 goto illegal;
             }
-        } else if (e->special != X86_SPECIAL_MMX ||
-                   (s->prefix & (PREFIX_REPZ | PREFIX_REPNZ | PREFIX_DATA))) {
+        } else {
             if (!(s->flags & HF_OSFXSR_MASK)) {
                 goto illegal;
             }
@@ -3287,7 +3287,6 @@ static void disas_insn(DisasContext *s, CPUState *cpu)
 
     s->pc = s->base.pc_next;
     s->override = -1;
-    s->popl_esp_hack = 0;
 #ifdef TARGET_X86_64
     s->rex_r = 0;
     s->rex_x = 0;
@@ -3696,8 +3695,7 @@ static void disas_insn(DisasContext *s, CPUState *cpu)
         }
     }
 
-    if (decode.e.special == X86_SPECIAL_MMX &&
-        !(s->prefix & (PREFIX_REPZ | PREFIX_REPNZ | PREFIX_DATA))) {
+    if (is_mmx(s, &decode.e)) {
         gen_helper_enter_mmx(tcg_env);
     }
 

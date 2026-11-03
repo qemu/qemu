@@ -30,7 +30,7 @@
 #include "qemu/help_option.h"
 #include "qemu/sockets.h"
 #include "qemu/systemd.h"
-#include "qemu-version.h"
+#include "qemu/version.h"
 #ifdef _WIN32
 #include <windows.h>
 #include <objbase.h>

@@ -26,7 +26,6 @@ typedef enum X86OpType {
     X86_TYPE_C, /* REG in the modrm byte selects a control register */
     X86_TYPE_D, /* REG in the modrm byte selects a debug register */
     X86_TYPE_E, /* ALU modrm operand */
-    X86_TYPE_F, /* EFLAGS/RFLAGS */
     X86_TYPE_G, /* REG in the modrm byte selects a GPR */
     X86_TYPE_H, /* For AVX, VEX.vvvv selects an XMM/YMM register */
     X86_TYPE_I, /* Immediate */
@@ -41,8 +40,6 @@ typedef enum X86OpType {
     X86_TYPE_U, /* R/M in the modrm byte selects an XMM/YMM register */
     X86_TYPE_V, /* reg in the modrm byte selects an XMM/YMM register */
     X86_TYPE_W, /* XMM/YMM modrm operand */
-    X86_TYPE_X, /* string source */
-    X86_TYPE_Y, /* string destination */
 
     /* Custom */
     X86_TYPE_EM, /* modrm byte selects an ALU memory operand */
@@ -242,6 +239,12 @@ typedef enum X86InsnSpecial {
 
     /* Memory operand size of MOV from segment register is MO_16 */
     X86_SPECIAL_Op0_Mw,
+
+    /*
+     * If the address uses ESP as the base register, use the value
+     * of ESP after the pop.
+     */
+    X86_SPECIAL_PopESP,
 } X86InsnSpecial;
 
 /*

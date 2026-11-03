@@ -15,7 +15,7 @@
 #include "qemu/option.h"
 #include "qemu/log.h"
 #include "qemu/main-loop.h"
-#include "qemu-version.h"
+#include "qemu/version.h"
 #include "ui/vnc.h"
 #include "crypto/secret.h"
 #include "crypto/tlscredsx509.h"

@@ -34,7 +34,7 @@
 #include "block/block_int.h"
 #include "trace/control.h"
 #include "crypto/init.h"
-#include "qemu-version.h"
+#include "qemu/version.h"
 
 #define CMD_NOFILE_OK   0x01
 

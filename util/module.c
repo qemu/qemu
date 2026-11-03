@@ -23,7 +23,7 @@
 #include "qemu/config-file.h"
 #include "qapi/error.h"
 #ifdef CONFIG_MODULE_UPGRADES
-#include "qemu-version.h"
+#include "qemu/version.h"
 #endif
 #include "trace.h"
 

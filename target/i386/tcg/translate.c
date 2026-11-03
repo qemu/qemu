@@ -108,7 +108,6 @@ typedef struct DisasContext {
     uint8_t vex_v;  /* vex vvvv register, without 1's complement.  */
     bool vex_ndd; /* is this a 3-operand instruction? */
     bool vex_w; /* used by AVX even on 32-bit processors */
-    uint8_t popl_esp_hack; /* for correct popl with esp base handling */
     uint8_t rip_offset; /* only used in x86_64, but left for simplicity */
 
     uint8_t rex_r; /* 0 for i386, but left for simplicity */
@@ -402,6 +401,12 @@ static inline bool byte_reg_is_xH(DisasContext *s, int reg)
         return false;
     }
     return true;
+}
+
+/* Select the size of an INS/OUTS operation ("z" operand size).  */
+static inline MemOp mo_ins_outs(DisasContext *s)
+{
+    return s->dflag == MO_16 ? MO_16 : MO_32;
 }
 
 /* Select the size of a push/pop operation.  */
@@ -2003,20 +2008,6 @@ static void gen_enter(DisasContext *s, int esp_addend, int level)
 
     /* Compute the final value of ESP.  */
     tcg_gen_subi_tl(s->T1, s->T1, esp_addend + size * level);
-    gen_op_mov_reg_v(s, a_ot, R_ESP, s->T1);
-}
-
-static void gen_leave(DisasContext *s)
-{
-    MemOp d_ot = mo_pushpop(s, s->dflag);
-    MemOp a_ot = mo_stacksize(s);
-
-    gen_lea_ss_ofs(s, s->A0, cpu_regs[R_EBP], 0);
-    gen_op_ld_v(s, d_ot, s->T0, s->A0);
-
-    tcg_gen_addi_tl(s->T1, cpu_regs[R_EBP], 1 << d_ot);
-
-    gen_op_mov_reg_v(s, d_ot, R_EBP, s->T0);
     gen_op_mov_reg_v(s, a_ot, R_ESP, s->T1);
 }
 

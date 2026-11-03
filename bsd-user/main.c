@@ -25,7 +25,7 @@
 #include "qemu/help-texts.h"
 #include "qemu/units.h"
 #include "qemu/accel.h"
-#include "qemu-version.h"
+#include "qemu/version.h"
 #include <machine/trap.h>
 
 #include "qapi/error.h"

@@ -78,6 +78,7 @@ have_user = have_linux_user or have_bsd_user
 ############
 
 sh = find_program('sh')
+git = find_program('git', required: false)
 python = import('python').find_installation()
 
 cc = meson.get_compiler('c')
@@ -3560,15 +3561,25 @@ tracetool_depends = files(
   'scripts/tracetool/__init__.py',
 )
 
-qemu_version_cmd = [find_program('scripts/qemu-version.sh'),
-                    meson.current_source_dir(),
-                    get_option('pkgversion'), meson.project_version()]
-qemu_version = custom_target('qemu-version.h',
-                             output: 'qemu-version.h',
-                             command: qemu_version_cmd,
-                             capture: true,
-                             build_by_default: true,
-                             build_always_stale: true)
+qemu_pkgversion = get_option('pkgversion')
+git_describe_version = [git, 'describe', '--match', 'v*', '--dirty']
+if qemu_pkgversion == '' and git.found() and fs.exists('.git') and \
+    run_command(git_describe_version, check: false).returncode() == 0
+  # Refresh the version at build time, so that "make" after a commit updates it.
+  qemu_version = vcs_tag(input: 'scripts/qemu-version.h.in',
+                         output: 'qemu-version.h',
+                         command: git_describe_version,
+                         fallback: '')
+else
+  # Unlike vcs_tag(), which always defines QEMU_PKGVERSION, leave it out if
+  # empty.  include/qemu/version.h then omits the parentheses from
+  # QEMU_FULL_VERSION.
+  qemu_version_data = configuration_data()
+  if qemu_pkgversion != ''
+    qemu_version_data.set_quoted('QEMU_PKGVERSION', qemu_pkgversion)
+  endif
+  qemu_version = configure_file(output: 'qemu-version.h', configuration: qemu_version_data)
+endif
 genh += qemu_version
 
 hxdep = []
