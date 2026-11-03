@@ -451,6 +451,7 @@ bl              111010 ..... ..... 101 ........... n:1 .        &BL l=2 \
                 disp=%assemble_22
 b_gate          111010 ..... ..... 001 ........... .   .        @bl
 blr             111010 l:5   x:5   010 00000000000 n:1 0
+blr             111010 l:5   x:5   010 00000000110 n:1 0    # invalid BLR used in HP-UX 9.05 installer (0xe81a4018)
 nopbts          111010 00000 00000 010 0---------1   0 1    # clrbts/popbts
 nopbts          111010 00000 ----- 010 00000000000   0 1    # pushbts/pushnom
 bv              111010 b:5   x:5   110 00000000000 n:1 0
