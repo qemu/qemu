@@ -61,25 +61,6 @@ static void raspi4_modify_dtb(const struct arm_boot_info *info, void *fdt)
 {
     uint64_t ram_size;
 
-    /* Temporarily disable following devices until they are implemented */
-    const char *nodes_to_remove[] = {
-        "brcm,bcm2711-pcie",
-        "brcm,bcm2711-genet-v5",
-    };
-
-    for (int i = 0; i < ARRAY_SIZE(nodes_to_remove); i++) {
-        const char *dev_str = nodes_to_remove[i];
-        int offset;
-
-        offset = fdt_node_offset_by_compatible(fdt, -1, dev_str);
-        while (offset >= 0) {
-            if (fdt_nop_node(fdt, offset) == 0) {
-                warn_report("bcm2711 dtb: %s has been disabled!", dev_str);
-            }
-            offset = fdt_node_offset_by_compatible(fdt, offset, dev_str);
-        }
-    }
-
     ram_size = board_ram_size(info->board_id);
 
     if (ram_size > UPPER_RAM_BASE) {

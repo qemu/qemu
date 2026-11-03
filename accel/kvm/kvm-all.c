@@ -504,11 +504,11 @@ static int kvm_rebind_vcpus(Error **errp)
             }
         }
 
-        ret = kvm_arch_init_vcpu(cpu);
+        ret = kvm_arch_init_vcpu(cpu, errp);
         if (ret < 0) {
-            error_setg_errno(errp, -ret,
-                             "kvm_init_vcpu: kvm_arch_init_vcpu failed (%lu)",
-                             vcpu_id);
+            error_prepend(errp,
+                          "kvm_init_vcpu: kvm_arch_init_vcpu failed (%lu)",
+                          vcpu_id);
         }
 
         close(cpu->kvm_vcpu_stats_fd);
@@ -751,11 +751,10 @@ int kvm_init_vcpu(CPUState *cpu, Error **errp)
         }
     }
 
-    ret = kvm_arch_init_vcpu(cpu);
+    ret = kvm_arch_init_vcpu(cpu, errp);
     if (ret < 0) {
-        error_setg_errno(errp, -ret,
-                         "kvm_init_vcpu: kvm_arch_init_vcpu failed (%lu)",
-                         kvm_arch_vcpu_id(cpu));
+        error_prepend(errp, "kvm_init_vcpu: kvm_arch_init_vcpu failed (%lu)",
+                      kvm_arch_vcpu_id(cpu));
     }
     cpu->kvm_vcpu_stats_fd = kvm_vcpu_ioctl(cpu, KVM_GET_STATS_FD, NULL);
 

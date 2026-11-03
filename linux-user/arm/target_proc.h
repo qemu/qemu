@@ -14,6 +14,7 @@ static int open_cpuinfo(CPUArchState *cpu_env, int fd)
     int arch, midr_rev, midr_part, midr_var, midr_impl;
     target_ulong elf_hwcap = get_elf_hwcap(env_cpu(cpu_env));
     target_ulong elf_hwcap2 = get_elf_hwcap2(env_cpu(cpu_env));
+    uint64_t midr = GET_IDREG(&cpu->isar, MIDR);
     const char *elf_name;
     int num_cpus, len_part, len_var;
 
@@ -25,10 +26,10 @@ static int open_cpuinfo(CPUArchState *cpu_env, int fd)
 
     arch = 8;
     elf_name = "v8" END_SUFFIX;
-    midr_rev = FIELD_EX32(cpu->midr, MIDR_EL1, REVISION);
-    midr_part = FIELD_EX32(cpu->midr, MIDR_EL1, PARTNUM);
-    midr_var = FIELD_EX32(cpu->midr, MIDR_EL1, VARIANT);
-    midr_impl = FIELD_EX32(cpu->midr, MIDR_EL1, IMPLEMENTER);
+    midr_rev = FIELD_EX32(midr, MIDR_EL1, REVISION);
+    midr_part = FIELD_EX32(midr, MIDR_EL1, PARTNUM);
+    midr_var = FIELD_EX32(midr, MIDR_EL1, VARIANT);
+    midr_impl = FIELD_EX32(midr, MIDR_EL1, IMPLEMENTER);
     len_part = 3;
     len_var = 1;
 
@@ -37,7 +38,7 @@ static int open_cpuinfo(CPUArchState *cpu_env, int fd)
     if (!arm_feature(&cpu->env, ARM_FEATURE_V8)) {
         if (arm_feature(&cpu->env, ARM_FEATURE_V7)) {
             arch = 7;
-            midr_var = (cpu->midr >> 16) & 0x7f;
+            midr_var = (midr >> 16) & 0x7f;
             len_var = 2;
             if (arm_feature(&cpu->env, ARM_FEATURE_M)) {
                 elf_name = "armv7m" END_SUFFIX;
@@ -45,7 +46,7 @@ static int open_cpuinfo(CPUArchState *cpu_env, int fd)
                 elf_name = "armv7" END_SUFFIX;
             }
         } else {
-            midr_part = cpu->midr >> 4;
+            midr_part = midr >> 4;
             len_part = 7;
             if (arm_feature(&cpu->env, ARM_FEATURE_V6)) {
                 arch = 6;

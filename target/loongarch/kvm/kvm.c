@@ -1320,11 +1320,10 @@ int kvm_arch_pre_create_vcpu(CPUState *cpu, Error **errp)
     return 0;
 }
 
-int kvm_arch_init_vcpu(CPUState *cs)
+int kvm_arch_init_vcpu(CPUState *cs, Error **errp)
 {
     uint64_t val;
     int ret;
-    Error *local_err = NULL;
     LoongArchCPU *cpu = LOONGARCH_CPU(cs);
 
     cpu->vmsentry = qemu_add_vm_change_state_handler(
@@ -1334,51 +1333,43 @@ int kvm_arch_init_vcpu(CPUState *cs)
         brk_insn = val;
     }
 
-    ret = kvm_cpu_check_lsx(cs, &local_err);
+    ret = kvm_cpu_check_lsx(cs, errp);
     if (ret < 0) {
-        error_report_err(local_err);
         return ret;
     }
 
-    ret = kvm_cpu_check_lasx(cs, &local_err);
+    ret = kvm_cpu_check_lasx(cs, errp);
     if (ret < 0) {
-        error_report_err(local_err);
         return ret;
     }
 
-    ret = kvm_cpu_check_lbt(cs, &local_err);
+    ret = kvm_cpu_check_lbt(cs, errp);
     if (ret < 0) {
-        error_report_err(local_err);
         return ret;
     }
 
-    ret = kvm_cpu_check_pmu(cs, &local_err);
+    ret = kvm_cpu_check_pmu(cs, errp);
     if (ret < 0) {
-        error_report_err(local_err);
         return ret;
     }
 
-    ret = kvm_cpu_check_pv_features(cs, &local_err);
+    ret = kvm_cpu_check_pv_features(cs, errp);
     if (ret < 0) {
-        error_report_err(local_err);
         return ret;
     }
 
-    ret = kvm_cpu_check_ptw(cs, &local_err);
+    ret = kvm_cpu_check_ptw(cs, errp);
     if (ret < 0) {
-        error_report_err(local_err);
         return ret;
     }
 
-    ret = kvm_cpu_check_msgint(cs, &local_err);
+    ret = kvm_cpu_check_msgint(cs, errp);
     if (ret < 0) {
-        error_report_err(local_err);
         return ret;
     }
 
-    ret = kvm_cpu_check_misc_v1_1(cs, &local_err);
+    ret = kvm_cpu_check_misc_v1_1(cs, errp);
     if (ret < 0) {
-        error_report_err(local_err);
         return ret;
     }
 
