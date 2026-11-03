@@ -491,7 +491,8 @@ static void i8259_pic_init(Object *obj)
     object_initialize_child(obj, "primary", &s->i8259[0], TYPE_I8259);
     object_initialize_child(obj, "secondary", &s->i8259[1], TYPE_I8259);
 
-    qemu_init_irq(&s->i8259_primary_out_irq, i8259_primary_out_irq, s, 1);
+    qemu_init_irq_child(obj, "output-irq", &s->i8259_primary_out_irq,
+                        i8259_primary_out_irq, s, 1);
 
     qdev_init_gpio_in(DEVICE(obj), i8259_pic_set_irq, ISA_NUM_IRQS);
     qdev_init_gpio_out(DEVICE(obj), &s->pic_out_irq, 1);
