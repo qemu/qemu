@@ -42,6 +42,8 @@
 #include "migration/vmstate.h"
 #include "qapi/error.h"
 #include "qapi/qapi-events-misc.h"
+#include "qapi/qapi-type-infos-common.h"
+#include "qapi/qapi-visit-common.h"
 #include "qapi/visitor.h"
 #include "trace.h"
 
@@ -854,12 +856,25 @@ static const MemoryRegionOps cmos_ops = {
     .endianness = DEVICE_LITTLE_ENDIAN,
 };
 
-static void rtc_get_date(Object *obj, struct tm *current_tm, Error **errp)
+static void rtc_get_date(Object *obj, Visitor *v, const char *name,
+                         void *opaque, Error **errp)
 {
     MC146818RtcState *s = MC146818_RTC(obj);
+    struct tm value;
+    StructTm tm, *tmp = &tm;
 
     rtc_update_time(s);
-    rtc_get_time(s, current_tm);
+    rtc_get_time(s, &value);
+
+    tm = (StructTm) {
+        .tm_year = value.tm_year,
+        .tm_mon = value.tm_mon,
+        .tm_mday = value.tm_mday,
+        .tm_hour = value.tm_hour,
+        .tm_min = value.tm_min,
+        .tm_sec = value.tm_sec,
+    };
+    visit_type_StructTm(v, name, &tmp, errp);
 }
 
 static void rtc_realizefn(DeviceState *dev, Error **errp)
@@ -1019,7 +1034,9 @@ static void rtc_class_initfn(ObjectClass *klass, const void *data)
     device_class_set_props(dc, mc146818rtc_properties);
     set_bit(DEVICE_CATEGORY_MISC, dc->categories);
 
-    object_class_property_add_tm(klass, "date", rtc_get_date);
+    object_class_property_add(klass, "date", "struct tm",
+                              &StructTm_type_info,
+                              rtc_get_date, NULL, NULL, NULL);
 }
 
 static const TypeInfo mc146818rtc_info = {

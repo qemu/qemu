@@ -16,11 +16,12 @@
 #include "qemu/ctype.h"
 #include "qemu/error-report.h"
 #include "qapi/qmp/qerror.h"
+#include "qapi/error.h"
 
 CompatPolicy compat_policy;
 
-static bool compat_policy_input_ok1(const char *adjective,
-                                    CompatPolicyInput policy,
+static bool compat_policy_input_ok1(CompatPolicyInput policy,
+                                    const char *adjective,
                                     ErrorClass error_class,
                                     const char *kind, const char *name,
                                     Error **errp)
@@ -28,63 +29,65 @@ static bool compat_policy_input_ok1(const char *adjective,
     switch (policy) {
     case COMPAT_POLICY_INPUT_ACCEPT:
         return true;
+    case COMPAT_POLICY_INPUT_WARN:
+        warn_report("%s %s %s accepted by policy",
+                    adjective, kind, name);
+        return true;
     case COMPAT_POLICY_INPUT_REJECT:
         error_set(errp, error_class, "%s %s %s disabled by policy",
                   adjective, kind, name);
         return false;
     case COMPAT_POLICY_INPUT_CRASH:
+        error_report("%s %s %s disabled by policy, aborting",
+                     adjective, kind, name);
+        /* fallthrough */
     default:
         abort();
     }
 }
 
-bool compat_policy_input_ok(uint64_t features,
-                            const CompatPolicy *policy,
+bool compat_policy_input_ok(const CompatPolicy *policy,
+                            uint64_t features,
                             ErrorClass error_class,
                             const char *kind, const char *name,
                             Error **errp)
 {
     if ((features & 1u << QAPI_DEPRECATED)
-        && !compat_policy_input_ok1("Deprecated",
-                                    policy->deprecated_input,
+        && !compat_policy_input_ok1(policy->deprecated_input,
+                                    "Deprecated",
                                     error_class, kind, name, errp)) {
         return false;
     }
     if ((features & (1u << QAPI_UNSTABLE))
-        && !compat_policy_input_ok1("Unstable",
-                                    policy->unstable_input,
+        && !compat_policy_input_ok1(policy->unstable_input,
+                                    "Unstable",
                                     error_class, kind, name, errp)) {
         return false;
     }
     return true;
 }
 
-bool compat_policy_check_security(const CompatPolicy *policy,
-                                  const char *typename,
-                                  bool is_secure,
-                                  Error **errp)
+bool compat_policy_security_ok(const CompatPolicy *policy,
+                               bool is_secure,
+                               const char *typename,
+                               Error **errp)
 {
+    ERRP_GUARD();
+
     if (is_secure) {
         return true;
     }
 
-    switch (policy->insecure_types) {
-    case COMPAT_POLICY_SECURITY_ACCEPT:
-        return true;
-
-    case COMPAT_POLICY_SECURITY_REJECT:
-        error_setg(errp, "Type '%s' does not provide a security boundary "
-                   "to protect against untrusted data or actions", typename);
+    if (!compat_policy_input_ok1(policy->insecure_input,
+                                 "Insecure",
+                                 ERROR_CLASS_GENERIC_ERROR,
+                                 "QOM type", typename, errp)) {
+        error_append_hint(errp, "This type does does not provide a "
+                          "security boundary to protect against "
+                          "untrusted data or actions\n");
         return false;
-
-    case COMPAT_POLICY_SECURITY_WARN:
-        warn_report("Type '%s' does not provide a security boundary "
-                    "to protect against untrusted data or actions", typename);
-        return true;
-
-    default:
-        g_assert_not_reached();
     }
+    return true;
 }
 
 

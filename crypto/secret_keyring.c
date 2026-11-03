@@ -21,6 +21,7 @@
 #include "qemu/osdep.h"
 #include <asm/unistd.h>
 #include <linux/keyctl.h>
+#include "qapi/qapi-builtin-type-infos.h"
 #include "qapi/error.h"
 #include "qom/object_interfaces.h"
 #include "trace.h"
@@ -107,10 +108,10 @@ qcrypto_secret_keyring_class_init(ObjectClass *oc, const void *data)
     QCryptoSecretCommonClass *sic = QCRYPTO_SECRET_COMMON_CLASS(oc);
     sic->load_data = qcrypto_secret_keyring_load_data;
 
-    object_class_property_add(oc, "serial", "int32_t",
-                                  qcrypto_secret_prop_get_key,
-                                  qcrypto_secret_prop_set_key,
-                                  NULL, NULL);
+    object_class_property_add(oc, "serial", "int32_t", &int32_type_info,
+                              qcrypto_secret_prop_get_key,
+                              qcrypto_secret_prop_set_key,
+                              NULL, NULL);
 }
 
 

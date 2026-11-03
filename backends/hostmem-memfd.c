@@ -16,11 +16,12 @@
 #include "qemu/memfd.h"
 #include "qemu/module.h"
 #include "qapi/error.h"
+#include "qapi/qapi-builtin-type-infos.h"
 #include "qom/object.h"
 #include "migration/cpr.h"
 #include "system/kvm.h"
 #include <linux/kvm.h>
-#include "qapi/qapi-visit-common.h"
+#include "qapi/qapi-type-infos-common.h"
 
 OBJECT_DECLARE_SIMPLE_TYPE(HostMemoryBackendMemfd, MEMORY_BACKEND_MEMFD)
 
@@ -98,24 +99,20 @@ have_fd:
                                           backend->size, ram_flags, fd, 0, errp);
 }
 
-static void
-memfd_backend_get_guest_memfd(Object *o, Visitor *v,
-                              const char *value, void *opaque,
-                              Error **errp)
+static int
+memfd_backend_get_guest_memfd(Object *o, Error **errp)
 {
     HostMemoryBackendMemfd *m = MEMORY_BACKEND_MEMFD(o);
 
-    visit_type_OnOffAuto(v, value, &m->guest_memfd, errp);
+    return m->guest_memfd;
 }
 
 static void
-memfd_backend_set_guest_memfd(Object *o, Visitor *v,
-                              const char *value, void *opaque,
-                              Error **errp)
+memfd_backend_set_guest_memfd(Object *o, int value, Error **errp)
 {
     HostMemoryBackendMemfd *m = MEMORY_BACKEND_MEMFD(o);
 
-    visit_type_OnOffAuto(v, value, &m->guest_memfd, errp);
+    m->guest_memfd = value;
 }
 
 static bool
@@ -199,6 +196,7 @@ memfd_backend_class_init(ObjectClass *oc, const void *data)
         object_class_property_set_description(oc, "hugetlb",
                                               "Use huge pages");
         object_class_property_add(oc, "hugetlbsize", "uint64",
+                                  &uint64_type_info,
                                   memfd_backend_get_hugetlbsize,
                                   memfd_backend_set_hugetlbsize,
                                   NULL, NULL);
@@ -206,9 +204,10 @@ memfd_backend_class_init(ObjectClass *oc, const void *data)
                                               "Huge pages size (ex: 2M, 1G)");
     }
 
-    object_class_property_add(oc, "guest-memfd", "OnOffAuto",
-                              memfd_backend_get_guest_memfd,
-                              memfd_backend_set_guest_memfd, NULL, NULL);
+    object_class_property_add_enum(oc, "guest-memfd", "OnOffAuto",
+                                   &OnOffAuto_type_info,
+                                   memfd_backend_get_guest_memfd,
+                                   memfd_backend_set_guest_memfd);
     object_class_property_set_description(oc, "guest-memfd",
                                           "Use guest memfd");
 

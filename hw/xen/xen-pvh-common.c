@@ -9,6 +9,7 @@
 #include "qemu/osdep.h"
 #include "qemu/error-report.h"
 #include "qemu/units.h"
+#include "qapi/qapi-builtin-type-infos.h"
 #include "qapi/visitor.h"
 #include "hw/core/boards.h"
 #include "hw/core/irq.h"
@@ -414,6 +415,7 @@ void xen_pvh_class_setup_common_props(XenPVHMachineClass *xpc)
 #define OC_MEMMAP_PROP_BASE(c, prop_name, name)                           \
 do {                                                                      \
     object_class_property_add(c, prop_name "-base", "uint64_t",           \
+                              &uint64_type_info,                          \
                               xen_pvh_get_ ## name ## _base,              \
                               xen_pvh_set_ ## name ## _base, NULL, NULL); \
     object_class_property_set_description(oc, prop_name "-base",          \
@@ -423,6 +425,7 @@ do {                                                                      \
 #define OC_MEMMAP_PROP_SIZE(c, prop_name, name)                           \
 do {                                                                      \
     object_class_property_add(c, prop_name "-size", "uint64_t",           \
+                              &uint64_type_info,                          \
                               xen_pvh_get_ ## name ## _size,              \
                               xen_pvh_set_ ## name ## _size, NULL, NULL); \
     object_class_property_set_description(oc, prop_name "-size",          \
@@ -459,6 +462,7 @@ do {                                                                      \
         OC_MEMMAP_PROP(oc, "pci-mmio-high", pci_mmio_high);
 
         object_class_property_add(oc, "pci-intx-irq-base", "uint32_t",
+                                  &uint32_type_info,
                                   xen_pvh_get_pci_intx_irq_base,
                                   xen_pvh_set_pci_intx_irq_base,
                                   NULL, NULL);
@@ -469,6 +473,7 @@ do {                                                                      \
 #ifdef CONFIG_TPM
     if (xpc->has_tpm) {
         object_class_property_add(oc, "tpm-base-addr", "uint64_t",
+                                  &uint64_type_info,
                                   xen_pvh_get_tpm_base,
                                   xen_pvh_set_tpm_base,
                                   NULL, NULL);

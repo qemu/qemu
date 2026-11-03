@@ -410,8 +410,8 @@ static bool input_type_enum(Visitor *v, const char *name, int *obj,
     }
 
     if (lookup->features
-        && !compat_policy_input_ok(lookup->features[value],
-                                   &v->compat_policy,
+        && !compat_policy_input_ok(&v->compat_policy,
+                                   lookup->features[value],
                                    ERROR_CLASS_GENERIC_ERROR,
                                    "value", enum_str, errp)) {
         return false;

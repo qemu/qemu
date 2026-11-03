@@ -1250,7 +1250,8 @@ JSON array of strings.
 To examine a type, start with a command or event using it, then follow
 references by name.
 
-QAPI schema definitions not reachable that way are omitted.
+.. TODO document QOM introspection (qom-list, qom-list-properties,
+   qom-get) and how it relates to QAPI type information.
 
 The SchemaInfo for a command has meta-type "command", and variant
 members "arg-type", "ret-type" and "allow-oob".  On the wire, the
@@ -2012,33 +2013,20 @@ Example::
 
     const QLitObject example_qmp_schema_qlit = QLIT_QLIST(((QLitObject[]) {
         QLIT_QDICT(((QLitDictEntry[]) {
-            { "arg-type", QLIT_QSTR("0"), },
-            { "meta-type", QLIT_QSTR("command"), },
-            { "name", QLIT_QSTR("my-command"), },
-            { "ret-type", QLIT_QSTR("1"), },
+            { "json-type", QLIT_QSTR("string"), },
+            { "meta-type", QLIT_QSTR("builtin"), },
+            { "name", QLIT_QSTR("str"), },
             {}
         })),
+        /* "[str]" = strList */
         QLIT_QDICT(((QLitDictEntry[]) {
-            { "arg-type", QLIT_QSTR("2"), },
-            { "meta-type", QLIT_QSTR("event"), },
-            { "name", QLIT_QSTR("MY_EVENT"), },
+            { "element-type", QLIT_QSTR("str"), },
+            { "meta-type", QLIT_QSTR("array"), },
+            { "name", QLIT_QSTR("[str]"), },
             {}
         })),
-        /* "0" = q_obj_my-command-arg */
-        QLIT_QDICT(((QLitDictEntry[]) {
-            { "members", QLIT_QLIST(((QLitObject[]) {
-                QLIT_QDICT(((QLitDictEntry[]) {
-                    { "name", QLIT_QSTR("arg1"), },
-                    { "type", QLIT_QSTR("[1]"), },
-                    {}
-                })),
-                {}
-            })), },
-            { "meta-type", QLIT_QSTR("object"), },
-            { "name", QLIT_QSTR("0"), },
-            {}
-        })),
-        /* "1" = UserDefOne */
+        [Remainder of built-in types omitted...]
+        /* "32" = UserDefOne */
         QLIT_QDICT(((QLitDictEntry[]) {
             { "members", QLIT_QLIST(((QLitObject[]) {
                 QLIT_QDICT(((QLitDictEntry[]) {
@@ -2061,43 +2049,128 @@ Example::
                 {}
             })), },
             { "meta-type", QLIT_QSTR("object"), },
-            { "name", QLIT_QSTR("1"), },
+            { "name", QLIT_QSTR("32"), },
             {}
         })),
-        /* "2" = q_empty */
+        /* "[32]" = UserDefOneList */
+        QLIT_QDICT(((QLitDictEntry[]) {
+            { "element-type", QLIT_QSTR("32"), },
+            { "meta-type", QLIT_QSTR("array"), },
+            { "name", QLIT_QSTR("[32]"), },
+            {}
+        })),
+        /* "34" = q_obj_my-command-arg */
         QLIT_QDICT(((QLitDictEntry[]) {
             { "members", QLIT_QLIST(((QLitObject[]) {
+                QLIT_QDICT(((QLitDictEntry[]) {
+                    { "name", QLIT_QSTR("arg1"), },
+                    { "type", QLIT_QSTR("[32]"), },
+                    {}
+                })),
                 {}
             })), },
             { "meta-type", QLIT_QSTR("object"), },
-            { "name", QLIT_QSTR("2"), },
+            { "name", QLIT_QSTR("34"), },
             {}
         })),
         QLIT_QDICT(((QLitDictEntry[]) {
-            { "element-type", QLIT_QSTR("1"), },
-            { "meta-type", QLIT_QSTR("array"), },
-            { "name", QLIT_QSTR("[1]"), },
+            { "arg-type", QLIT_QSTR("34"), },
+            { "meta-type", QLIT_QSTR("command"), },
+            { "name", QLIT_QSTR("my-command"), },
+            { "ret-type", QLIT_QSTR("32"), },
             {}
         })),
         QLIT_QDICT(((QLitDictEntry[]) {
-            { "json-type", QLIT_QSTR("int"), },
-            { "meta-type", QLIT_QSTR("builtin"), },
-            { "name", QLIT_QSTR("int"), },
-            {}
-        })),
-        QLIT_QDICT(((QLitDictEntry[]) {
-            { "json-type", QLIT_QSTR("string"), },
-            { "meta-type", QLIT_QSTR("builtin"), },
-            { "name", QLIT_QSTR("str"), },
-            {}
-        })),
-        QLIT_QDICT(((QLitDictEntry[]) {
-            { "json-type", QLIT_QSTR("boolean"), },
-            { "meta-type", QLIT_QSTR("builtin"), },
-            { "name", QLIT_QSTR("bool"), },
+            { "arg-type", QLIT_QSTR("30"), },
+            { "meta-type", QLIT_QSTR("event"), },
+            { "name", QLIT_QSTR("MY_EVENT"), },
             {}
         })),
         {}
     }));
 
     [Uninteresting stuff omitted...]
+
+
+Code generated for type information
+-----------------------------------
+
+Type information is generated for user-defined types and their array
+types.  With option --builtins, it is also generated for the built-in
+types.
+
+The following files are created:
+
+ ``$(prefix)qapi-type-infos.c``
+     A ``QAPITypeInfo`` instance for each type listed above, providing
+     a mapping between the QAPI type name and the masked name used by
+     introspection, along with optional enum lookup table and array
+     type pointers.
+
+ ``$(prefix)qapi-type-infos.h``
+     Declarations for the above type info instances
+
+Each ``QAPITypeInfo`` struct has the following fields:
+
+``name``
+    The QAPI type name (e.g. ``"UserDefOne"``).
+
+``masked_name``
+    The masked name used in ``query-qmp-schema`` output.
+
+``lookup``
+    For enum types, a pointer to the corresponding ``QEnumLookup``
+    table.  ``NULL`` for non-enum types.
+
+These type info instances are used by QOM property registration
+functions (``object_property_add()``,
+``object_class_property_add_enum()``, etc.) to associate each property
+with its QAPI type.  The ``qom-list`` and ``device-list-properties``
+QMP commands then expose the ``qapi-type`` field, giving management
+tools a formal type reference they can look up in the introspection
+schema.
+
+Example::
+
+    $ cat qapi-generated/example-qapi-type-infos.h
+    [Uninteresting stuff omitted...]
+
+    #ifndef EXAMPLE_QAPI_TYPE_INFOS_H
+    #define EXAMPLE_QAPI_TYPE_INFOS_H
+
+    #include "qapi/qapi-builtin-type-infos.h"
+
+    extern const QAPITypeInfo UserDefOne_type_info;
+
+    extern const QAPITypeInfo UserDefOneList_type_info;
+
+    #endif /* EXAMPLE_QAPI_TYPE_INFOS_H */
+    $ cat qapi-generated/example-qapi-type-infos.c
+    [Uninteresting stuff omitted...]
+
+    const QAPITypeInfo UserDefOne_type_info = {
+        .name = "UserDefOne",
+        .masked_name = "32",
+    };
+
+    const QAPITypeInfo UserDefOneList_type_info = {
+        .name = "UserDefOneList",
+        .masked_name = "[32]",
+    };
+
+    [Uninteresting stuff omitted...]
+
+For a modular QAPI schema (see section `Include directives`_), code for
+each sub-module SUBDIR/SUBMODULE.json is actually generated into ::
+
+ SUBDIR/$(prefix)qapi-type-infos-SUBMODULE.h
+ SUBDIR/$(prefix)qapi-type-infos-SUBMODULE.c
+
+If qapi-gen.py is run with option --builtins, additional files are
+created:
+
+ ``qapi-builtin-type-infos.h``
+     Type info instances for built-in types
+
+ ``qapi-builtin-type-infos.c``
+     Definitions for the above type info instances

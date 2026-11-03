@@ -12,6 +12,7 @@
 #include "hw/core/irq.h"
 #include "migration/vmstate.h"
 #include "qapi/error.h"
+#include "qapi/qapi-builtin-type-infos.h"
 #include "qapi/visitor.h"
 #include "qemu/log.h"
 #include "qemu/module.h"
@@ -493,19 +494,19 @@ static void adm1272_init(Object *obj)
 
     pmbus_page_config(pmdev, 0, flags);
 
-    object_property_add(obj, "vin", "uint16",
+    object_property_add(obj, "vin", "uint16", &uint16_type_info,
                         adm1272_get,
                         adm1272_set, NULL, &pmdev->pages[0].read_vin);
 
-    object_property_add(obj, "vout", "uint16",
+    object_property_add(obj, "vout", "uint16", &uint16_type_info,
                         adm1272_get,
                         adm1272_set, NULL, &pmdev->pages[0].read_vout);
 
-    object_property_add(obj, "iout", "uint16",
+    object_property_add(obj, "iout", "uint16", &uint16_type_info,
                         adm1272_get,
                         adm1272_set, NULL, &pmdev->pages[0].read_iout);
 
-    object_property_add(obj, "pin", "uint16",
+    object_property_add(obj, "pin", "uint16", &uint16_type_info,
                         adm1272_get,
                         adm1272_set, NULL, &pmdev->pages[0].read_pin);
 

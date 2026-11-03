@@ -29,6 +29,7 @@
 #include "qemu/osdep.h"
 #include "qemu/error-report.h"
 #include "qapi/error.h"
+#include "qapi/qapi-builtin-type-infos.h"
 #include "qapi/visitor.h"
 #include "qemu/module.h"
 #include "qemu/rcu.h"
@@ -239,6 +240,7 @@ static void nitro_accel_class_init(ObjectClass *oc, const void *data)
         "Start enclave in debug mode (enables console output)");
 
     object_class_property_add(oc, "enclave-cid", "uint64",
+                              &uint64_type_info,
                               nitro_get_enclave_cid,
                               nitro_set_enclave_cid,
                               NULL, NULL);

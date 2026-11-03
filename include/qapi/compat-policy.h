@@ -18,16 +18,16 @@
 
 extern CompatPolicy compat_policy;
 
-bool compat_policy_input_ok(uint64_t features,
-                            const CompatPolicy *policy,
+bool compat_policy_input_ok(const CompatPolicy *policy,
+                            uint64_t features,
                             ErrorClass error_class,
                             const char *kind, const char *name,
                             Error **errp);
 
-bool compat_policy_check_security(const CompatPolicy *policy,
-                                  const char *typename,
-                                  bool is_secure,
-                                  Error **errp);
+bool compat_policy_security_ok(const CompatPolicy *policy,
+                               bool is_secure,
+                               const char *typename,
+                               Error **errp);
 
 /*
  * Create a QObject input visitor for @obj for use with QMP

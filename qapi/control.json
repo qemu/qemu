@@ -44,8 +44,7 @@
 #     client connection, used for agreeing on particular QMP extension
 #     behaviors.
 #
-# @oob: QMP ability to support out-of-band requests.  (Please refer to
-#     qmp-spec.rst for more information on OOB)
+# @oob: QMP ability to support :ref:`out-of-band execution` requests.
 #
 # Since: 2.12
 ##

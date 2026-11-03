@@ -33,7 +33,7 @@ struct Property {
 struct PropertyInfo {
     const char *type;
     const char *description;
-    const QEnumLookup *enum_table;
+    const QAPITypeInfo *qapi_type;
     bool realized_set_allowed; /* allow setting property on realized device */
     char *(*print)(Object *obj, const Property *prop);
     void (*set_default_value)(ObjectProperty *op, const Property *prop);

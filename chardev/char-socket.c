@@ -31,6 +31,7 @@
 #include "qemu/option.h"
 #include "qapi/error.h"
 #include "qapi/clone-visitor.h"
+#include "qapi/qapi-type-infos-sockets.h"
 #include "qapi/qapi-visit-sockets.h"
 #include "qemu/yank.h"
 #include "trace.h"
@@ -1569,6 +1570,7 @@ static void char_socket_class_init(ObjectClass *oc, const void *data)
     cc->chr_get_filename = tcp_chr_get_filename;
 
     object_class_property_add(oc, "addr", "SocketAddress",
+                              &SocketAddress_type_info,
                               char_socket_get_addr, NULL,
                               NULL, NULL);
 

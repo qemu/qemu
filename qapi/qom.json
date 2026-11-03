@@ -35,15 +35,24 @@
 #        qdev device type name.  Link properties form the device model
 #        graph.
 #
+# @qapi-type: the name of the property's type as it appears in the
+#     output of ``query-qmp-schema``.  Absent if the type does not
+#     occur there.  (since 11.2)
+#
 # @description: if specified, the description of the property.
 #
 # @default-value: the default value, if any (since 5.0)
+#
+# Features:
+#
+# @unstable: Member @qapi-type is experimental.
 #
 # Since: 1.2
 ##
 { 'struct': 'ObjectPropertyInfo',
   'data': { 'name': 'str',
             'type': 'str',
+            '*qapi-type': { 'type': 'str', 'features': [ 'unstable' ] },
             '*description': 'str',
             '*default-value': 'any' } }
 
@@ -55,14 +64,23 @@
 # @type: the type of the property, as described in
 #     `ObjectPropertyInfo`.
 #
+# @qapi-type: the name of the property's type as it appears in the
+#     output of ``query-qmp-schema``.  Absent if the type does not
+#     occur there.  (since 11.2)
+#
 # @value: the value of the property.  Absent when the property cannot
 #     be read.
+#
+# Features:
+#
+# @unstable: Member @qapi-type is experimental.
 #
 # Since: 10.1
 ##
 { 'struct': 'ObjectPropertyValue',
   'data': { 'name': 'str',
             'type': 'str',
+            '*qapi-type': { 'type': 'str', 'features': [ 'unstable' ] },
             '*value': 'any' } }
 
 ##
@@ -926,25 +944,6 @@
             'node': 'uint32' } }
 
 ##
-# @RngProperties:
-#     Properties for objects of classes derived from rng.
-#
-# @opened: if true, the device is opened immediately when applying
-#     this option and will probably fail when processing the next
-#     option.  Don't use; only provided for compatibility.
-#     (default: false)
-#
-# Features:
-#
-# @deprecated: Member @opened is deprecated.  Setting true doesn't
-#     make sense, and false is already the default.
-#
-# Since: 1.3
-##
-{ 'struct': 'RngProperties',
-  'data': { '*opened': { 'type': 'bool', 'features': ['deprecated'] } } }
-
-##
 # @RngEgdProperties:
 #     Properties for rng-egd objects.
 #
@@ -954,7 +953,6 @@
 # Since: 1.3
 ##
 { 'struct': 'RngEgdProperties',
-  'base': 'RngProperties',
   'data': { 'chardev': 'str' } }
 
 ##
@@ -967,7 +965,6 @@
 # Since: 1.3
 ##
 { 'struct': 'RngRandomProperties',
-  'base': 'RngProperties',
   'data': { '*filename': 'str' },
   'if': 'CONFIG_POSIX' }
 
@@ -1372,7 +1369,6 @@
       'pr-manager-helper':          { 'type': 'PrManagerHelperProperties',
                                       'if': 'CONFIG_LINUX' },
       'qtest':                      'QtestProperties',
-      'rng-builtin':                'RngProperties',
       'rng-egd':                    'RngEgdProperties',
       'rng-random':                 { 'type': 'RngRandomProperties',
                                       'if': 'CONFIG_POSIX' },

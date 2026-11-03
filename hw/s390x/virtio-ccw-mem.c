@@ -13,6 +13,7 @@
 #include "qemu/osdep.h"
 #include "hw/core/qdev-properties.h"
 #include "qapi/error.h"
+#include "qapi/qapi-builtin-type-infos.h"
 #include "qemu/module.h"
 #include "virtio-ccw-mem.h"
 #include "hw/mem/memory-device.h"
@@ -206,6 +207,7 @@ static void virtio_ccw_mem_instance_init(Object *obj)
     object_property_add_alias(obj, VIRTIO_MEM_SIZE_PROP, OBJECT(&dev->vdev),
                               VIRTIO_MEM_SIZE_PROP);
     object_property_add(obj, VIRTIO_MEM_REQUESTED_SIZE_PROP, "size",
+                        &size_type_info,
                         virtio_ccw_mem_get_requested_size,
                         virtio_ccw_mem_set_requested_size, NULL, NULL);
 }

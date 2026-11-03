@@ -80,7 +80,7 @@
         'XDbgBlockGraph',
         'YankInstanceType',
         'blockdev-reopen' ],
-    # Externally visible types whose member names may use uppercase
+    # Externally visible types whose member names may use uppercase or '_'
     'member-name-exceptions': [     # visible in:
         'ACPISlotType',             # query-acpi-ospm-status
         'AcpiTableOptions',         # -acpitable
@@ -109,6 +109,7 @@
         'QKeyCode',                 # send-key, input-sent-event
         'QapiErrorClass',           # QMP error replies
         'SshHostKeyCheckMode',      # blockdev-add, -blockdev
+        'StructTm',                 # qom-get of RTC date property
         'SysEmuTarget',             # query-cpu-fast, query-target
         'UuidInfo',                 # query-uuid
         'VncClientInfo',            # query-vnc, query-vnc-servers, ...

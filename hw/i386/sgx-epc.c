@@ -15,6 +15,7 @@
 #include "hw/mem/memory-device.h"
 #include "hw/core/qdev-properties.h"
 #include "qapi/error.h"
+#include "qapi/qapi-builtin-type-infos.h"
 #include "qapi/visitor.h"
 #include "target/i386/cpu.h"
 #include "system/address-spaces.h"
@@ -160,6 +161,7 @@ static void sgx_epc_class_init(ObjectClass *oc, const void *data)
     mdc->fill_device_info = sgx_epc_md_fill_device_info;
 
     object_class_property_add(oc, SGX_EPC_SIZE_PROP, "uint64",
+                              &uint64_type_info,
                               sgx_epc_get_size,
                               NULL,
                               NULL, NULL);

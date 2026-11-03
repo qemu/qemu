@@ -1,6 +1,7 @@
 #ifndef QEMU_CHAR_H
 #define QEMU_CHAR_H
 
+#include "qapi/qapi-type-infos-char.h"
 #include "qapi/qapi-types-char.h"
 #include "qemu/bitmap.h"
 #include "qemu/thread.h"
@@ -357,7 +358,7 @@ static inline void chardev_vc_add_encoding_prop(ObjectClass *oc,
     void (*set)(Object *, int, Error **))
 {
     object_class_property_add_enum(oc, "encoding", "ChardevVCEncoding",
-                                   &ChardevVCEncoding_lookup, get, set);
+                                   &ChardevVCEncoding_type_info, get, set);
 }
 
 #endif

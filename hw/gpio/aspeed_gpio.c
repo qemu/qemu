@@ -12,6 +12,7 @@
 #include "hw/gpio/aspeed_gpio.h"
 #include "hw/misc/aspeed_scu.h"
 #include "qapi/error.h"
+#include "qapi/qapi-builtin-type-infos.h"
 #include "qapi/visitor.h"
 #include "hw/core/irq.h"
 #include "migration/vmstate.h"
@@ -1481,7 +1482,8 @@ static void aspeed_gpio_init(Object *obj)
             int pin_idx = j % GPIOS_PER_GROUP;
             const char *group = &props->group_label[group_idx][0];
             char *name = g_strdup_printf("gpio%s%d", group, pin_idx);
-            object_property_add(obj, name, "bool", aspeed_gpio_get_pin,
+            object_property_add(obj, name, "bool", &bool_type_info,
+                                aspeed_gpio_get_pin,
                                 aspeed_gpio_set_pin, NULL, NULL);
             g_free(name);
         }
@@ -1489,8 +1491,9 @@ static void aspeed_gpio_init(Object *obj)
 
     for (int i = 0; i < agc->nr_gpio_sets; i++) {
         g_autofree char *name = g_strdup_printf("gpio-set[%d]", i);
-        object_property_add(obj, name, "uint32", aspeed_gpio_get_set,
-        aspeed_gpio_set_set, NULL, NULL);
+        object_property_add(obj, name, "uint32", &uint32_type_info,
+                            aspeed_gpio_get_set,
+                            aspeed_gpio_set_set, NULL, NULL);
     }
 }
 

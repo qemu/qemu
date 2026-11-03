@@ -16,6 +16,7 @@
 #include "hw/core/boards.h"
 #include "qapi/error.h"
 #include "qapi/qapi-builtin-visit.h"
+#include "qapi/qapi-type-infos-common.h"
 #include "qapi/visitor.h"
 #include "qemu/config-file.h"
 #include "qom/compat-properties.h"
@@ -528,10 +529,10 @@ host_memory_backend_class_init(ObjectClass *oc, const void *data)
         host_memory_backend_set_prealloc);
     object_class_property_set_description(oc, "prealloc",
         "Preallocate memory");
-    object_class_property_add(oc, "prealloc-threads", "int",
-        host_memory_backend_get_prealloc_threads,
-        host_memory_backend_set_prealloc_threads,
-        NULL, NULL);
+    object_class_property_add(oc, "prealloc-threads", "int", &int_type_info,
+                              host_memory_backend_get_prealloc_threads,
+                              host_memory_backend_set_prealloc_threads,
+                              NULL, NULL);
     object_class_property_set_description(oc, "prealloc-threads",
         "Number of CPU threads to use for prealloc");
     object_class_property_add_link(oc, "prealloc-context",
@@ -539,22 +540,23 @@ host_memory_backend_class_init(ObjectClass *oc, const void *data)
         object_property_allow_set_link, OBJ_PROP_LINK_STRONG);
     object_class_property_set_description(oc, "prealloc-context",
         "Context to use for creating CPU threads for preallocation");
-    object_class_property_add(oc, "size", "size",
-        host_memory_backend_get_size,
-        host_memory_backend_set_size,
-        NULL, NULL);
+    object_class_property_add(oc, "size", "size", &size_type_info,
+                              host_memory_backend_get_size,
+                              host_memory_backend_set_size,
+                              NULL, NULL);
     object_class_property_set_description(oc, "size",
         "Size of the memory region (ex: 500M)");
     object_class_property_add(oc, "host-nodes", "[uint16]",
-        host_memory_backend_get_host_nodes,
-        host_memory_backend_set_host_nodes,
-        NULL, NULL);
+                              &uint16List_type_info,
+                              host_memory_backend_get_host_nodes,
+                              host_memory_backend_set_host_nodes,
+                              NULL, NULL);
     object_class_property_set_description(oc, "host-nodes",
         "Binds memory to the list of NUMA host nodes");
     object_class_property_add_enum(oc, "policy", "HostMemPolicy",
-        &HostMemPolicy_lookup,
-        host_memory_backend_get_policy,
-        host_memory_backend_set_policy);
+                                   &HostMemPolicy_type_info,
+                                   host_memory_backend_get_policy,
+                                   host_memory_backend_set_policy);
     object_class_property_set_description(oc, "policy",
         "Set the NUMA policy");
     object_class_property_add_bool(oc, "share",

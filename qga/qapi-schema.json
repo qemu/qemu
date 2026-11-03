@@ -327,11 +327,11 @@
 # @QGASeek:
 #     Symbolic names for use in `guest-file-seek`
 #
-# @set: Set to the specified offset (same effect as 'whence':0)
+# @set: Set to the specified offset
 #
-# @cur: Add offset to the current location (same effect as 'whence':1)
+# @cur: Add offset to the current location
 #
-# @end: Add offset to the end of the file (same effect as 'whence':2)
+# @end: Add offset to the end of the file
 #
 # Since: 2.6
 ##
@@ -356,7 +356,7 @@
 # @guest-file-seek:
 #     Seek to a position in the file, as with fseek(), and return the
 #     current file position afterward.  Also encapsulates ftell()'s
-#     functionality, with offset=0 and whence=1.
+#     functionality, with offset=0 and whence=cur.
 #
 # @handle: filehandle returned by `guest-file-open`
 #
@@ -741,8 +741,6 @@
 # @guest-get-vcpus:
 #     Retrieve the list of the guest's logical processors.
 #
-#     This is a read-only operation.
-#
 # Returns: The list of all VCPUs the guest knows about.  Each VCPU is
 #     put on the list exactly once, but their order is unspecified.
 #
@@ -1099,8 +1097,6 @@
 ##
 # @guest-get-memory-blocks:
 #     Retrieve the list of the guest's memory blocks.
-#
-#     This is a read-only operation.
 #
 # Returns: The list of all memory blocks the guest knows about.  Each
 #     memory block is put on the list exactly once, but their order is

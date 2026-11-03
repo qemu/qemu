@@ -25,6 +25,7 @@
 #include "hw/core/qdev-properties.h"
 #include "qapi/visitor.h"
 #include "qapi/error.h"
+#include "qapi/qapi-builtin-type-infos.h"
 #include "migration/vmstate.h"
 #include "trace.h"
 
@@ -409,10 +410,10 @@ static void stm32l4x5_gpio_init(Object *obj)
 
     s->clk = qdev_init_clock_in(DEVICE(s), "clk", NULL, s, 0);
 
-    object_property_add(obj, "disconnected-pins", "uint16",
+    object_property_add(obj, "disconnected-pins", "uint16", &uint16_type_info,
                         disconnected_pins_get, disconnected_pins_set,
                         NULL, &s->disconnected_pins);
-    object_property_add(obj, "clock-freq-hz", "uint32",
+    object_property_add(obj, "clock-freq-hz", "uint32", &uint32_type_info,
                         clock_freq_get, NULL, NULL, NULL);
 }
 

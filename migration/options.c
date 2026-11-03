@@ -19,7 +19,9 @@
 #include "qapi/clone-visitor.h"
 #include "qapi/dealloc-visitor.h"
 #include "qapi/error.h"
+#include "qapi/qapi-builtin-type-infos.h"
 #include "qapi/qapi-commands-migration.h"
+#include "qapi/qapi-type-infos-common.h"
 #include "qapi/qapi-visit-migration.h"
 #include "qapi/qmp/qerror.h"
 #include "qapi/qobject-input-visitor.h"
@@ -296,6 +298,7 @@ static void set_default_value_tls_opt(ObjectProperty *op, const Property *prop)
  */
 const PropertyInfo qdev_prop_StrOrNull = {
     .type  = "StrOrNull",
+    .qapi_type = &StrOrNull_type_info,
     .get = get_StrOrNull,
     .set = set_StrOrNull,
     .release = release_StrOrNull,

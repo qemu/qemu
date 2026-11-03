@@ -8,6 +8,7 @@
 
 #include "qemu/osdep.h"
 #include "qapi/error.h"
+#include "qapi/qapi-type-infos-common.h"
 #include "qapi/qmp/qerror.h"
 #include "qemu/error-report.h"
 
@@ -343,8 +344,9 @@ static void netfilter_class_init(ObjectClass *oc, const void *data)
     object_class_property_add_str(oc, "netdev",
                                   netfilter_get_netdev_id, netfilter_set_netdev_id);
     object_class_property_add_enum(oc, "queue", "NetFilterDirection",
-                                   &NetFilterDirection_lookup,
-                                   netfilter_get_direction, netfilter_set_direction);
+                                   &NetFilterDirection_type_info,
+                                   netfilter_get_direction,
+                                   netfilter_set_direction);
     object_class_property_add_str(oc, "status",
                                   netfilter_get_status, netfilter_set_status);
     object_class_property_add_str(oc, "position",

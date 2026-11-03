@@ -72,7 +72,7 @@
 #include "whpx_arm.h"
 #include "hw/firmware/smbios.h"
 #include "qapi/visitor.h"
-#include "qapi/qapi-visit-common.h"
+#include "qapi/qapi-type-infos-common.h"
 #include "qobject/qlist.h"
 #include "standard-headers/linux/input.h"
 #include "hw/arm/smmuv3.h"
@@ -3580,21 +3580,16 @@ bool virt_is_acpi_enabled(const VirtMachineState *vms)
     return true;
 }
 
-static void virt_get_acpi(Object *obj, Visitor *v, const char *name,
-                          void *opaque, Error **errp)
+static int virt_get_acpi(Object *obj, Error **errp)
 {
     VirtMachineState *vms = VIRT_MACHINE(obj);
-    OnOffAuto acpi = vms->acpi;
-
-    visit_type_OnOffAuto(v, name, &acpi, errp);
+    return vms->acpi;
 }
 
-static void virt_set_acpi(Object *obj, Visitor *v, const char *name,
-                          void *opaque, Error **errp)
+static void virt_set_acpi(Object *obj, int value, Error **errp)
 {
     VirtMachineState *vms = VIRT_MACHINE(obj);
-
-    visit_type_OnOffAuto(v, name, &vms->acpi, errp);
+    vms->acpi = value;
 }
 
 static bool virt_get_ras(Object *obj, Error **errp)
@@ -4222,9 +4217,9 @@ static void virt_machine_class_init(ObjectClass *oc, const void *data)
     mc->default_ram_id = "mach-virt.ram";
     mc->default_nic = "virtio-net-pci";
 
-    object_class_property_add(oc, "acpi", "OnOffAuto",
-        virt_get_acpi, virt_set_acpi,
-        NULL, NULL);
+    object_class_property_add_enum(oc, "acpi", "OnOffAuto",
+                                   &OnOffAuto_type_info, virt_get_acpi,
+                                   virt_set_acpi);
     object_class_property_set_description(oc, "acpi",
         "Enable ACPI");
     object_class_property_add_bool(oc, "secure", virt_get_secure,
@@ -4276,17 +4271,19 @@ static void virt_machine_class_init(ObjectClass *oc, const void *data)
                                           "memory region for PCI MMIO");
 
     object_class_property_add(oc, "highmem-mmio-size", "size",
-                                   virt_get_highmem_mmio_size,
-                                   virt_set_highmem_mmio_size,
-                                   NULL, NULL);
+                              &size_type_info,
+                              virt_get_highmem_mmio_size,
+                              virt_set_highmem_mmio_size,
+                              NULL, NULL);
     object_class_property_set_description(oc, "highmem-mmio-size",
                                           "Set the high memory region size "
                                           "for PCI MMIO");
 
     object_class_property_add(oc, "virtio-mmio-transports", "uint8",
-                                   virt_get_virtio_transports,
-                                   virt_set_virtio_transports,
-                                   NULL, NULL);
+                              &uint8_type_info,
+                              virt_get_virtio_transports,
+                              virt_set_virtio_transports,
+                              NULL, NULL);
     object_class_property_set_description(oc, "virtio-mmio-transports",
                                           "Set the number of virtio-mmio transports to instantiate");
 

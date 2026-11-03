@@ -218,3 +218,60 @@
 ##
 { 'enum': 'EndianMode',
   'data': [ 'unspecified', 'little', 'big' ] }
+
+##
+# @StructTm:
+#     Broken-down time.  Field semantics match C ``struct tm``.
+#
+# @tm_year: years since 1900
+#
+# @tm_mon: months since January (0-11)
+#
+# @tm_mday: day of the month (1-31)
+#
+# @tm_hour: hours since midnight (0-23)
+#
+# @tm_min: minutes after the hour (0-59)
+#
+# @tm_sec: seconds after the minute (0-59, 60-61 for leap seconds)
+#
+# Since: 11.2
+##
+{ 'struct': 'StructTm',
+  'data': {
+    'tm_year': 'int32',
+    'tm_mon': 'int32',
+    'tm_mday': 'int32',
+    'tm_hour': 'int32',
+    'tm_min': 'int32',
+    'tm_sec': 'int32' } }
+
+##
+# @UfsFaultInjectMode:
+#     Fault injection modes for x-fault-inject-mode property.
+#     Controls how the held transfer request and subsequent Task
+#     Management Request (TMR) are resolved by the controller:
+#
+# @abort-success: TMR ABORT_TASK aborts the held request, clears its
+#     state, and returns SUCCESS (COMPL).
+#
+# @abort-failed: TMR ABORT_TASK returns TASK_MANAGEMENT_FUNC_FAILED,
+#     forcing host driver to escalate to Host Reset.
+#
+# @in-transition: TMR QUERY_TASK releases the held request to execute
+#     normally through the SCSI layer and returns the real task status
+#     (SUCCEEDED while the command is still in flight); ABORT_TASK
+#     cancels the held request and returns FUNCTION_COMPLETE.
+#
+# @timeout: TMR ABORT_TASK does not complete or clear doorbell,
+#     triggering hardware-level TMR timeout.
+#
+# @ssu-timeout: Intercepts SCSI START_STOP (0x1B) commands targeting
+#     the UFS Device WLUN when x-fault-inject-tag is armed.
+#
+# Since: 11.2
+##
+{ 'enum': 'UfsFaultInjectMode',
+  'prefix': 'UFS_FAULT_INJECT',
+  'data': [ 'abort-success', 'abort-failed', 'in-transition', 'timeout',
+            'ssu-timeout' ] }

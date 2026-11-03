@@ -14,6 +14,8 @@
 
 #include "qemu/osdep.h"
 #include "qapi/qapi-events-run-state.h"
+#include "qapi/qapi-type-infos-common.h"
+#include "qapi/qapi-type-infos-run-state.h"
 #include "qapi/error.h"
 #include "qapi/visitor.h"
 #include <math.h>
@@ -7101,13 +7103,13 @@ static void kvm_arch_set_honor_guest_pat(Object *obj, int value, Error **errp)
 void kvm_arch_accel_class_init(ObjectClass *oc)
 {
     object_class_property_add_enum(oc, "notify-vmexit", "NotifyVMexitOption",
-                                   &NotifyVmexitOption_lookup,
+                                   &NotifyVmexitOption_type_info,
                                    kvm_arch_get_notify_vmexit,
                                    kvm_arch_set_notify_vmexit);
     object_class_property_set_description(oc, "notify-vmexit",
                                           "Enable notify VM exit");
 
-    object_class_property_add(oc, "notify-window", "uint32",
+    object_class_property_add(oc, "notify-window", "uint32", &uint32_type_info,
                               kvm_arch_get_notify_window,
                               kvm_arch_set_notify_window,
                               NULL, NULL);
@@ -7115,7 +7117,7 @@ void kvm_arch_accel_class_init(ObjectClass *oc)
                                           "Clock cycles without an event window "
                                           "after which a notification VM exit occurs");
 
-    object_class_property_add(oc, "xen-version", "uint32",
+    object_class_property_add(oc, "xen-version", "uint32", &uint32_type_info,
                               kvm_arch_get_xen_version,
                               kvm_arch_set_xen_version,
                               NULL, NULL);
@@ -7125,6 +7127,7 @@ void kvm_arch_accel_class_init(ObjectClass *oc)
                                           "e.g. 0x4000a for 4.10)");
 
     object_class_property_add(oc, "xen-gnttab-max-frames", "uint16",
+                              &uint16_type_info,
                               kvm_arch_get_xen_gnttab_max_frames,
                               kvm_arch_set_xen_gnttab_max_frames,
                               NULL, NULL);
@@ -7132,6 +7135,7 @@ void kvm_arch_accel_class_init(ObjectClass *oc)
                                           "Maximum number of grant table frames");
 
     object_class_property_add(oc, "xen-evtchn-max-pirq", "uint16",
+                              &uint16_type_info,
                               kvm_arch_get_xen_evtchn_max_pirq,
                               kvm_arch_set_xen_evtchn_max_pirq,
                               NULL, NULL);
@@ -7139,7 +7143,7 @@ void kvm_arch_accel_class_init(ObjectClass *oc)
                                           "Maximum number of Xen PIRQs");
 
     object_class_property_add_enum(oc, "honor-guest-pat", "OnOffAuto",
-                                   &OnOffAuto_lookup,
+                                   &OnOffAuto_type_info,
                                    kvm_arch_get_honor_guest_pat,
                                    kvm_arch_set_honor_guest_pat);
     object_class_property_set_description(oc, "honor-guest-pat",

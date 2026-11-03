@@ -22,6 +22,7 @@
 #include "crypto/secret_common.h"
 #include "crypto/cipher.h"
 #include "qapi/error.h"
+#include "qapi/qapi-type-infos-crypto.h"
 #include "qom/object_interfaces.h"
 #include "qemu/base64.h"
 #include "qemu/module.h"
@@ -269,9 +270,8 @@ qcrypto_secret_class_init(ObjectClass *oc, const void *data)
 
     ucc->complete = qcrypto_secret_complete;
 
-    object_class_property_add_enum(oc, "format",
-                                   "QCryptoSecretFormat",
-                                   &QCryptoSecretFormat_lookup,
+    object_class_property_add_enum(oc, "format", "QCryptoSecretFormat",
+                                   &QCryptoSecretFormat_type_info,
                                    qcrypto_secret_prop_get_format,
                                    qcrypto_secret_prop_set_format);
     object_class_property_add_str(oc, "keyid",

@@ -203,6 +203,7 @@
 #include "qemu/units.h"
 #include "qemu/range.h"
 #include "qapi/error.h"
+#include "qapi/qapi-builtin-type-infos.h"
 #include "qapi/visitor.h"
 #include "system/system.h"
 #include "system/block-backend.h"
@@ -10613,6 +10614,7 @@ static void nvme_instance_init(Object *obj)
                                   DEVICE(obj));
 
     object_property_add(obj, "smart_critical_warning", "uint8",
+                        &uint8_type_info,
                         nvme_get_smart_warning,
                         nvme_set_smart_warning, NULL, NULL);
 }
