@@ -283,7 +283,7 @@
 #     and can be shared between multiple guests.  No NVRAM template
 #     will be specified.
 #
-# Since: 7.0.0
+# Since: 7.0
 ##
 { 'enum': 'FirmwareFlashMode',
   'data': [ 'split', 'combined', 'stateless' ] }
@@ -296,7 +296,7 @@
 #
 # @mode: Describes how the firmware build handles code versus variable
 #     storage.  If not present, it must be treated as if it was
-#     configured with value @split.  Since: 7.0.0
+#     configured with value @split.  (Since: 7.0)
 #
 # @executable: Identifies the firmware executable.  The @mode
 #     indicates whether there will be an associated NVRAM template

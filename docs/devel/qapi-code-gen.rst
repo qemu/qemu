@@ -1001,7 +1001,7 @@ indented like this::
 .. FIXME union branches should be described, too.
 
 Extensions added after the definition was first released carry a
-"(since x.y.z)" comment.
+"(since x.y)" comment.
 
 The feature descriptions must be preceded by a blank line and then a
 line "Features:", like this::
@@ -1034,7 +1034,7 @@ detailing a relevant error condition.  For example::
  #     - If @device does not exist, DeviceNotFound
  #     - Any other error returns a GenericError.
 
-A "Since: x.y.z" tagged section lists the release that introduced the
+A "Since: x.y" tagged section lists the release that introduced the
 definition.
 
 "TODO" sections are not rendered (they are for developers, not users of
