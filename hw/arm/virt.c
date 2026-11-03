@@ -132,6 +132,7 @@ static void arm_virt_compat_default_set(MachineClass *mc)
         .parent = TYPE_VIRT_MACHINE, \
         .class_init = MACHINE_VER_SYM(class_init, virt, __VA_ARGS__), \
         .is_available = target_base_arm, \
+        .secure = true, \
     }; \
     static void MACHINE_VER_SYM(register, virt, __VA_ARGS__)(void) \
     { \

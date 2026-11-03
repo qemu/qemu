@@ -3040,6 +3040,14 @@ config_host_data.set('CONFIG_ELF_AUX_INFO', cc.links(osdep_prefix + '''
     return hwcap;
   }'''))
 
+config_host_data.set('CONFIG_GETEXECPATH', cc.links(osdep_prefix + '''
+  #include <limits.h>
+  #include <unistd.h>
+  int main(void) {
+    char buf[PATH_MAX];
+    getexecpath(buf, sizeof(buf));
+  }'''))
+
 config_host_data.set('CONFIG_USBFS', have_linux_user and cc.compiles('''
   #include <linux/usbdevice_fs.h>
 

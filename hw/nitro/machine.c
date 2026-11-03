@@ -261,6 +261,7 @@ static const TypeInfo nitro_machine_info = {
     .parent = TYPE_MACHINE,
     .instance_size = sizeof(NitroMachineState),
     .class_init = nitro_machine_class_init,
+    .secure = true,
 };
 
 static void nitro_machine_register(void)
