@@ -20,6 +20,8 @@
 #include "block/block_int-io.h"
 #include "block/dirty-bitmap.h"
 #include "block/reqlist.h"
+#include "qemu/hbitmap.h"
+#include "qemu/host-utils.h"
 #include "system/block-backend.h"
 #include "qemu/units.h"
 #include "qemu/co-shared-resource.h"
@@ -90,19 +92,21 @@ typedef struct BlockCopyTask {
     BlockCopyState *s;
     BlockCopyCallState *call_state;
     /*
-     * @method can also be set again in the while loop of
-     * block_copy_dirty_clusters(), but it is never accessed concurrently
-     * because the only other function that reads it is
+     * @method and @zero_fast can also be set again in the while loop of
+     * block_copy_dirty_clusters(), but they are never accessed concurrently
+     * because the only other function that reads them is
      * block_copy_task_entry() and it is invoked afterwards in the same
      * iteration.
      */
     BlockCopyMethod method;
+    /* A write-zeroes task asking for BDRV_REQ_NO_FALLBACK. */
+    bool zero_fast;
 
     /*
      * Generally, req is protected by lock in BlockCopyState, Still req.offset
      * is only set on task creation, so may be read concurrently after creation.
-     * req.bytes is changed at most once, and need only protecting the case of
-     * parallel read while updating @bytes value in block_copy_task_shrink().
+     * req.bytes only shrinks, and need only protecting the case of parallel
+     * read while updating @bytes value in block_copy_task_shrink().
      */
     BlockReq req;
 } BlockCopyTask;
@@ -151,12 +155,22 @@ typedef struct BlockCopyState {
      * This is indicated by skip_unallocated.
      *
      * In this case, block_copy() will query the source’s allocation status,
-     * skip unallocated regions, clear them in the copy_bitmap, and invoke
-     * block_copy_reset_unallocated() every time it does.
+     * skip unallocated regions and clear them in the copy_bitmap, as
+     * block_copy_prescan() does.
      */
     bool skip_unallocated; /* atomic */
     /* State fields that use a thread-safe API */
     BdrvDirtyBitmap *copy_bitmap;
+    /* Cleared once the target refuses BDRV_REQ_NO_FALLBACK. */
+    bool zero_widen; /* atomic */
+    /* Clusters reading as zero; allocated on demand, frozen once valid. */
+    HBitmap *zero_bitmap;
+    /*
+     * Set when the scan is over: zero_bitmap is complete, and for sync=top
+     * copy_bitmap holds no unallocated clusters, so a task needs no
+     * block-status query of its own.
+     */
+    bool scan_done; /* atomic, store-release/load-acquire */
     ProgressMeter *progress;
     SharedResource *mem;
     RateLimit rate_limit;
@@ -182,6 +196,23 @@ static int64_t block_copy_chunk_size(BlockCopyState *s)
 }
 
 /*
+ * A write-zeroes task carries no buffer, so it may cover far more than
+ * block_copy_chunk_size(). Return how far it may run; the caller clamps it
+ * to where the zero run ends.
+ */
+static int64_t block_copy_widen_zero_area(BlockCopyState *s, int64_t offset,
+                                          int64_t bytes)
+{
+    int64_t clean;
+
+    bytes = MIN(bytes, QEMU_ALIGN_DOWN(BDRV_REQUEST_MAX_BYTES,
+                                       s->cluster_size));
+    clean = bdrv_dirty_bitmap_next_zero(s->copy_bitmap, offset, bytes);
+
+    return clean < 0 ? bytes : clean - offset;
+}
+
+/*
  * Search for the first dirty area in offset/bytes range and create task at
  * the beginning of it.
  */
@@ -190,7 +221,10 @@ block_copy_task_create(BlockCopyState *s, BlockCopyCallState *call_state,
                        int64_t offset, int64_t bytes)
 {
     BlockCopyTask *task;
+    BlockCopyMethod method;
+    bool zero_fast = false;
     int64_t max_chunk;
+    int64_t search_end = offset + bytes;
 
     QEMU_LOCK_GUARD(&s->lock);
     max_chunk = MIN_NON_ZERO(block_copy_chunk_size(s), call_state->max_chunk);
@@ -199,6 +233,32 @@ block_copy_task_create(BlockCopyState *s, BlockCopyCallState *call_state,
                                            max_chunk, &offset, &bytes))
     {
         return NULL;
+    }
+
+    method = s->method;
+
+    /*
+     * The scan already knows how this range reads: pick the method here and
+     * stop the task where the answer changes.
+     */
+    if (qatomic_load_acquire(&s->scan_done)) {
+        int64_t boundary;
+
+        if (hbitmap_get(s->zero_bitmap, offset)) {
+            method = COPY_WRITE_ZEROES;
+            zero_fast = qatomic_read(&s->zero_widen);
+            if (zero_fast) {
+                bytes = block_copy_widen_zero_area(s, offset,
+                                                   search_end - offset);
+            }
+            boundary = hbitmap_next_zero(s->zero_bitmap, offset, bytes);
+        } else {
+            boundary = hbitmap_next_dirty(s->zero_bitmap, offset, bytes);
+        }
+
+        if (boundary >= 0) {
+            bytes = boundary - offset;
+        }
     }
 
     assert(QEMU_IS_ALIGNED(offset, s->cluster_size));
@@ -215,7 +275,8 @@ block_copy_task_create(BlockCopyState *s, BlockCopyCallState *call_state,
         .task.func = block_copy_task_entry,
         .s = s,
         .call_state = call_state,
-        .method = s->method,
+        .method = method,
+        .zero_fast = zero_fast,
     };
     reqlist_init_req(&s->reqs, &task->req, offset, bytes);
 
@@ -271,6 +332,9 @@ void block_copy_state_free(BlockCopyState *s)
 
     ratelimit_destroy(&s->rate_limit);
     bdrv_release_dirty_bitmap(s->copy_bitmap);
+    if (s->zero_bitmap) {
+        hbitmap_free(s->zero_bitmap);
+    }
     shres_destroy(s->mem);
     g_free(s);
 }
@@ -434,6 +498,7 @@ BlockCopyState *block_copy_state_new(BdrvChild *source, BdrvChild *target,
         .max_transfer = QEMU_ALIGN_DOWN(
                                     block_copy_max_transfer(source, target),
                                     cluster_size),
+        .zero_widen = target->bs->supported_zero_flags & BDRV_REQ_NO_FALLBACK,
     };
 
     s->discard_source = discard_source;
@@ -451,6 +516,15 @@ BlockCopyState *block_copy_state_new(BdrvChild *source, BdrvChild *target,
 void block_copy_set_progress_meter(BlockCopyState *s, ProgressMeter *pm)
 {
     s->progress = pm;
+}
+
+/*
+ * Bytes @task moves as data, for the memory pool and the rate limit. Only a
+ * write-zeroes request that may not fall back is sure to need no buffer.
+ */
+static uint64_t block_copy_task_data_bytes(BlockCopyTask *task)
+{
+    return task->zero_fast ? 0 : task->req.bytes;
 }
 
 /*
@@ -474,7 +548,7 @@ static coroutine_fn int block_copy_task_run(AioTaskPool *pool,
 
     aio_task_pool_wait_slot(pool);
     if (aio_task_pool_status(pool) < 0) {
-        co_put_to_shres(task->s->mem, task->req.bytes);
+        co_put_to_shres(task->s->mem, block_copy_task_data_bytes(task));
         block_copy_task_end(task, -ECANCELED);
         g_free(task);
         return -ECANCELED;
@@ -483,6 +557,34 @@ static coroutine_fn int block_copy_task_run(AioTaskPool *pool,
     aio_task_pool_start_task(pool, &task->task);
 
     return 0;
+}
+
+/*
+ * Widening a write-zeroes request only pays off where the target zeroes by
+ * metadata, so while the target is believed to oblige, a request asks to fail
+ * instead of falling back to writing the zeroes out. A refusal ends the
+ * widening and shrinks @t to one cluster for the caller to write the usual
+ * way; the rest is dirty again and is picked up at the buffer chunk size.
+ */
+static int coroutine_fn GRAPH_RDLOCK
+block_copy_write_zeroes_fast(BlockCopyTask *t, bool *error_is_read)
+{
+    BlockCopyState *s = t->s;
+    int64_t nbytes = MIN(t->req.offset + t->req.bytes, s->len) - t->req.offset;
+    int ret;
+
+    ret = bdrv_co_pwrite_zeroes(s->target, t->req.offset, nbytes,
+                                (s->write_flags & ~BDRV_REQ_WRITE_COMPRESSED) |
+                                BDRV_REQ_NO_FALLBACK);
+    if (ret == -ENOTSUP) {
+        qatomic_set(&s->zero_widen, false);
+        block_copy_task_shrink(t, s->cluster_size);
+    } else if (ret < 0) {
+        trace_block_copy_write_zeroes_fail(s, t->req.offset, ret);
+        *error_is_read = false;
+    }
+
+    return ret;
 }
 
 /*
@@ -587,8 +689,13 @@ static coroutine_fn int block_copy_task_entry(AioTask *task)
     int ret = -1;
 
     WITH_GRAPH_RDLOCK_GUARD() {
-        ret = block_copy_do_copy(s, t->req.offset, t->req.bytes, &method,
-                                 &error_is_read);
+        if (t->zero_fast) {
+            ret = block_copy_write_zeroes_fast(t, &error_is_read);
+        }
+        if (!t->zero_fast || ret == -ENOTSUP) {
+            ret = block_copy_do_copy(s, t->req.offset, t->req.bytes, &method,
+                                     &error_is_read);
+        }
     }
 
     WITH_QEMU_LOCK_GUARD(&s->lock) {
@@ -605,7 +712,7 @@ static coroutine_fn int block_copy_task_entry(AioTask *task)
             progress_work_done(s->progress, t->req.bytes);
         }
     }
-    co_put_to_shres(s->mem, t->req.bytes);
+    co_put_to_shres(s->mem, block_copy_task_data_bytes(t));
     block_copy_task_end(t, ret);
 
     if (s->discard_source && ret == 0) {
@@ -619,19 +726,23 @@ static coroutine_fn int block_copy_task_entry(AioTask *task)
     return ret;
 }
 
+/* The scan and the per-task query must resolve BDRV_BLOCK_ZERO alike. */
+static GRAPH_RDLOCK BlockDriverState *block_copy_status_base(BlockCopyState *s)
+{
+    if (qatomic_read(&s->skip_unallocated)) {
+        return bdrv_backing_chain_next(s->source->bs);
+    }
+
+    return NULL;
+}
+
 static coroutine_fn GRAPH_RDLOCK
 int block_copy_block_status(BlockCopyState *s, int64_t offset, int64_t bytes,
                             int64_t *pnum)
 {
     int64_t num;
-    BlockDriverState *base;
+    BlockDriverState *base = block_copy_status_base(s);
     int ret;
-
-    if (qatomic_read(&s->skip_unallocated)) {
-        base = bdrv_backing_chain_next(s->source->bs);
-    } else {
-        base = NULL;
-    }
 
     ret = bdrv_co_block_status_above(s->source->bs, base, offset, bytes, &num,
                                      NULL, NULL);
@@ -652,16 +763,41 @@ int block_copy_block_status(BlockCopyState *s, int64_t offset, int64_t bytes,
     return ret;
 }
 
+/* Only the scan allocates, and it runs before scan_done. */
+static HBitmap *block_copy_zero_bitmap(BlockCopyState *s)
+{
+    if (!s->zero_bitmap) {
+        s->zero_bitmap = hbitmap_alloc(s->len, ctz32(s->cluster_size));
+    }
+
+    return s->zero_bitmap;
+}
+
+static void block_copy_mark_zero_prefix(BlockCopyState *s, int64_t offset,
+                                        int64_t zero_count)
+{
+    int64_t zero_bytes = QEMU_ALIGN_DOWN(zero_count, s->cluster_size);
+
+    if (zero_bytes > 0) {
+        hbitmap_set(block_copy_zero_bitmap(s), offset, zero_bytes);
+    }
+}
+
 /*
- * Check if the cluster starting at offset is allocated or not.
- * return via pnum the number of contiguous clusters sharing this allocation.
+ * One block-status query of the scan at @offset: return 1 if the cluster
+ * there is allocated, 0 if not, -errno on failure, and via @pnum the number
+ * of contiguous clusters sharing that allocation. Their zero prefix goes
+ * into zero_bitmap.
  */
 static int coroutine_fn GRAPH_RDLOCK
-block_copy_is_cluster_allocated(BlockCopyState *s, int64_t offset,
-                                int64_t *pnum)
+block_copy_scan_status(BlockCopyState *s, int64_t offset, int64_t *pnum)
 {
     BlockDriverState *bs = s->source->bs;
+    BlockDriverState *base = block_copy_status_base(s);
+    int64_t orig_offset = offset;
     int64_t count, total_count = 0;
+    int64_t zero_count = 0;
+    bool zero_broken = false;
     int64_t bytes = s->len - offset;
     int ret;
 
@@ -669,25 +805,37 @@ block_copy_is_cluster_allocated(BlockCopyState *s, int64_t offset,
 
     while (true) {
         /* protected in backup_run() */
-        ret = bdrv_co_is_allocated(bs, offset, bytes, &count);
+        ret = bdrv_co_block_status_above(bs, base, offset, bytes, &count,
+                                         NULL, NULL);
         if (ret < 0) {
             return ret;
         }
 
+        if (!zero_broken) {
+            if (ret & BDRV_BLOCK_ZERO) {
+                zero_count += count;
+            } else {
+                zero_broken = true;
+            }
+        }
+
         total_count += count;
 
-        if (ret || count == 0) {
+        if ((ret & BDRV_BLOCK_ALLOCATED) || count == 0) {
             /*
-             * ret: partial segment(s) are considered allocated.
+             * BDRV_BLOCK_ALLOCATED: partial segment(s) are considered
+             * allocated.
              * otherwise: unallocated tail is treated as an entire segment.
              */
             *pnum = DIV_ROUND_UP(total_count, s->cluster_size);
-            return ret;
+            block_copy_mark_zero_prefix(s, orig_offset, zero_count);
+            return !!(ret & BDRV_BLOCK_ALLOCATED);
         }
 
         /* Unallocated segment(s) with uncertain following segment(s) */
         if (total_count >= s->cluster_size) {
             *pnum = total_count / s->cluster_size;
+            block_copy_mark_zero_prefix(s, orig_offset, zero_count);
             return 0;
         }
 
@@ -709,31 +857,92 @@ void block_copy_reset(BlockCopyState *s, int64_t offset, int64_t bytes)
 }
 
 /*
- * Reset bits in copy_bitmap starting at offset if they represent unallocated
- * data in the image. May reset subsequent contiguous bits.
- * @return 0 when the cluster at @offset was unallocated,
- *         1 otherwise, and -ret on error.
+ * One step of the scan run before copying: query the next dirty area, fill
+ * zero_bitmap and, while skip_unallocated is set, drop the clusters which
+ * are not allocated above the backing from copy_bitmap. @cached_end tracks
+ * progress across calls, @count how far @offset should move.
+ *
+ * A failed query only leaves the area unmarked, so it copies as data, but
+ * sync=top cannot tell what to skip and fails instead.
  */
-int64_t coroutine_fn block_copy_reset_unallocated(BlockCopyState *s,
-                                                  int64_t offset,
-                                                  int64_t *count)
+int coroutine_fn GRAPH_RDLOCK
+block_copy_prescan(BlockCopyState *s, int64_t offset, int64_t *cached_end,
+                   int64_t *count)
+{
+    int64_t max_bytes = QEMU_ALIGN_DOWN(BDRV_REQUEST_MAX_BYTES,
+                                        s->cluster_size);
+    int64_t dirty_offset, dirty_bytes, dirty_end;
+    bool found;
+
+    /* CBW mutates copy_bitmap from its own AioContext meanwhile. */
+    WITH_QEMU_LOCK_GUARD(&s->lock) {
+        found = bdrv_dirty_bitmap_next_dirty_area(s->copy_bitmap, offset,
+                                                  s->len, max_bytes,
+                                                  &dirty_offset, &dirty_bytes);
+    }
+
+    if (!found) {
+        *count = s->len - offset;
+        return 0;
+    }
+    dirty_end = dirty_offset + dirty_bytes;
+
+    if (*cached_end < dirty_end) {
+        int64_t clusters;
+        int64_t query_offset = MAX(dirty_offset, *cached_end);
+        int ret = block_copy_scan_status(s, query_offset, &clusters);
+
+        if (ret < 0) {
+            if (qatomic_read(&s->skip_unallocated)) {
+                return ret;
+            }
+            *cached_end = dirty_end;
+        } else {
+            *cached_end = query_offset + clusters * s->cluster_size;
+            if (!ret && qatomic_read(&s->skip_unallocated)) {
+                block_copy_reset(s, query_offset, clusters * s->cluster_size);
+            }
+        }
+    }
+
+    *count = MIN(*cached_end, dirty_end) - offset;
+    return 0;
+}
+
+/*
+ * Decide how @task is copied: COPY_WRITE_ZEROES if it reads as zero. May
+ * shrink @task. Returns false if @task is to be skipped (already ended,
+ * not freed).
+ */
+static bool coroutine_fn GRAPH_RDLOCK
+block_copy_set_task_method(BlockCopyState *s, BlockCopyTask *task)
 {
     int ret;
-    int64_t clusters, bytes;
+    int64_t status_bytes;
 
-    ret = block_copy_is_cluster_allocated(s, offset, &clusters);
-    if (ret < 0) {
-        return ret;
+    /* block_copy_task_create() already decided, from zero_bitmap. */
+    if (qatomic_load_acquire(&s->scan_done)) {
+        return true;
     }
 
-    bytes = clusters * s->cluster_size;
-
-    if (!ret) {
-        block_copy_reset(s, offset, bytes);
+    /* CBW filter could call this early. */
+    ret = block_copy_block_status(s, task->req.offset, task->req.bytes,
+                                  &status_bytes);
+    assert(ret >= 0); /* never fail */
+    if (status_bytes < task->req.bytes) {
+        block_copy_task_shrink(task, status_bytes);
+    }
+    if (qatomic_read(&s->skip_unallocated) && !(ret & BDRV_BLOCK_ALLOCATED)) {
+        block_copy_task_end(task, 0);
+        trace_block_copy_skip_range(s, task->req.offset, task->req.bytes);
+        return false;
+    }
+    if (ret & BDRV_BLOCK_ZERO) {
+        task->method = COPY_WRITE_ZEROES;
+        task->zero_fast = qatomic_read(&s->zero_widen);
     }
 
-    *count = bytes;
-    return ret;
+    return true;
 }
 
 /*
@@ -768,7 +977,6 @@ block_copy_dirty_clusters(BlockCopyCallState *call_state)
     while (bytes && aio_task_pool_status(aio) == 0 &&
            !qatomic_read(&call_state->cancelled)) {
         BlockCopyTask *task;
-        int64_t status_bytes;
 
         task = block_copy_task_create(s, call_state, offset, bytes);
         if (!task) {
@@ -782,23 +990,11 @@ block_copy_dirty_clusters(BlockCopyCallState *call_state)
 
         found_dirty = true;
 
-        ret = block_copy_block_status(s, task->req.offset, task->req.bytes,
-                                      &status_bytes);
-        assert(ret >= 0); /* never fail */
-        if (status_bytes < task->req.bytes) {
-            block_copy_task_shrink(task, status_bytes);
-        }
-        if (qatomic_read(&s->skip_unallocated) &&
-            !(ret & BDRV_BLOCK_ALLOCATED)) {
-            block_copy_task_end(task, 0);
-            trace_block_copy_skip_range(s, task->req.offset, task->req.bytes);
+        if (!block_copy_set_task_method(s, task)) {
             offset = task_end(task);
             bytes = end - offset;
             g_free(task);
             continue;
-        }
-        if (ret & BDRV_BLOCK_ZERO) {
-            task->method = COPY_WRITE_ZEROES;
         }
 
         if (!call_state->ignore_ratelimit) {
@@ -812,11 +1008,12 @@ block_copy_dirty_clusters(BlockCopyCallState *call_state)
             }
         }
 
-        ratelimit_calculate_delay(&s->rate_limit, task->req.bytes);
+        ratelimit_calculate_delay(&s->rate_limit,
+                                  block_copy_task_data_bytes(task));
 
         trace_block_copy_process(s, task->req.offset);
 
-        co_get_from_shres(s->mem, task->req.bytes);
+        co_get_from_shres(s->mem, block_copy_task_data_bytes(task));
 
         offset = task_end(task);
         bytes = end - offset;
@@ -840,8 +1037,6 @@ out:
          * block_copy_task_run. If it fails, it means some task already failed
          * for real reason, let's return first failure.
          * Still, assert that we don't rewrite failure by success.
-         *
-         * Note: ret may be positive here because of block-status result.
          */
         assert(ret >= 0 || aio_task_pool_status(aio) < 0);
         ret = aio_task_pool_status(aio);
@@ -1060,6 +1255,13 @@ int64_t block_copy_cluster_size(BlockCopyState *s)
 void block_copy_set_skip_unallocated(BlockCopyState *s, bool skip)
 {
     qatomic_set(&s->skip_unallocated, skip);
+}
+
+void block_copy_set_scan_done(BlockCopyState *s)
+{
+    block_copy_zero_bitmap(s);
+    qatomic_set(&s->skip_unallocated, false);
+    qatomic_store_release(&s->scan_done, true);
 }
 
 void block_copy_set_speed(BlockCopyState *s, uint64_t speed)

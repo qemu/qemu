@@ -69,6 +69,10 @@ static bool co_try_get_from_shres_locked(SharedResource *s, uint64_t n)
 void coroutine_fn co_get_from_shres(SharedResource *s, uint64_t n)
 {
     assert(n <= s->total);
+    if (!n) {
+        return;
+    }
+
     QEMU_LOCK_GUARD(&s->lock);
     while (!co_try_get_from_shres_locked(s, n)) {
         qemu_co_queue_wait(&s->queue, &s->lock);
@@ -77,6 +81,10 @@ void coroutine_fn co_get_from_shres(SharedResource *s, uint64_t n)
 
 void coroutine_fn co_put_to_shres(SharedResource *s, uint64_t n)
 {
+    if (!n) {
+        return;
+    }
+
     QEMU_LOCK_GUARD(&s->lock);
     assert(s->total - s->available >= n);
     s->available += n;

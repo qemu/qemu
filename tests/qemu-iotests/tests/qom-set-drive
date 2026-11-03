@@ -24,12 +24,15 @@ import iotests
 from iotests import imgfmt, log, qemu_img_create, QMPTestCase
 
 image_size = 1 * 1024 * 1024
-images = [os.path.join(iotests.test_dir, f'{i}.img') for i in range(0, 4)]
+images = [os.path.join(iotests.test_dir, f'{i}.img') for i in range(0, 5)]
+
+# node4 is deliberately larger, to cover a replacement which changes the size
+image_sizes = [image_size] * 4 + [2 * image_size]
 
 class TestQOMSetDrive(QMPTestCase):
     def setUp(self) -> None:
-        for image in images:
-            qemu_img_create('-f', imgfmt, image, str(image_size))
+        for image, size in zip(images, image_sizes):
+            qemu_img_create('-f', imgfmt, image, str(size))
 
         self.vm = iotests.VM()
         for i, image in enumerate(images):
@@ -65,6 +68,11 @@ class TestQOMSetDrive(QMPTestCase):
                         property='drive'))
         log(self.vm.qmp('qom-set', path='/machine/peripheral/no-iot',
                         property='drive', value='node3'))
+        log(self.vm.qmp('qom-get', path='/machine/peripheral/no-iot',
+                        property='drive'))
+
+        log(self.vm.qmp('qom-set', path='/machine/peripheral/no-iot',
+                        property='drive', value='node4'))
         log(self.vm.qmp('qom-get', path='/machine/peripheral/no-iot',
                         property='drive'))
 

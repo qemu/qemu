@@ -1656,7 +1656,9 @@
 #     copying process.  Doesn't influence copy-before-write
 #     operations.  0 means unlimited.  If max-chunk is non-zero then
 #     it should not be less than job cluster size which is calculated
-#     as maximum of target image cluster size and 64k.  Default 0.
+#     as maximum of target image cluster size and 64k.  Write-zeroes
+#     requests to a target which zeroes efficiently are not bounded by
+#     it.  Default 0.
 #
 # @min-cluster-size: Minimum size of blocks used by copy-before-write
 #     and background copy operations.  Has to be a power of 2.  No

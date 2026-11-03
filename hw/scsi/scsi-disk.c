@@ -2398,12 +2398,9 @@ static int32_t scsi_disk_dma_command(SCSIRequest *req, uint8_t *buf)
     }
 }
 
-static void scsi_disk_reset(DeviceState *dev)
+static void scsi_disk_refresh_max_lba(SCSIDiskState *s)
 {
-    SCSIDiskState *s = DO_UPCAST(SCSIDiskState, qdev.qdev, dev);
     uint64_t nb_sectors;
-
-    scsi_device_purge_requests(&s->qdev, SENSE_CODE(RESET));
 
     blk_get_geometry(s->qdev.conf.blk, &nb_sectors);
 
@@ -2412,6 +2409,15 @@ static void scsi_disk_reset(DeviceState *dev)
         nb_sectors--;
     }
     s->qdev.max_lba = nb_sectors;
+}
+
+static void scsi_disk_reset(DeviceState *dev)
+{
+    SCSIDiskState *s = DO_UPCAST(SCSIDiskState, qdev.qdev, dev);
+
+    scsi_device_purge_requests(&s->qdev, SENSE_CODE(RESET));
+
+    scsi_disk_refresh_max_lba(s);
     /* reset tray statuses */
     s->tray_locked = 0;
     s->tray_open = 0;
@@ -2436,6 +2442,8 @@ static void scsi_disk_drained_end(void *opaque)
 static void scsi_disk_resize_cb(void *opaque)
 {
     SCSIDiskState *s = opaque;
+
+    scsi_disk_refresh_max_lba(s);
 
     /* SPC lists this sense code as available only for
      * direct-access devices.
