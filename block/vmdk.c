@@ -337,6 +337,10 @@ vmdk_read_cid(BlockDriverState *bs, int parent, uint32_t *pcid)
         goto out;
     }
     p_name += cid_str_size;
+    if (p_name >= desc + DESC_SIZE) {
+        ret = -EINVAL;
+        goto out;
+    }
     if (sscanf(p_name, "%" SCNx32, &cid) != 1) {
         ret = -EINVAL;
         goto out;
@@ -508,6 +512,10 @@ static int GRAPH_RDLOCK vmdk_parent_open(BlockDriverState *bs)
         char *end_name;
 
         p_name += sizeof("parentFileNameHint") + 1;
+        if (p_name >= desc + DESC_SIZE + 1) {
+            ret = -EINVAL;
+            goto out;
+        }
         end_name = strchr(p_name, '\"');
         if (end_name == NULL) {
             ret = -EINVAL;
