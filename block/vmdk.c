@@ -1301,6 +1301,12 @@ vmdk_parse_extents(const char *desc, BlockDriverState *bs, QDict *options,
         extent->type = g_strdup(type);
     }
 
+    if (s->num_extents == 0) {
+        error_setg(errp, "Invalid file: no extent lines present");
+        ret = -EINVAL;
+        goto out;
+    }
+
     ret = 0;
     goto out;
 
