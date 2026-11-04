@@ -75,6 +75,9 @@ struct I82596State_st {
     hwaddr current_tx_desc;
     hwaddr current_rx_desc;
     uint32_t last_good_rfa;
+    uint32_t rbd_p;         /* next free RBD, loaded from the first RFD at RU start */
+    bool rx_take_el;        /* hold timed out: fill the EL RBD like the chip does */
+    uint32_t rfd_p;         /* next RFD, loaded from the SCB at RU start */
     uint8_t packet_queue[PACKET_QUEUE_SIZE][PKT_BUF_SZ];
     size_t packet_queue_len[PACKET_QUEUE_SIZE];
     int queue_head;

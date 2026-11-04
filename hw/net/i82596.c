@@ -221,39 +221,78 @@ static void set_uint32(uint32_t addr, uint32_t val)
     set_uint16(addr + 2, val >> 16);
 }
 
+/*
+ * Address fields of the SCB, command blocks and RX/TX descriptors.  In
+ * big-endian mode (SYSBUS BE, 82596CA) the chip reads them as 32-bit
+ * big-endian words; otherwise as two 16-bit halves, low half first.  The
+ * ISCP and SCB addresses and the SCB counters are always two halves.
+ */
+#define I596_SYSBUS_BE  0x80
+
+static uint32_t get_addr(I82596State *s, uint32_t addr)
+{
+    if (s->sysbus & I596_SYSBUS_BE) {
+        return ldl_be_phys(&address_space_memory, addr);
+    }
+    return get_uint32(addr);
+}
+
+static void set_addr(I82596State *s, uint32_t addr, uint32_t val)
+{
+    if (s->sysbus & I596_SYSBUS_BE) {
+        stl_be_phys(&address_space_memory, addr, val);
+    } else {
+        set_uint32(addr, val);
+    }
+}
+
+/* SCB error counters (linear mode), counted in memory like the chip does */
+#define SCB_CRC_ERRS        12
+#define SCB_ALIGN_ERRS      16
+#define SCB_RESOURCE_ERRS   20
+#define SCB_OVERRUN_ERRS    24
+#define SCB_RCVCDT_ERRS     28
+#define SCB_SHORT_ERRS      32
+
+static void i82596_count_error(I82596State *s, int offset)
+{
+    if (s->scb) {
+        set_uint32(s->scb + offset, get_uint32(s->scb + offset) + 1);
+    }
+}
+
 /* Centralized error detection and update mechanism */
 static void i82596_record_error(I82596State *s, uint16_t error_type, bool is_tx)
 {
     if (is_tx) {
         if (error_type & TX_ABORTED_ERRORS) {
             s->tx_aborted_errors++;
-            set_uint32(s->scb + 28, s->tx_aborted_errors);
         }
     } else {
         if (error_type & RX_CRC_ERRORS) {
             s->crc_err++;
-            set_uint32(s->scb + 16, s->crc_err);
+            i82596_count_error(s, SCB_CRC_ERRS);
         }
 
         if (error_type & (RX_LENGTH_ERRORS | RX_LENGTH_ERRORS_ALT |
                           RX_FRAME_ERRORS)) {
             s->align_err++;
-            set_uint32(s->scb + 18, s->align_err);
+            i82596_count_error(s, SCB_ALIGN_ERRS);
         }
 
         if (error_type & RFD_STATUS_NOBUFS) {
             s->resource_err++;
-            set_uint32(s->scb + 20, s->resource_err);
+            i82596_count_error(s, SCB_RESOURCE_ERRS);
         }
 
         if (error_type & (RX_OVER_ERRORS | RX_FIFO_ERRORS)) {
             s->over_err++;
-            set_uint32(s->scb + 22, s->over_err);
+            i82596_count_error(s, SCB_OVERRUN_ERRS);
         }
 
         if (error_type & RFD_STATUS_TRUNC) {
             s->short_fr_error++;
-            set_uint32(s->scb + 26, s->short_fr_error);
+            i82596_count_error(s, SCB_SHORT_ERRS);
         }
     }
 }
@@ -439,8 +478,8 @@ static void i82596_tx_tfd_read(I82596State *s, hwaddr addr,
 {
     desc->status_bits = get_uint16(addr + 0);
     desc->command = get_uint16(addr + 2);
-    desc->link_addr = get_uint32(addr + 4);
-    desc->tbd_addr = get_uint32(addr + 8);
+    desc->link_addr = get_addr(s, addr + 4);
+    desc->tbd_addr = get_addr(s, addr + 8);
     desc->tcb_count = get_uint16(addr + 12);
     address_space_read(&address_space_memory, addr + 14,
                       MEMTXATTRS_UNSPECIFIED, desc->dest_addr, 6);
@@ -452,8 +491,8 @@ static void i82596_tx_tfd_write(I82596State *s, hwaddr addr,
 {
     set_uint16(addr + 0, desc->status_bits);
     set_uint16(addr + 2, desc->command);
-    set_uint32(addr + 4, desc->link_addr);
-    set_uint32(addr + 8, desc->tbd_addr);
+    set_addr(s, addr + 4, desc->link_addr);
+    set_addr(s, addr + 8, desc->tbd_addr);
     set_uint16(addr + 12, desc->tcb_count);
     address_space_write(&address_space_memory, addr + 14,
                        MEMTXATTRS_UNSPECIFIED, desc->dest_addr, 6);
@@ -464,8 +503,8 @@ static void i82596_tbd_read(I82596State *s, hwaddr addr,
                             struct i82596_tx_buffer_desc *tbd)
 {
     tbd->size = get_uint16(addr + 0);
-    tbd->link = get_uint32(addr + 4);
-    tbd->buffer = get_uint32(addr + 8);
+    tbd->link = get_addr(s, addr + 4);
+    tbd->buffer = get_addr(s, addr + 8);
 }
 
 static void i82596_rx_rfd_read(I82596State *s, hwaddr addr,
@@ -473,8 +512,8 @@ static void i82596_rx_rfd_read(I82596State *s, hwaddr addr,
 {
     desc->status_bits = get_uint16(addr + 0x0);
     desc->command = get_uint16(addr + 0x2);
-    desc->link = get_uint32(addr + 0x4);
-    desc->rbd_addr = get_uint32(addr + 0x8);
+    desc->link = get_addr(s, addr + 0x4);
+    desc->rbd_addr = get_addr(s, addr + 0x8);
     desc->actual_count = get_uint16(addr + 0xC);
     desc->size = get_uint16(addr + 0xE);
 
@@ -494,8 +533,8 @@ static void i82596_rx_desc_write(I82596State *s, hwaddr addr,
 
     if (write_full) {
         set_uint16(addr + 0x2, desc->command);
-        set_uint32(addr + 0x4, desc->link);
-        set_uint32(addr + 0x8, desc->rbd_addr);
+        set_addr(s, addr + 0x4, desc->link);
+        set_addr(s, addr + 0x8, desc->rbd_addr);
         set_uint16(addr + 0xE, desc->size);
 
         address_space_write(&address_space_memory, addr + 0x10,
@@ -510,8 +549,8 @@ static void i82596_rbd_read(I82596State *s, hwaddr addr,
                             struct i82596_rx_buffer_desc *rbd)
 {
     rbd->actual_count = get_uint16(addr + 0x0);
-    rbd->next_rbd_addr = get_uint32(addr + 0x4);
-    rbd->buffer_addr = get_uint32(addr + 0x8);
+    rbd->next_rbd_addr = get_addr(s, addr + 0x4);
+    rbd->buffer_addr = get_addr(s, addr + 0x8);
     rbd->size = get_uint16(addr + 0xC);
 }
 
@@ -519,8 +558,8 @@ static void i82596_rbd_write(I82596State *s, hwaddr addr,
                              struct i82596_rx_buffer_desc *rbd)
 {
     set_uint16(addr + 0x0, rbd->actual_count);
-    set_uint32(addr + 0x4, rbd->next_rbd_addr);
-    set_uint32(addr + 0x8, rbd->buffer_addr);
+    set_addr(s, addr + 0x4, rbd->next_rbd_addr);
+    set_addr(s, addr + 0x8, rbd->buffer_addr);
     set_uint16(addr + 0xC, rbd->size);
 }
 
@@ -1008,7 +1047,7 @@ static ssize_t i82596_receive_packet(I82596State *s, const uint8_t *buf,
     }
 
 
-    rfd_addr = get_uint32(s->scb + 8);
+    rfd_addr = s->rfd_p;
 
     if (rfd_addr == 0 || rfd_addr == I596_NULL) {
         i82596_update_rx_state(s, RX_NO_RESOURCES);
@@ -1383,23 +1422,19 @@ static void i82596_update_statistics(I82596State *s, bool is_tx,
             s->tx_collisions += collision_count;
             s->collision_events++;
             s->total_collisions += collision_count;
-            set_uint32(s->scb + 32, s->tx_collisions);
         }
         if (error_flags) {
             i82596_record_error(s, error_flags, true);
         }
         if (!(error_flags & (TX_ABORTED_ERRORS | TX_CARRIER_ERRORS))) {
             s->tx_good_frames++;
-            set_uint32(s->scb + 36, s->tx_good_frames);
         }
     } else {
         s->total_frames++;
-        set_uint32(s->scb + 40, s->total_frames);
         if (error_flags) {
             i82596_record_error(s, error_flags, false);
         } else {
             s->total_good_frames++;
-            set_uint32(s->scb + 44, s->total_good_frames);
         }
     }
 }
@@ -1557,7 +1592,7 @@ static void i82596_command_dump(I82596State *s, uint32_t cmd_addr)
     uint16_t cmd = get_uint16(cmd_addr + 2);
     uint16_t status;
 
-    dump_addr = get_uint32(cmd_addr + 8);
+    dump_addr = get_addr(s, cmd_addr + 8);
 
     i82596_init_dump_area(s, dump_buffer);
     address_space_write(&address_space_memory, dump_addr,
@@ -1648,19 +1683,8 @@ static void i82596_update_cu_status(I82596State *s, uint16_t cmd_status,
 static void update_scb_status(I82596State *s)
 {
     s->scb_status = (s->scb_status & 0xf000)
-        | (s->cu_status << 8) | (s->rx_status << 4) | (s->lnkst >> 8);
+        | (s->cu_status << 8) | (s->rx_status << 4);
     set_uint16(s->scb, s->scb_status);
-
-    set_uint32(s->scb + 28, s->tx_aborted_errors);
-    set_uint32(s->scb + 32, s->tx_collisions);
-    set_uint32(s->scb + 36, s->tx_good_frames);
-
-    set_uint32(s->scb + 16, s->crc_err);
-    set_uint32(s->scb + 18, s->align_err);
-    set_uint32(s->scb + 20, s->resource_err);
-    set_uint32(s->scb + 22, s->over_err);
-    set_uint32(s->scb + 24, s->rcvdt_err);
-    set_uint32(s->scb + 26, s->short_fr_error);
 }
 
 static void command_loop(I82596State *s)
@@ -1669,11 +1693,12 @@ static void command_loop(I82596State *s)
            s->cmd_p != 0) {
         uint16_t status = get_uint16(s->cmd_p);
         if (status & (STAT_C | STAT_B)) {
-            uint32_t next = get_uint32(s->cmd_p + 4);
+            uint32_t next = get_addr(s, s->cmd_p + 4);
             if (next == 0 || next == s->cmd_p) {
                 s->cmd_p = I596_NULL;
                 s->cu_status = CU_IDLE;
                 s->scb_status |= SCB_STATUS_CNA;
+                s->send_irq = 1;
                 break;
             }
             s->cmd_p = i82596_translate_address(s, next, false);
@@ -1681,7 +1706,7 @@ static void command_loop(I82596State *s)
         }
         set_uint16(s->cmd_p, STAT_B);
         uint16_t cmd = get_uint16(s->cmd_p + 2);
-        uint32_t next_addr = get_uint32(s->cmd_p + 4);
+        uint32_t next_addr = get_addr(s, s->cmd_p + 4);
         next_addr = (next_addr == 0) ? I596_NULL :
                     i82596_translate_address(s, next_addr, false);
         switch (cmd & CMD_MASK) {
@@ -1784,7 +1809,7 @@ static void examine_scb(I82596State *s)
         break;
 
     case SCB_CUC_START: {
-        uint32_t cmd_ptr = get_uint32(s->scb + 4);
+        uint32_t cmd_ptr = get_addr(s, s->scb + 4);
         s->cmd_p = i82596_translate_address(s, cmd_ptr, false);
         s->cu_status = CU_ACTIVE;
         break;
@@ -1823,7 +1848,7 @@ static void examine_scb(I82596State *s)
         break;
 
     case SCB_RUC_START: {
-        uint32_t rfd_log = get_uint32(s->scb + 8);
+        uint32_t rfd_log = get_addr(s, s->scb + 8);
         hwaddr rfd = i82596_translate_address(s, rfd_log, false);
 
         if (rfd == 0 || rfd == I596_NULL) {
@@ -1862,11 +1887,10 @@ static void examine_scb(I82596State *s)
         if (found) {
             s->current_rx_desc = first_usable_rfd;
             s->last_good_rfa = first_usable_rfd_log;
+            s->rbd_p = i82596_translate_address(s, test_rfd.rbd_addr, false);
+            s->rx_take_el = false;
+            s->rfd_p = first_usable_rfd;
             i82596_update_rx_state(s, RX_READY);
-
-            if (first_usable_rfd != rfd) {
-                set_uint32(s->scb + 8, first_usable_rfd_log);
-            }
 
             if (s->queue_count > 0) {
                 trace_i82596_flush_queue(s->queue_count);
@@ -1909,7 +1933,7 @@ static void examine_scb(I82596State *s)
     }
     if (s->cu_status == CU_ACTIVE) {
         if (s->cmd_p == I596_NULL) {
-            s->cmd_p = get_uint32(s->scb + 4);
+            s->cmd_p = get_addr(s, s->scb + 4);
         }
         update_scb_status(s);
         command_loop(s);
