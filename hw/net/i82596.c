@@ -631,8 +631,14 @@ static int i82596_tx_process_frame(I82596State *s)
         return 0;
     }
 
-    if (I596_NO_SRC_ADD_IN == 0 && total_len >= ETH_ALEN * 2) {
+    if (I596_NO_SRC_ADD_IN == 0 && total_len >= ETH_ALEN) {
+        if (total_len + ETH_ALEN > sizeof(s->tx_buffer)) {
+            return 0;
+        }
+        memmove(&s->tx_buffer[ETH_ALEN * 2], &s->tx_buffer[ETH_ALEN],
+                total_len - ETH_ALEN);
         memcpy(&s->tx_buffer[ETH_ALEN], s->conf.macaddr.a, ETH_ALEN);
+        total_len += ETH_ALEN;
     }
 
     if (I596_PADDING && total_len < I596_MIN_FRAME_LEN) {
