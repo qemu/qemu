@@ -73,14 +73,16 @@
  * the V/U/H/W types to P/N/P/Q if there is no prefix, as well as changing
  * "x" to "q" if there is no prefix.
  *
- * In addition, the ss/ps/sd/pd types are sometimes mushed together as "x"
- * if the difference is expressed via prefixes.  Individual instructions
+ * In addition, the ss/sd types are sometimes mushed together as "x"
+ * if the difference is expressed via prefixes; individual instructions
  * are separated by prefix in the generator functions.
  *
  * There is a custom size "xh" used to address half of a SSE/AVX operand.
  * This points to a 64-bit operand for SSE operations, 128-bit operand
  * for 256-bit AVX operands, etc.  It is used for conversion operations
  * such as VCVTPH2PS or VCVTSS2SD.
+ *
+ * pi/ps/pd are simply written as "q" or "x".
  *
  * There are a couple cases in which instructions (e.g. MOVD) write the
  * whole XMM or MM register but are established incorrectly in the manual
@@ -2448,7 +2450,6 @@ static bool decode_op_size(DisasContext *s, X86OpEntry *e, X86OpSize size, MemOp
         *ot = s->dflag;
         return true;
 
-    case X86_SIZE_pi: /* MMX */
     case X86_SIZE_q:  /* 64-bit */
     case X86_SIZE_sd: /* SSE/AVX scalar double precision */
         *ot = MO_64;
@@ -2497,9 +2498,6 @@ static bool decode_op_size(DisasContext *s, X86OpEntry *e, X86OpSize size, MemOp
             *ot = MO_64;
             return true;
         }
-        /* fall through */
-    case X86_SIZE_ps: /* SSE/AVX packed single precision */
-    case X86_SIZE_pd: /* SSE/AVX packed double precision */
         *ot = s->vex_l ? MO_256 : MO_128;
         return true;
 

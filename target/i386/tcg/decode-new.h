@@ -73,15 +73,11 @@ typedef enum X86OpSize {
     X86_SIZE_d,  /* 32-bit */
     X86_SIZE_dq, /* SSE/AVX 128-bit */
     X86_SIZE_p,  /* Far pointer */
-    X86_SIZE_pd, /* SSE/AVX packed double precision */
-    X86_SIZE_pi, /* MMX */
-    X86_SIZE_ps, /* SSE/AVX packed single precision */
     X86_SIZE_q,  /* 64-bit */
     X86_SIZE_qq, /* AVX 256-bit */
     X86_SIZE_s,  /* Descriptor */
     X86_SIZE_sd, /* SSE/AVX scalar double precision */
     X86_SIZE_ss, /* SSE/AVX scalar single precision */
-    X86_SIZE_si, /* 32-bit GPR */
     X86_SIZE_v,  /* 16/32/64-bit, based on operand size */
     X86_SIZE_w,  /* 16-bit */
     X86_SIZE_x,  /* 128/256-bit, based on operand size */
