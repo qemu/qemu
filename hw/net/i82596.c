@@ -180,7 +180,6 @@ static void examine_scb(I82596State *s);
 static bool i82596_check_medium_status(I82596State *s);
 static int i82596_csma_backoff(I82596State *s, int retry_count);
 static uint16_t i82596_calculate_crc16(const uint8_t *data, size_t len);
-static size_t i82596_append_crc(I82596State *s, uint8_t *buffer, size_t len);
 static void i82596_bus_throttle_timer(void *opaque);
 static void i82596_flush_queue_timer(void *opaque);
 static int i82596_flush_packet_queue(I82596State *s);
@@ -624,7 +623,7 @@ static int i82596_tx_copy_buffers(I82596State *s, hwaddr tfd_addr,
     return total_len;
 }
 
-static int i82596_tx_process_frame(I82596State *s, bool insert_crc)
+static int i82596_tx_process_frame(I82596State *s)
 {
     uint32_t total_len = s->tx_frame_len;
 
@@ -640,10 +639,6 @@ static int i82596_tx_process_frame(I82596State *s, bool insert_crc)
         size_t pad_len = I596_MIN_FRAME_LEN - total_len;
         memset(s->tx_buffer + total_len, 0, pad_len);
         total_len = I596_MIN_FRAME_LEN;
-    }
-
-    if (insert_crc) {
-        total_len = i82596_append_crc(s, s->tx_buffer, total_len);
     }
 
     s->tx_frame_len = total_len;
@@ -710,15 +705,12 @@ static void i82596_transmit(I82596State *s, uint32_t addr)
     int collision_count = 0;
     int frame_len;
     bool success = true;
-    bool insert_crc;
 
     i82596_tx_tfd_read(s, tfd_addr, &tfd);
     trace_i82596_tx_tfd(tfd_addr, tfd.status_bits, tfd.command,
                         tfd.link_addr, tfd.tbd_addr);
 
     s->current_tx_desc = tfd_addr;
-    insert_crc = (I596_NOCRC_INS == 0) && ((tfd.command & 0x10) == 0) &&
-                 !I596_LOOPBACK;
     collision_count = i82596_tx_csma_cd(s, &tx_status);
     if (collision_count < 0) {
         success = false;
@@ -730,7 +722,8 @@ static void i82596_transmit(I82596State *s, uint32_t addr)
         success = false;
         goto tx_complete;
     }
-    frame_len = i82596_tx_process_frame(s, insert_crc);
+    /* QEMU net clients exchange frames without the FCS */
+    frame_len = i82596_tx_process_frame(s);
     if (frame_len <= 0) {
         tx_status |= TX_ABORTED_ERRORS;
         success = false;
@@ -1399,25 +1392,6 @@ static uint16_t i82596_calculate_crc16(const uint8_t *data, size_t len)
         }
     }
     return crc;
-}
-
-static size_t i82596_append_crc(I82596State *s, uint8_t *buffer, size_t len)
-{
-    if (len + 4 > PKT_BUF_SZ) {
-        return len;
-    }
-
-    if (I596_CRC16_32) {
-        uint32_t crc = crc32(~0, buffer, len);
-        crc = cpu_to_be32(crc);
-        memcpy(&buffer[len], &crc, sizeof(crc));
-        return len + sizeof(crc);
-    } else {
-        uint16_t crc = i82596_calculate_crc16(buffer, len);
-        crc = cpu_to_be16(crc);
-        memcpy(&buffer[len], &crc, sizeof(crc));
-        return len + sizeof(crc);
-    }
 }
 
 static void i82596_update_statistics(I82596State *s, bool is_tx,
