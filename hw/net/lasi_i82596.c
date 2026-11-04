@@ -43,8 +43,8 @@ static void lasi_82596_mem_write(void *opaque, hwaddr addr,
         d->val_index++;
         if (d->val_index == 0) {
             uint32_t v = d->last_val | (val << 16);
-            v = v & ~0xff;
-            i82596_ioport_writew(&d->state, d->last_val & 0xff, v);
+            v = v & ~0xf;
+            i82596_ioport_writew(&d->state, d->last_val & 0xf, v);
         }
         d->last_val = val;
         break;
