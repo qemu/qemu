@@ -359,6 +359,13 @@ static void i82596_s_reset(I82596State *s)
     s->last_tx_len = 0;
 
     s->last_good_rfa = 0;
+    s->rbd_p = I596_NULL;
+    s->rx_take_el = false;
+    s->rfd_p = I596_NULL;
+    s->rx_hold_start = 0;
+    if (s->rx_retry_timer) {
+        timer_del(s->rx_retry_timer);
+    }
     s->queue_head = 0;
     s->queue_tail = 0;
     s->queue_count = 0;
