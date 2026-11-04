@@ -688,6 +688,7 @@ void vhost_svq_start(VhostShadowVirtqueue *svq, VirtIODevice *vdev,
     svq->next_guest_avail_elem = NULL;
     svq->shadow_avail_idx = 0;
     svq->shadow_used_idx = 0;
+    svq->free_head = 0;
     svq->last_used_idx = 0;
     svq->vdev = vdev;
     svq->vq = vq;
