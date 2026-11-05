@@ -3099,13 +3099,13 @@ object_property_add_alias(Object *obj, const char *name,
     prop->target_name = g_strdup(target_name);
     prop->flags = 0;
 
-    op = object_property_add(obj, name, prop_type, NULL,
+    op = object_property_add(obj, name, prop_type,
+                             target_prop->qapi_type,
                              property_get_alias,
                              property_set_alias,
                              property_release_alias,
                              prop);
     op->resolve = property_resolve_alias;
-    op->qapi_type = target_prop->qapi_type;
     if (target_prop->defval) {
         op->defval = qobject_ref(target_prop->defval);
     }
@@ -3144,7 +3144,8 @@ object_class_property_add_alias(ObjectClass *klass, const char *name,
     prop->target_name = g_strdup(target_name);
     prop->flags = OBJ_PROP_ALIAS_CLASS;
 
-    op = object_class_property_add(klass, name, prop_type, NULL,
+    op = object_class_property_add(klass, name, prop_type,
+                                   target_prop->qapi_type,
                                    property_get_alias,
                                    property_set_alias,
                                    property_release_alias,
