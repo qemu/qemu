@@ -119,7 +119,7 @@ static void set_drive_helper(Object *obj, Visitor *v, const char *name,
     DeviceState *dev = DEVICE(obj);
     const Property *prop = opaque;
     void **ptr = object_field_prop_ptr(obj, prop);
-    char *str;
+    g_autofree char *str = NULL;
     BlockBackend *blk;
     bool blk_created = false;
     int ret;
@@ -154,7 +154,6 @@ static void set_drive_helper(Object *obj, Visitor *v, const char *name,
     }
 
     if (!*str) {
-        g_free(str);
         *ptr = NULL;
         return;
     }
@@ -208,8 +207,6 @@ fail:
         /* If we need to keep a reference, blk_attach_dev() took it */
         blk_unref(blk);
     }
-
-    g_free(str);
 }
 
 static void set_drive(Object *obj, Visitor *v, const char *name, void *opaque,
