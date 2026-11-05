@@ -589,6 +589,17 @@ static int i82596_tx_copy_buffers(I82596State *s, hwaddr tfd_addr,
         total_len = frame_len;
 
     } else {
+        uint16_t tcb_len = desc->tcb_count & SIZE_MASK;
+
+        if (tcb_len > sizeof(s->tx_buffer)) {
+            return -1;
+        }
+        if (tcb_len) {
+            address_space_read(&address_space_memory, tfd_addr + 16,
+                              MEMTXATTRS_UNSPECIFIED, s->tx_buffer, tcb_len);
+            total_len = tcb_len;
+        }
+
         tbd_addr = desc->tbd_addr;
         while (tbd_addr != I596_NULL && tbd_addr != 0) {
             uint16_t buf_size;
@@ -756,6 +767,91 @@ tx_complete:
     }
 }
 
+/*
+ * The RBD the RU fills next, or I596_NULL if none is free.  An RBD with EL
+ * set is the driver's last free buffer: leave it until the driver hands
+ * another one back, which moves EL on.  The chip would fill it and stop
+ * with no resources, which at QEMU speed keeps drivers in their overrun
+ * recovery (NetBSD iee marks every RBD EL there).
+ */
+static uint32_t i82596_next_rbd(I82596State *s)
+{
+    uint32_t rbd = s->rbd_p;
+
+    if (rbd == I596_NULL || rbd == 0) {
+        return I596_NULL;
+    }
+    if (!s->rx_take_el && (get_uint16(rbd + 0xC) & CMD_EOL)) {
+        return I596_NULL;
+    }
+    return rbd;
+}
+
+/* The next RFD (and, unless the RFD holds a whole frame, an RBD) is free. */
+static bool i82596_rx_ring_free(I82596State *s)
+{
+    uint32_t rbd;
+
+    if (s->rfd_p == I596_NULL || s->rfd_p == 0) {
+        return false;
+    }
+    if (get_uint16(s->rfd_p) & (STAT_C | STAT_B)) {
+        return false;           /* the driver has not handed it back yet */
+    }
+    if (!(get_uint16(s->rfd_p + 2) & CMD_FLEX) ||
+        (get_uint16(s->rfd_p + 0xE) & SIZE_MASK) >= PKT_BUF_SZ) {
+        return true;
+    }
+    rbd = i82596_next_rbd(s);
+    return rbd != I596_NULL && rbd != 0;
+}
+
+static bool i82596_rx_buffers_free(I82596State *s)
+{
+    if (i82596_rx_ring_free(s)) {
+        s->rx_hold_start = 0;
+        return true;
+    }
+    return false;
+}
+
+static void i82596_update_rx_state(I82596State *s, int new_state);
+
+/* Hold incoming frames while the ring is full; retry every 500 us. */
+static void i82596_rx_hold(I82596State *s)
+{
+    int64_t now = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
+
+    if (!s->rx_hold_start) {
+        s->rx_hold_start = now;
+    }
+    timer_mod(s->rx_retry_timer, now + 500 * SCALE_US);
+}
+
+static void i82596_rx_retry(void *opaque)
+{
+    I82596State *s = opaque;
+
+    /*
+     * The driver has not handed a buffer back within 20 ms: behave like the
+     * chip.  Fill the last (EL) RBD if that is all that is left, otherwise
+     * report RU out of resources so the driver can rebuild its ring.
+     */
+    if (s->rx_hold_start && s->rx_status == RX_READY &&
+        !i82596_rx_buffers_free(s) &&
+        qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL) - s->rx_hold_start >
+            20 * SCALE_MS) {
+        s->rx_hold_start = 0;
+        s->rx_take_el = true;
+        if (!i82596_rx_buffers_free(s)) {
+            s->rx_take_el = false;
+            i82596_update_rx_state(s, RX_NO_RESOURCES);
+            i82596_update_scb_irq(s, true);
+        }
+    }
+    qemu_flush_queued_packets(qemu_get_queue(s->nic));
+}
+
 bool i82596_can_receive(NetClientState *nc)
 {
     I82596State *s = qemu_get_nic_opaque(nc);
@@ -767,6 +863,15 @@ bool i82596_can_receive(NetClientState *nc)
     if (s->rx_status == RX_SUSPENDED || s->rx_status == RX_IDLE ||
         s->rx_status == RX_NO_RESOURCES) {
         return true;
+    }
+
+    /*
+     * A real 82596 cannot be overrun this fast at 10 Mbit/s; hold frames in
+     * the net queue while the driver catches up instead of dropping them.
+     */
+    if (s->rx_status == RX_READY && !i82596_rx_buffers_free(s)) {
+        i82596_rx_hold(s);
+        return false;
     }
 
     if (!s->throttle_state && !I596_FULL_DUPLEX) {
@@ -1038,6 +1143,8 @@ static ssize_t i82596_receive_packet(I82596State *s, const uint8_t *buf,
     size_t bytes_copied = 0;
     const uint8_t *packet_data = buf;
     bool out_of_resources = false;
+    bool rbds_exhausted = false;
+    size_t rfd_data_len = 0;
     size_t crc_size = i82596_get_crc_size(s);
 
     trace_i82596_receive_packet(buf, size);
@@ -1127,16 +1234,18 @@ static ssize_t i82596_receive_packet(I82596State *s, const uint8_t *buf,
                                     packet_data + bytes_copied,
                                     rfd_frame_size);
                 bytes_copied += rfd_frame_size;
+                rfd_data_len += rfd_frame_size;
             }
 
             if (bytes_copied < payload_size) {
                 size_t remaining = payload_size - bytes_copied;
-                rbd_addr = i82596_translate_address(s, rfd.rbd_addr, false);
+                rbd_addr = i82596_next_rbd(s);
 
                 if (rbd_addr == I596_NULL || rbd_addr == 0) {
                     rx_status |= RFD_STATUS_TRUNC | RFD_STATUS_NOBUFS;
                     i82596_record_error(s, RFD_STATUS_NOBUFS, false);
                     packet_completed = true;
+                    rbds_exhausted = true;
                     break;
                 } else {
                     hwaddr remaining_rbd = I596_NULL;
@@ -1148,22 +1257,18 @@ static ssize_t i82596_receive_packet(I82596State *s, const uint8_t *buf,
                                             &remaining_rbd);
                     bytes_copied += rbd_bytes;
 
-                    uint32_t next_rfd = i82596_translate_address(s, rfd.link,
-                                                                  false);
-                    if (next_rfd != I596_NULL && next_rfd != 0) {
-                        if (remaining_rbd != I596_NULL && remaining_rbd != 0) {
-                            trace_i82596_rx_rfd_update(next_rfd, remaining_rbd);
-                            set_uint32(next_rfd + 8, remaining_rbd);
-                        } else {
-                            set_uint32(next_rfd + 8, I596_NULL);
-                        }
-                    }
+                    /* the RFD points at the first RBD holding its data */
+                    trace_i82596_rx_rfd_update(rfd_addr, rbd_addr);
+                    set_addr(s, rfd_addr + 8, rbd_addr);
+                    s->rbd_p = remaining_rbd;
+                    s->rx_take_el = false;
 
                     if (out_of_resources) {
                         trace_i82596_rx_out_of_rbds();
                         i82596_record_error(s, RFD_STATUS_NOBUFS, false);
                         rx_status |= RFD_STATUS_TRUNC | RFD_STATUS_NOBUFS;
                         packet_completed = true;
+                        rbds_exhausted = true;
                         break;
                     }
 
@@ -1211,30 +1316,31 @@ rx_complete:
     }
 
     rfd.status_bits = rx_status & ~STAT_B;
-    rfd.actual_count = (bytes_copied & 0x3FFF) | 0x4000;
-    if (packet_completed) {
-        rfd.actual_count |= I596_EOF;
+    if (simplified_mode) {
+        rfd.actual_count = (bytes_copied & 0x3FFF) | 0x4000;
+        if (packet_completed) {
+            rfd.actual_count |= I596_EOF;
+        }
+    } else {
+        /* the RBDs carry their own counts and the EOF of a split frame */
+        rfd.actual_count = (rfd_data_len & 0x3FFF) | 0x4000;
+        if (packet_completed && rfd_data_len == bytes_copied) {
+            rfd.actual_count |= I596_EOF;
+        }
     }
 
     i82596_rx_desc_write(s, rfd_addr, &rfd, (simplified_mode || I596_LOOPBACK));
 
-    if (rfd.command & CMD_SUSP) {
-        i82596_update_rx_state(s, RX_SUSPENDED);
-        return size;
-    }
-
-    if (rfd.command & CMD_EOL) {
-        i82596_update_rx_state(s, RX_SUSPENDED);
-        return size;
-    }
-
-    if (packet_completed && s->rx_status == RX_READY) {
-        uint32_t next_rfd_addr = i82596_translate_address(s, rfd.link, false);
-        if (next_rfd_addr != 0 && next_rfd_addr != I596_NULL) {
-            set_uint32(s->scb + 8, next_rfd_addr);
-        }
-
+    if (packet_completed) {
+        s->rfd_p = i82596_translate_address(s, rfd.link, false);
         s->scb_status |= SCB_STATUS_FR;
+    }
+    if (rfd.command & (CMD_SUSP | CMD_EOL)) {
+        i82596_update_rx_state(s, RX_SUSPENDED);
+    } else if (rbds_exhausted) {
+        i82596_update_rx_state(s, RX_NO_RESOURCES);
+    }
+    if (packet_completed || rbds_exhausted) {
         i82596_update_scb_irq(s, true);
     }
     trace_i82596_rx_complete(s->crc_err, s->align_err, s->resource_err);
@@ -1256,8 +1362,6 @@ ssize_t i82596_receive(NetClientState *nc, const uint8_t *buf, size_t size)
     if (s->rx_status != RX_READY) {
         if (s->queue_count >= PACKET_QUEUE_SIZE) {
             trace_i82596_receive_queue_full();
-            s->over_err++;
-            set_uint32(s->scb + 22, s->over_err);
             i82596_record_error(s, RX_OVER_ERRORS, false);
             return size;
         }
@@ -1269,6 +1373,11 @@ queue_packet:
             s->queue_count++;
         }
         return size;
+    }
+
+    if (!i82596_rx_buffers_free(s)) {
+        i82596_rx_hold(s);
+        return 0;
     }
 
     return i82596_receive_packet(s, buf, size, false);
@@ -1360,11 +1469,6 @@ static bool i82596_check_medium_status(I82596State *s)
     }
 
     if (!s->throttle_state) {
-        return false;
-    }
-
-    if (!I596_LOOPBACK && (qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL) % 100 < 5)) {
-        s->collision_events++;
         return false;
     }
 
@@ -1740,6 +1844,7 @@ skip_status_update:
         if (cmd & CMD_SUSP) {
             s->cu_status = CU_SUSPENDED;
             s->scb_status |= SCB_STATUS_CNA;
+            s->send_irq = 1;
             stop = true;
         }
 
@@ -1747,6 +1852,7 @@ skip_status_update:
             s->cmd_p = I596_NULL;
             s->cu_status = CU_IDLE;
             s->scb_status |= SCB_STATUS_CNA;
+            s->send_irq = 1;
             stop = true;
         } else if (!stop) {
             if (next_addr == 0 || next_addr == I596_NULL ||
@@ -1754,6 +1860,7 @@ skip_status_update:
                 s->cmd_p = I596_NULL;
                 s->cu_status = CU_IDLE;
                 s->scb_status |= SCB_STATUS_CNA;
+                s->send_irq = 1;
                 stop = true;
             } else {
                 s->cmd_p = next_addr;
@@ -2061,7 +2168,7 @@ void i82596_poll(NetClientState *nc, bool enable)
 
 const VMStateDescription vmstate_i82596 = {
     .name = "i82596",
-    .version_id = 1,
+    .version_id = 2,
     .minimum_version_id = 1,
     .fields = (VMStateField[]) {
         VMSTATE_UINT8(mode, I82596State),
@@ -2101,6 +2208,8 @@ const VMStateDescription vmstate_i82596 = {
         VMSTATE_UINT32(total_good_frames, I82596State),
         VMSTATE_BUFFER(rx_buffer, I82596State),
         VMSTATE_UINT16(tx_frame_len, I82596State),
+        VMSTATE_UINT32_V(rbd_p, I82596State, 2),
+        VMSTATE_UINT32_V(rfd_p, I82596State, 2),
         VMSTATE_UINT16(rx_frame_len, I82596State),
         VMSTATE_UINT64(current_tx_desc, I82596State),
         VMSTATE_UINT64(current_rx_desc, I82596State),
@@ -2126,6 +2235,13 @@ static int i82596_flush_packet_queue(I82596State *s)
     while (s->queue_count > 0) {
         int tail = s->queue_tail;
         size_t len = s->packet_queue_len[tail];
+
+        if (s->rx_status == RX_READY && !i82596_rx_buffers_free(s)) {
+            i82596_rx_hold(s);
+            timer_mod(s->flush_queue_timer,
+                      qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL) + 500 * SCALE_US);
+            break;
+        }
 
         ssize_t ret = i82596_receive_packet(s, s->packet_queue[tail], len,
                                              true);
@@ -2173,6 +2289,8 @@ void i82596_common_init(DeviceState *dev, I82596State *s, NetClientInfo *info)
     s->nic = qemu_new_nic(info, &s->conf, object_get_typename(OBJECT(dev)),
                 dev->id, &dev->mem_reentrancy_guard, s);
     qemu_format_nic_info_str(qemu_get_queue(s->nic), s->conf.macaddr.a);
+
+    s->rx_retry_timer = timer_new_ns(QEMU_CLOCK_VIRTUAL, i82596_rx_retry, s);
 
     if (USE_TIMER) {
         if (!s->flush_queue_timer) {
