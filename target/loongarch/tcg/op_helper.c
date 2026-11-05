@@ -43,6 +43,26 @@ void HELPER(asrtgt_d)(CPULoongArchState *env, target_ulong rj, target_ulong rk)
     }
 }
 
+void HELPER(asrtle_du)(CPULoongArchState *env, target_ulong rj, target_ulong rk)
+{
+    CPUSysState *sys = env_sys(env);
+
+    if (rj > rk) {
+        sys->CSR_BADV = rj;
+        do_raise_exception(env, EXCCODE_BCE, GETPC());
+    }
+}
+
+void HELPER(asrtgt_du)(CPULoongArchState *env, target_ulong rj, target_ulong rk)
+{
+    CPUSysState *sys = env_sys(env);
+
+    if (rj <= rk) {
+        sys->CSR_BADV = rj;
+        do_raise_exception(env, EXCCODE_BCE, GETPC());
+    }
+}
+
 target_ulong HELPER(crc32)(target_ulong val, target_ulong m, uint64_t sz)
 {
     uint8_t buf[8];
