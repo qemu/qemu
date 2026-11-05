@@ -1914,7 +1914,7 @@ object_property_try_add_child(Object *obj, const char *name,
 
     type = g_strdup_printf("child<%s>", object_get_typename(child));
 
-    op = object_property_try_add(obj, name, type, NULL,
+    op = object_property_try_add(obj, name, type, &str_type_info,
                                  object_get_child_property,
                                  NULL, object_finalize_child_property,
                                  child, errp);
@@ -2109,7 +2109,7 @@ object_add_link_prop(Object *obj, const char *name,
 
     full_type = g_strdup_printf("link<%s>", type);
 
-    op = object_property_add(obj, name, full_type, NULL,
+    op = object_property_add(obj, name, full_type, &str_type_info,
                              object_get_link_property,
                              check ? object_set_link_property : NULL,
                              object_release_link_property,
@@ -2146,7 +2146,7 @@ object_class_property_add_link(ObjectClass *oc,
 
     full_type = g_strdup_printf("link<%s>", type);
 
-    op = object_class_property_add(oc, name, full_type, NULL,
+    op = object_class_property_add(oc, name, full_type, &str_type_info,
                                    object_get_link_property,
                                    check ? object_set_link_property : NULL,
                                    object_release_link_property,
