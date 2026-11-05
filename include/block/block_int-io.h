@@ -197,6 +197,15 @@ void bdrv_bsc_fill(BlockDriverState *bs, int64_t offset, int64_t bytes);
 void coroutine_fn GRAPH_RDLOCK
 bdrv_co_parent_cb_resize(BlockDriverState *bs);
 
+/*
+ * Notify the parent behind @c that the size of its child changed.
+ */
+void coroutine_fn GRAPH_RDLOCK
+bdrv_co_child_notify_resize(BdrvChild *c);
+
+void co_wrapper_bdrv_rdlock
+bdrv_child_notify_resize(BdrvChild *c);
+
 void co_wrapper_bdrv_rdlock
 bdrv_parent_cb_resize(BlockDriverState *bs);
 

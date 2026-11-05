@@ -3636,6 +3636,16 @@ int coroutine_fn bdrv_co_copy_range(BdrvChild *src, int64_t src_offset,
                                    bytes, read_flags, write_flags);
 }
 
+void coroutine_fn bdrv_co_child_notify_resize(BdrvChild *c)
+{
+    IO_CODE();
+    assert_bdrv_graph_readable();
+
+    if (c->klass->resize) {
+        c->klass->resize(c);
+    }
+}
+
 void coroutine_fn bdrv_co_parent_cb_resize(BlockDriverState *bs)
 {
     BdrvChild *c;
@@ -3644,9 +3654,7 @@ void coroutine_fn bdrv_co_parent_cb_resize(BlockDriverState *bs)
     assert_bdrv_graph_readable();
 
     QLIST_FOREACH(c, &bs->parents, next_parent) {
-        if (c->klass->resize) {
-            c->klass->resize(c);
-        }
+        bdrv_co_child_notify_resize(c);
     }
 }
 
