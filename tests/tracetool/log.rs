@@ -8,7 +8,7 @@ use util::bindings;
 
 #[allow(dead_code)]
 #[inline(always)]
-fn trace_event_state_is_enabled(dstate: u16) -> bool {
+fn trace_event_state_is_enabled(dstate: u8) -> bool {
     (unsafe { trace_events_enabled_count }) != 0 && dstate != 0
 }
 
@@ -18,16 +18,17 @@ extern "C" {
 }
 extern "C" {
     #[allow(dead_code)]
-    static mut _TRACE_TEST_BLAH_DSTATE: u16;
+    static mut _TRACE_TEST_BLAH_DSTATE: u8;
     #[allow(dead_code)]
-    static mut _TRACE_TEST_WIBBLE_DSTATE: u16;
+    static mut _TRACE_TEST_WIBBLE_DSTATE: u8;
 }
 
 #[inline(always)]
 #[allow(dead_code)]
 pub fn trace_test_blah_enabled() -> bool
 {
-    trace_event_state_is_enabled(unsafe { _TRACE_TEST_BLAH_DSTATE}) ||
+    ((unsafe { bindings::qemu_loglevel } & bindings::LOG_TRACE) != 0 &&
+     trace_event_state_is_enabled(unsafe { _TRACE_TEST_BLAH_DSTATE})) ||
     false
 }
 
@@ -47,7 +48,8 @@ pub fn trace_test_blah(_context: *mut (), _filename: &std::ffi::CStr)
 #[allow(dead_code)]
 pub fn trace_test_wibble_enabled() -> bool
 {
-    trace_event_state_is_enabled(unsafe { _TRACE_TEST_WIBBLE_DSTATE}) ||
+    ((unsafe { bindings::qemu_loglevel } & bindings::LOG_TRACE) != 0 &&
+     trace_event_state_is_enabled(unsafe { _TRACE_TEST_WIBBLE_DSTATE})) ||
     false
 }
 

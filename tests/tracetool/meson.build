@@ -5,12 +5,14 @@ test_env.set('PYTHONPATH', meson.project_source_root() / 'scripts')
 test_env.set('PYTHONIOENCODING', 'utf-8')
 
 backends = [
+    'nop',
     'dtrace',
     'ftrace',
     'log',
     'simple',
     'syslog',
-    'ust'
+    'ust',
+    'all'
 ]
 
 # The tracetool-test.py program has portability problems on Windows.

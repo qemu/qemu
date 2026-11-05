@@ -19,22 +19,18 @@ static inline bool trace_event_is_pattern(const char *str)
     return strchr(str, '*') != NULL;
 }
 
+#ifdef CONFIG_TRACE_SIMPLE
 static inline uint32_t trace_event_get_id(TraceEvent *ev)
 {
     assert(ev != NULL);
     return ev->id;
 }
+#endif
 
 static inline const char * trace_event_get_name(TraceEvent *ev)
 {
     assert(ev != NULL);
     return ev->name;
-}
-
-static inline bool trace_event_get_state_static(TraceEvent *ev)
-{
-    assert(ev != NULL);
-    return ev->sstate;
 }
 
 /* it's on fast path, avoid consistency checks (asserts) */

@@ -27,20 +27,16 @@ def generate(events, backend, group):
         '#include "%s"' % header,
         '')
 
-    for e in events:
-        out('extern TraceEvent %(event)s;',
-            event = e.api(e.QEMU_EVENT))
+    if len(list(backend.backend_modules())):
+        for e in events:
+            out('extern TraceEvent %(event)s;',
+                event = e.api(e.QEMU_EVENT))
 
-    for e in events:
-        out('extern uint16_t %s;' % e.api(e.QEMU_DSTATE))
-
-    # static state
-    for e in events:
-        if 'disable' in e.properties:
-            enabled = 0
-        else:
-            enabled = 1
-        out('#define TRACE_%s_ENABLED %d' % (e.name.upper(), enabled))
+        for e in events:
+            out('extern uint8_t %s;' % e.api(e.QEMU_DSTATE))
+    else:
+        for e in events:
+            out('#define %s 0' % e.api(e.QEMU_DSTATE))
 
     backend.generate_begin(events, group)
 
@@ -50,8 +46,13 @@ def generate(events, backend, group):
             '#define %(api)s() ( \\',
             api=e.api(e.QEMU_BACKEND_DSTATE))
 
-        if "disable" not in e.properties:
-            backend.generate_backend_dstate(e, group)
+        backend.generate_backend_dstate(e, group, check_trace_event_get_state=False)
+
+        if backend.check_trace_event_get_state:
+            event_id = 'TRACE_' + e.name.upper()
+            out('    trace_event_get_state_dynamic_by_id(%(event_id)s) || \\',
+                event_id=event_id)
+            backend.generate_backend_dstate(e, group, check_trace_event_get_state=True)
 
         out('    false)')
 
@@ -61,16 +62,15 @@ def generate(events, backend, group):
             api=e.api(),
             args=e.args)
 
-        if "disable" not in e.properties:
-            backend.generate(e, group, check_trace_event_get_state=False)
+        backend.generate(e, group, check_trace_event_get_state=False)
 
-            if backend.check_trace_event_get_state:
-                event_id = 'TRACE_' + e.name.upper()
-                cond = "trace_event_get_state(%s)" % event_id
-                out('    if (%(cond)s) {',
-                        cond=cond)
-                backend.generate(e, group, check_trace_event_get_state=True)
-                out('    }')
+        if backend.check_trace_event_get_state:
+            event_id = 'TRACE_' + e.name.upper()
+            cond = "trace_event_get_state_dynamic_by_id(%s)" % event_id
+            out('    if (%(cond)s) {',
+                cond=cond)
+            backend.generate(e, group, check_trace_event_get_state=True)
+            out('    }')
         out('}')
 
     backend.generate_end(events, group)

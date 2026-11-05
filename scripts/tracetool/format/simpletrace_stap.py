@@ -24,9 +24,6 @@ def generate(events, backend, group):
         '')
 
     for event_id, e in enumerate(events):
-        if 'disable' in e.properties:
-            continue
-
         out('probe %(probeprefix)s.simpletrace.%(name)s = %(probeprefix)s.%(name)s ?',
             '{',
             probeprefix=probeprefix(),
