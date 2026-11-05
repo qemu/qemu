@@ -29,6 +29,7 @@ status=1    # failure is the default!
 _cleanup()
 {
     _cleanup_test_img
+    _rm_test_img "$TEST_IMG.nounref"
 }
 trap "_cleanup; exit \$status" 0 1 2 3 15
 
@@ -40,6 +41,7 @@ _supported_fmt qcow2
 _supported_proto file fuse
 _supported_os Linux
 _unsupported_imgopts 'compat=0.10' refcount_bits data_file compression_type
+_require_disk_usage
 
 echo
 echo "### Test 'qemu-io -c discard' on a QCOW2 image without a backing file"
@@ -89,6 +91,42 @@ for qcow2_compat in 0.10 1.1; do
     echo "# Output of qemu-img map"
     $QEMU_IMG map "$TEST_IMG" | _filter_testdir
 done
+
+echo
+echo "### Test 'qemu-io -c discard' with 'discard-no-unref' option enabled"
+echo
+
+echo "# Check that qcow2 v2 images don't support 'discard-no-unref' option"
+NOUNREF_IMG="$TEST_IMG.nounref"
+TEST_IMG="$NOUNREF_IMG" _make_test_img -o "compat=0.10" 128k
+# This should immediately fail with an error
+$QEMU_IO -c 'reopen -o discard-no-unref=on' "$NOUNREF_IMG" | _filter_qemu_io
+
+echo "# Create two compat=1.1 images and fill them with identical data"
+_make_test_img -o "compat=1.1" 128k
+TEST_IMG="$NOUNREF_IMG" _make_test_img -o "compat=1.1" 128k
+$QEMU_IO -c 'write -P 0xaa 0 128k' "$TEST_IMG" | _filter_qemu_io
+$QEMU_IO -c 'write -P 0xaa 0 128k' "$NOUNREF_IMG" | _filter_qemu_io
+
+echo "# Enable 'discard-no-unref' in one of them, discard 2nd cluster in both"
+$QEMU_IO -c 'discard 64k 64k' "$TEST_IMG" | _filter_qemu_io
+$QEMU_IO -c 'reopen -o discard-no-unref=on' \
+         -c 'discard 64k 64k' "$NOUNREF_IMG" | _filter_qemu_io
+
+echo "# Compare disk usage of the 2 images"
+# Don't check the exact disk usage values but rather that they're equal
+usage1=$(disk_usage "$TEST_IMG")
+usage2=$(disk_usage "$NOUNREF_IMG")
+echo "disk_usage($TEST_IMG) - disk_usage($NOUNREF_IMG) = $((usage1 - usage2))" \
+    | _filter_testdir | _filter_imgfmt
+
+echo "# Check that images are still identical"
+$QEMU_IMG compare "$TEST_IMG" "$NOUNREF_IMG"
+
+echo "# Output of qemu-img map for the image with dropped reference"
+$QEMU_IMG map --output=json "$TEST_IMG" | _filter_qemu_img_map
+echo "# Output of qemu-img map for the image with kept reference"
+$QEMU_IMG map --output=json "$NOUNREF_IMG" | _filter_qemu_img_map
 
 # success, all done
 echo "*** done"
