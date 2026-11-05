@@ -24,6 +24,7 @@ int
 vhost_user_backend_dev_init(VhostUserBackend *b, VirtIODevice *vdev,
                             unsigned nvqs, Error **errp)
 {
+    struct vhost_virtqueue *vqs;
     int ret;
 
     assert(!b->vdev && vdev);
@@ -32,13 +33,16 @@ vhost_user_backend_dev_init(VhostUserBackend *b, VirtIODevice *vdev,
         return -1;
     }
 
+    vqs = g_new0(struct vhost_virtqueue, nvqs);
+
     b->vdev = vdev;
     b->dev.nvqs = nvqs;
-    b->dev.vqs = g_new0(struct vhost_virtqueue, nvqs);
+    b->dev.vqs = vqs;
 
     ret = vhost_dev_init(&b->dev, &b->vhost_user, VHOST_BACKEND_TYPE_USER, 0,
                          errp);
     if (ret < 0) {
+        g_free(vqs);
         return -1;
     }
 
