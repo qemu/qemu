@@ -232,7 +232,9 @@ static void loongarch_set_lasx(Object *obj, bool value, Error **errp)
 
 static bool loongarch_get_msgint(Object *obj, Error **errp)
 {
-    return LOONGARCH_CPU(obj)->msgint != ON_OFF_AUTO_OFF;
+    LoongArchCPU *cpu = LOONGARCH_CPU(obj);
+
+    return cpu_has_msgint(&cpu->env);
 }
 
 static void loongarch_set_msgint(Object *obj, bool value, Error **errp)

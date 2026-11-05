@@ -36,13 +36,6 @@ const KVMCapabilityInfo kvm_arch_required_capabilities[] = {
     KVM_CAP_LAST_INFO
 };
 
-static bool kvm_cpu_has_msgint(CPUState *cs)
-{
-    LoongArchCPU *cpu = LOONGARCH_CPU(cs);
-
-    return FIELD_EX64(cpu->env.cpucfg[1], CPUCFG1, MSG_INT);
-}
-
 static int kvm_get_stealtime(CPUState *cs)
 {
     CPULoongArchState *env = cpu_env(cs);
@@ -374,7 +367,7 @@ static int kvm_loongarch_get_csr(CPUState *cs)
      * Since register CSR_ESTAT will sync software pending MSGINT status to
      * hardware register and modify HW CSR MSGIS registers.
      */
-    if (kvm_cpu_has_msgint(cs)) {
+    if (cpu_has_msgint(env)) {
         ret |= kvm_get_one_reg(cs, KVM_IOC_CSRID(LOONGARCH_CSR_MSGIS(0)),
                                &sys->CSR_MSGIS[0]);
 
@@ -564,7 +557,7 @@ static int kvm_loongarch_put_csr(CPUState *cs, KvmPutState level)
 
     ret |= kvm_loongarch_put_pmu(cs);
 
-    if (kvm_cpu_has_msgint(cs)) {
+    if (cpu_has_msgint(env)) {
         ret |= kvm_set_one_reg(cs, KVM_IOC_CSRID(LOONGARCH_CSR_MSGIS(0)),
                                &sys->CSR_MSGIS[0]);
 

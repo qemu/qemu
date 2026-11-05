@@ -314,7 +314,6 @@ static void build_uart_device_aml(Aml *table, int index)
 {
     Aml *dev;
     Aml *crs;
-    Aml *pkg0, *pkg1, *pkg2;
     Aml *scope;
     uint32_t uart_irq;
     uint64_t base;
@@ -325,7 +324,6 @@ static void build_uart_device_aml(Aml *table, int index)
     dev = aml_device("COM%d", index);
     aml_append(dev, aml_name_decl("_HID", aml_string("PNP0501")));
     aml_append(dev, aml_name_decl("_UID", aml_int(index)));
-    aml_append(dev, aml_name_decl("_CCA", aml_int(1)));
     crs = aml_resource_template();
     aml_append(crs,
         aml_qword_memory(AML_POS_DECODE, AML_MIN_FIXED, AML_MAX_FIXED,
@@ -335,15 +333,6 @@ static void build_uart_device_aml(Aml *table, int index)
     aml_append(crs, aml_interrupt(AML_CONSUMER, AML_LEVEL, AML_ACTIVE_HIGH,
                                   AML_SHARED, &uart_irq, 1));
     aml_append(dev, aml_name_decl("_CRS", crs));
-    pkg0 = aml_package(0x2);
-    aml_append(pkg0, aml_int(0x05F5E100));
-    aml_append(pkg0, aml_string("clock-frenquency"));
-    pkg1 = aml_package(0x1);
-    aml_append(pkg1, pkg0);
-    pkg2 = aml_package(0x2);
-    aml_append(pkg2, aml_touuid("DAFFD814-6EBA-4D8C-8A91-BC9BBF4AA301"));
-    aml_append(pkg2, pkg1);
-    aml_append(dev, aml_name_decl("_DSD", pkg2));
     aml_append(scope, dev);
     aml_append(table, scope);
 }
