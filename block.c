@@ -5590,7 +5590,7 @@ int bdrv_replace_child_bs(BdrvChild *child, BlockDriverState *new_bs,
         int64_t new_len = bdrv_getlength(new_bs);
 
         if (new_len >= 0 && new_len != old_len) {
-            bdrv_parent_cb_resize(new_bs);
+            bdrv_child_notify_resize(child);
         }
     }
 

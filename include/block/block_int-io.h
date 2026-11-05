@@ -206,7 +206,4 @@ bdrv_co_child_notify_resize(BdrvChild *c);
 void co_wrapper_bdrv_rdlock
 bdrv_child_notify_resize(BdrvChild *c);
 
-void co_wrapper_bdrv_rdlock
-bdrv_parent_cb_resize(BlockDriverState *bs);
-
 #endif /* BLOCK_INT_IO_H */
