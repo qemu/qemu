@@ -5566,11 +5566,12 @@ int bdrv_replace_child_bs(BdrvChild *child, BlockDriverState *new_bs,
 
     GLOBAL_STATE_CODE();
 
-    old_len = bdrv_getlength(old_bs);
-
     bdrv_ref(old_bs);
     bdrv_drained_begin(old_bs);
     bdrv_drained_begin(new_bs);
+
+    old_len = bdrv_getlength(old_bs);
+
     bdrv_graph_wrlock();
 
     bdrv_replace_child_tran(child, new_bs, tran);
