@@ -28,6 +28,7 @@ typedef struct CprState {
 
 extern CprState cpr_state;
 
+/* The cpr fd table, including cpr_walk_fd(), is protected by the BQL. */
 bool cpr_save_fd(const char *name, int id, int fd, Error **errp);
 void cpr_delete_fd(const char *name, int id);
 int cpr_find_fd(const char *name, int id);
