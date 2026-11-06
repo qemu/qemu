@@ -11456,6 +11456,14 @@ static abi_long do_syscall1(CPUArchState *cpu_env, int num, abi_long arg1,
 #endif
 #if defined(TARGET_NR_getrandom) && defined(__NR_getrandom)
     case TARGET_NR_getrandom:
+        if (arg2 == 0) {
+            /*
+             * A zero-length request has no buffer to lock, and the kernel
+             * never looks at the pointer for it, so pass the call through
+             * instead of failing on a NULL or otherwise unusable address.
+             */
+            return get_errno(getrandom(NULL, 0, arg3));
+        }
         p = lock_user(VERIFY_WRITE, arg1, arg2, 0);
         if (!p) {
             return -TARGET_EFAULT;
@@ -11543,7 +11551,7 @@ static abi_long do_syscall1(CPUArchState *cpu_env, int num, abi_long arg1,
             struct itimerval value;
 
             ret = get_errno(getitimer(arg1, &value));
-            if (!is_error(ret) && arg2) {
+            if (!is_error(ret)) {
                 if (copy_to_user_timeval(arg2,
                                          &value.it_interval)
                     || copy_to_user_timeval(arg2 + sizeof(struct target_timeval),
@@ -11658,7 +11666,7 @@ static abi_long do_syscall1(CPUArchState *cpu_env, int num, abi_long arg1,
             struct target_sysinfo *target_value;
             struct sysinfo value;
             ret = get_errno(sysinfo(&value));
-            if (!is_error(ret) && arg1)
+            if (!is_error(ret))
             {
                 if (!lock_user_struct(VERIFY_WRITE, target_value, arg1, 0))
                     return -TARGET_EFAULT;
