@@ -78,7 +78,7 @@
 #
 # @xen: Xen
 #
-# Since: 10.2.0
+# Since: 10.2
 ##
 { 'enum': 'Accelerator', 'data': ['hvf', 'kvm', 'mshv', 'nvmm', 'qtest', 'tcg', 'whpx', 'xen'] }
 
@@ -91,7 +91,7 @@
 # @present: the list of accelerators that are built into this
 #     executable
 #
-# Since: 10.2.0
+# Since: 10.2
 ##
 { 'struct': 'AcceleratorInfo', 'data': {'enabled': 'Accelerator', 'present': ['Accelerator']} }
 
@@ -101,7 +101,7 @@
 #
 # Returns: @AcceleratorInfo
 #
-# Since: 10.2.0
+# Since: 10.2
 #
 # .. qmp-example::
 #

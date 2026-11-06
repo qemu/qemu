@@ -1914,7 +1914,7 @@ object_property_try_add_child(Object *obj, const char *name,
 
     type = g_strdup_printf("child<%s>", object_get_typename(child));
 
-    op = object_property_try_add(obj, name, type, NULL,
+    op = object_property_try_add(obj, name, type, &str_type_info,
                                  object_get_child_property,
                                  NULL, object_finalize_child_property,
                                  child, errp);
@@ -2109,7 +2109,7 @@ object_add_link_prop(Object *obj, const char *name,
 
     full_type = g_strdup_printf("link<%s>", type);
 
-    op = object_property_add(obj, name, full_type, NULL,
+    op = object_property_add(obj, name, full_type, &str_type_info,
                              object_get_link_property,
                              check ? object_set_link_property : NULL,
                              object_release_link_property,
@@ -2146,7 +2146,7 @@ object_class_property_add_link(ObjectClass *oc,
 
     full_type = g_strdup_printf("link<%s>", type);
 
-    op = object_class_property_add(oc, name, full_type, NULL,
+    op = object_class_property_add(oc, name, full_type, &str_type_info,
                                    object_get_link_property,
                                    check ? object_set_link_property : NULL,
                                    object_release_link_property,
@@ -3099,13 +3099,13 @@ object_property_add_alias(Object *obj, const char *name,
     prop->target_name = g_strdup(target_name);
     prop->flags = 0;
 
-    op = object_property_add(obj, name, prop_type, NULL,
+    op = object_property_add(obj, name, prop_type,
+                             target_prop->qapi_type,
                              property_get_alias,
                              property_set_alias,
                              property_release_alias,
                              prop);
     op->resolve = property_resolve_alias;
-    op->qapi_type = target_prop->qapi_type;
     if (target_prop->defval) {
         op->defval = qobject_ref(target_prop->defval);
     }
@@ -3144,7 +3144,8 @@ object_class_property_add_alias(ObjectClass *klass, const char *name,
     prop->target_name = g_strdup(target_name);
     prop->flags = OBJ_PROP_ALIAS_CLASS;
 
-    op = object_class_property_add(klass, name, prop_type, NULL,
+    op = object_class_property_add(klass, name, prop_type,
+                                   target_prop->qapi_type,
                                    property_get_alias,
                                    property_set_alias,
                                    property_release_alias,

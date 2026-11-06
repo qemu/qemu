@@ -2075,6 +2075,7 @@ static void prop_vlen_get(Object *obj, Visitor *v, const char *name,
 
 static const PropertyInfo prop_vlen = {
     .type = "uint16",
+    .qapi_type = &uint16_type_info,
     .description = "vlen",
     .get = prop_vlen_get,
     .set = prop_vlen_set,
