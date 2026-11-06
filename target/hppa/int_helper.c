@@ -25,6 +25,7 @@
 #include "hw/core/cpu.h"
 #include "hw/hppa/hppa_hardware.h"
 #include "qemu/plugin.h"
+#include "qemu/timer.h"
 
 static void eval_interrupt(HPPACPU *cpu)
 {
@@ -78,14 +79,34 @@ const MemoryRegionOps hppa_io_eir_ops = {
 
 void hppa_cpu_alarm_timer(void *opaque)
 {
+    HPPACPU *cpu = opaque;
+
     /* Raise interrupt 0.  */
     io_eir_write(opaque, 0, 0, 4);
+
+    /*
+     * Re-arm the alarm one counter wrap later.  The hardware compares CR16
+     * against a free running 32-bit counter, so the match recurs every
+     * 2^32 counts, which is 2^34 ns at the 250 MHz shown to the guest.
+     * This brings the model closer to that and limits a lost tick to a
+     * 17 s stall instead of a dead clock.
+     */
+    cpu->env.cr[CR_IT] += 1ULL << 34;
+    timer_mod(cpu->alarm_timer, cpu->env.cr[CR_IT]);
 }
 
 void HELPER(write_eirr)(CPUHPPAState *env, target_ulong val)
 {
-    env->cr[CR_EIRR] &= ~val;
+    /*
+     * Clear EIRR under the BQL.  io_eir_write() sets EIRR bits from the main
+     * loop thread for the interval timer and for device interrupts, and it
+     * holds the BQL.  This helper runs in the vCPU thread, so an unlocked
+     * read-modify-write here drops any bit set between the load and the
+     * store.  A dropped interval timer bit is never re-armed and the guest
+     * clock stops, which is how HP-UX 10.20 installs wedged under load.
+     */
     bql_lock();
+    env->cr[CR_EIRR] &= ~val;
     eval_interrupt(env_archcpu(env));
     bql_unlock();
 }
