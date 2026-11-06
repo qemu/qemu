@@ -54,6 +54,7 @@ exec "$@"\n' > /usr/bin/nosync && \
                        gtk-vnc2-devel \
                        gtk3-devel \
                        hostname \
+                       igvm-devel \
                        jemalloc-devel \
                        json-c-devel \
                        libaio-devel \
