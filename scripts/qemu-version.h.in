@@ -1,1 +1,0 @@
-#define QEMU_PKGVERSION "@VCS_TAG@"
