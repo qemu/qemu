@@ -234,6 +234,8 @@ static const MemoryRegionOps k230_wdt_ops = {
 
 static const VMStateDescription vmstate_k230_wdt = {
     .name = "k230.wdt",
+    .version_id = 1,
+    .minimum_version_id = 1,
     .fields = (const VMStateField[]) {
         VMSTATE_PTIMER(timer, K230WdtState),
         VMSTATE_UINT32(cr, K230WdtState),
