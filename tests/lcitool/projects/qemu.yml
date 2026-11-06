@@ -35,6 +35,7 @@ packages:
  - gtk3
  - gtk-vnc
  - hostname
+ - igvm
  - json-c
  - libaio
  - libasan
