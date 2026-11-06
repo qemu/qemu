@@ -25,6 +25,7 @@ struct I82596State_st {
     NICState *nic;
     NICConf conf;
     QEMUTimer *flush_queue_timer;
+    QEMUTimer *rx_retry_timer;  /* retries delivery while the RX ring is full */
     uint8_t mode;
 
     QEMUTimer *throttle_timer;
@@ -75,6 +76,10 @@ struct I82596State_st {
     hwaddr current_tx_desc;
     hwaddr current_rx_desc;
     uint32_t last_good_rfa;
+    uint32_t rbd_p;         /* next free RBD, loaded from the first RFD at RU start */
+    bool rx_take_el;        /* hold timed out: fill the EL RBD like the chip does */
+    uint32_t rfd_p;         /* next RFD, loaded from the SCB at RU start */
+    int64_t rx_hold_start;  /* frames held since (virtual ns), 0 if not */
     uint8_t packet_queue[PACKET_QUEUE_SIZE][PKT_BUF_SZ];
     size_t packet_queue_len[PACKET_QUEUE_SIZE];
     int queue_head;

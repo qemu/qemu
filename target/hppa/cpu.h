@@ -269,6 +269,8 @@ typedef struct CPUArchState {
 
     HPPATLBEntry tlb[HPPA_TLB_ENTRIES];
 
+    target_ulong power_btn;    /* virtual power button (0 = reboot) */
+
     /* Fields up to this point are cleared by a CPU reset */
     struct {} end_reset_fields;
 
