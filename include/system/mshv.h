@@ -58,7 +58,9 @@ DECLARE_INSTANCE_CHECKER(MshvState, MSHV_STATE,
 extern MshvState *mshv_state;
 
 /* clock (partition reference time) */
-void mshv_clock_init(void);
+int mshv_clock_init(int vm_fd);
+int mshv_clock_prepare_resume(int vm_fd);
+int mshv_clock_finish_resume(int vm_fd);
 
 /* interrupt */
 int mshv_request_interrupt(MshvState *mshv_state, uint32_t interrupt_type, uint32_t vector,

@@ -34,6 +34,7 @@
 #include "accel/accel-cpu-ops.h"
 #include "exec/cpu-common.h"
 #include "system/cpus.h"
+#include "system/hw_accel.h"
 #include "system/runstate.h"
 #include "system/accel-blocker.h"
 #include "system/address-spaces.h"
@@ -579,7 +580,10 @@ static int mshv_init(AccelState *as, MachineState *ms)
 
     register_savevm_live("mshv", 0, 1, &savevm_mshv, s);
 
-    mshv_clock_init();
+    ret = mshv_clock_init(vm_fd);
+    if (ret < 0) {
+        return -1;
+    }
 
     return 0;
 }
@@ -928,6 +932,32 @@ static void mshv_cpu_synchronize_pre_loadvm(CPUState *cpu)
     run_on_cpu(cpu, do_mshv_cpu_synchronize_pre_loadvm, RUN_ON_CPU_NULL);
 }
 
+static void mshv_pre_resume_vm(AccelState *as, bool step_pending)
+{
+    MshvState *s = MSHV_STATE(as);
+    CPUState *cpu;
+    int ret, vm_fd = s->vm;
+
+    ret = mshv_clock_prepare_resume(vm_fd);
+    if (ret < 0) {
+        error_report("Failed to prepare clock for resume");
+        abort();
+    }
+
+    CPU_FOREACH(cpu) {
+        if (!cpu->vcpu_dirty) {
+            continue;
+        }
+        cpu_synchronize_post_init(cpu);
+    }
+
+    ret = mshv_clock_finish_resume(vm_fd);
+    if (ret < 0) {
+        error_report("Failed to finish clock for resume");
+        abort();
+    }
+}
+
 static void do_mshv_cpu_synchronize(CPUState *cpu, run_on_cpu_data arg)
 {
     if (!cpu->vcpu_dirty) {
@@ -963,6 +993,7 @@ static void mshv_accel_class_init(ObjectClass *oc, const void *data)
     ac->name = "MSHV";
     ac->init_machine = mshv_init;
     ac->allowed = &mshv_allowed;
+    ac->pre_resume_vm = mshv_pre_resume_vm;
 }
 
 static void mshv_accel_instance_init(Object *obj)
