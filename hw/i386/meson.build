@@ -5,6 +5,7 @@ i386_ss.add(files(
   'monitor.c',
   'multiboot.c',
   'x86.c',
+  'x86-bios.c',
   'x86-cpu.c',
 ))
 
