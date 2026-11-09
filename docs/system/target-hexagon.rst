@@ -107,5 +107,6 @@ machines. This can be further configured through ``-semihosting-config``.
    :caption: Hexagon documentation
 
    hexagon/machines
+   hexagon/boot
    hexagon/emulation
    hexagon/cdsp
