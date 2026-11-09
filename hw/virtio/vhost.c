@@ -2119,8 +2119,9 @@ static void vhost_start_config_intr(struct vhost_dev *dev)
         virtio_config_get_guest_notifier(dev->vdev);
 
     assert(dev->vhost_ops);
-    int fd = event_notifier_get_fd(config_notifier);
-    if (dev->vhost_ops->vhost_set_config_call) {
+    if (dev->vhost_ops->vhost_set_config_call &&
+        event_notifier_initialized(config_notifier)) {
+        int fd = event_notifier_get_fd(config_notifier);
         r = dev->vhost_ops->vhost_set_config_call(dev, fd);
         if (!r) {
             event_notifier_set(config_notifier);
