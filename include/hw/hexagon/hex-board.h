@@ -69,16 +69,17 @@ void hex_board_fdt_add_vm_timer(MachineState *ms, hwaddr base, hwaddr size,
 
 /*
  * Boot a guest kernel through the Hexagon VM host firmware (H2).  Load the
- * firmware ELF @firmware as it is linked and the kernel ELF named by -kernel
- * relocated by @kernel_addr.  Place the device tree, whose size is
- * @fdt_size, after the kernel, and the -initrd after that, in the RAM
- * that spans from @ddr_base for the machine's RAM size.  Write a boot stub
- * at @stub_base that passes the device tree address in r1:r0 and enters the
- * firmware, and return @stub_base, where CPU 0 starts.  The device tree
- * address is returned in @fdt_addr.  Exits on failure.
+ * firmware ELF @firmware as it is linked and the kernel ELF named by -kernel.
+ * @kernel_load_offset is added to the kernel's physical addresses; zero loads
+ * the ELF as linked.  Place the device tree, whose size is @fdt_size, after
+ * the kernel, and the -initrd after that, in the RAM that spans from
+ * @ddr_base for the machine's RAM size.  Write a boot stub at @stub_base that
+ * passes the device tree address in r1:r0 and enters the firmware, and return
+ * @stub_base, where CPU 0 starts.  The device tree address is returned in
+ * @fdt_addr.  Exits on failure.
  */
 uint64_t hex_board_load_vm_guest(MachineState *ms, const char *firmware,
-                                 hwaddr ddr_base, hwaddr kernel_addr,
+                                 hwaddr ddr_base, hwaddr kernel_load_offset,
                                  hwaddr stub_base, int fdt_size,
                                  hwaddr *fdt_addr);
 

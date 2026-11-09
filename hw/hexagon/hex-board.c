@@ -337,7 +337,7 @@ void hex_board_check_initrd(MachineState *ms, bool firmware)
 }
 
 uint64_t hex_board_load_vm_guest(MachineState *ms, const char *firmware,
-                                 hwaddr ddr_base, hwaddr kernel_addr,
+                                 hwaddr ddr_base, hwaddr kernel_load_offset,
                                  hwaddr stub_base, int fdt_size,
                                  hwaddr *fdt_addr)
 {
@@ -345,15 +345,17 @@ uint64_t hex_board_load_vm_guest(MachineState *ms, const char *firmware,
     hwaddr ram_end = ddr_base + ms->ram_size;
     uint32_t stub[ARRAY_SIZE(vm_boot_stub)];
 
-    if (ddr_base > stub_base || ram_end <= kernel_addr) {
+    if (ddr_base > stub_base || ram_end <= kernel_load_offset) {
         error_report("RAM (%" PRIu64 " MiB at 0x%" HWADDR_PRIx ") is too "
                      "small: the kernel is loaded at 0x%" HWADDR_PRIx,
-                     ms->ram_size / MiB, ddr_base, kernel_addr);
+                     ms->ram_size / MiB, ddr_base, kernel_load_offset);
         exit(1);
     }
 
     firmware_entry = hex_board_load_elf(firmware, NULL, NULL, NULL);
-    hex_board_load_elf(ms->kernel_filename, vm_guest_translate, &kernel_addr,
+    hex_board_load_elf(ms->kernel_filename,
+                       kernel_load_offset ? vm_guest_translate : NULL,
+                       kernel_load_offset ? &kernel_load_offset : NULL,
                        &image_high);
     *fdt_addr = QEMU_ALIGN_UP(image_high + 16 * MiB, 4 * MiB);
     hex_board_load_initrd(ms, ram_end, *fdt_addr, fdt_size);
