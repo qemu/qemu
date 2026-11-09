@@ -521,7 +521,9 @@ static uint64_t bcm2838_genet_tx(BCM2838GenetState *s, unsigned int ring_index,
         }
 
         num_descs++;
-        cons_index_fld++;
+        /* The indexes count modulo 2^16 */
+        cons_index_fld = (cons_index_fld + 1)
+                         & R_GENET_DMA_CONS_INDEX_INDEX_MASK;
         s->regs.tdma.descs[desc_index].length_status =
             FIELD_DP32(s->regs.tdma.descs[desc_index].length_status,
                        GENET_RDMA_LENGTH_STATUS, OWN, 1);
@@ -777,6 +779,13 @@ static void bcm2838_genet_write(void *opaque, hwaddr offset, uint64_t value,
         FIELD_EX32(value, GENET_DMA_CTRL, EN)) {
         qemu_flush_queued_packets(ncs);
     }
+    /* The guest gave descriptors back to an RX ring */
+    if (offset >= BCM2838_GENET_RDMA_RINGS &&
+        offset < BCM2838_GENET_RDMA_RINGS + sizeof(s->regs.rdma.rings) &&
+        (offset - BCM2838_GENET_RDMA_RINGS) % sizeof(BCM2838GenetRdmaRing)
+        == BCM2838_GENET_RRING_CONS_INDEX) {
+        qemu_flush_queued_packets(ncs);
+    }
     bcm2838_genet_set_irq_default(s);
     bcm2838_genet_set_irq_prio(s);
 }
@@ -821,6 +830,23 @@ static bool is_packet_multicast(const uint8_t *buf, size_t size)
     return !!(buf[0] & 0x01);
 }
 
+/*
+ * Descriptors of an RX ring that the guest has handed back: the ring
+ * holds END - START + 1 of them, and PROD - CONS (modulo 2^16) are full.
+ */
+static unsigned bcm2838_genet_rdma_free_descs(BCM2838GenetRdmaRing *ring,
+                                              hwaddr start_index,
+                                              hwaddr end_index)
+{
+    uint16_t used = FIELD_EX32(ring->prod_index, GENET_DMA_PROD_INDEX, INDEX)
+                    - FIELD_EX32(ring->cons_index, GENET_DMA_CONS_INDEX, INDEX);
+
+    if (end_index < start_index || used > end_index - start_index) {
+        return 0;
+    }
+    return end_index - start_index + 1 - used;
+}
+
 static ssize_t bcm2838_genet_rdma(BCM2838GenetState *s, uint32_t ring_idx,
                                   const void *buf, size_t size)
 {
@@ -853,6 +879,12 @@ static ssize_t bcm2838_genet_rdma(BCM2838GenetState *s, uint32_t ring_idx,
                       BCM2838_GENET_DMA_DESC_CNT - 1);
         return -1;
     }
+
+    /* A full ring: keep the frame queued until the guest frees some */
+    if (!bcm2838_genet_rdma_free_descs(ring, start_index, end_index)) {
+        return 0;
+    }
+
     desc = &rdma->descs[write_index];
 
     desc->length_status = FIELD_DP32(desc->length_status,
@@ -870,15 +902,24 @@ static ssize_t bcm2838_genet_rdma(BCM2838GenetState *s, uint32_t ring_idx,
         uint8_t *frame_buf = dma_buf + frame_off;
 
         bool crc_fwd = FIELD_EX32(s->regs.umac.cmd, GENET_UMAC_CMD, CRC_FWD);
+        const size_t crc_len = crc_fwd ? 4 : 0;
         size_t buflength;
         uint32_t prod_index;
 
-        if (l > ring->ring_buf_size) {
-            l = ring->ring_buf_size;
+        /*
+         * The buffer holds the status block, the 2 byte pad, the payload
+         * and (with CRC forwarding) the CRC. buf_size is at most
+         * MAX_FRAME_SIZE, so the BUFLENGTH computed below always fits
+         * its 12 bit field.
+         */
+        if (buf_size <= frame_off + crc_len) {
+            qemu_log_mask(LOG_GUEST_ERROR,
+                          "%s: RX buffer size %zu too small\n",
+                          __func__, buf_size);
+            return -1;
         }
-        /* Never copy more than fits in rx_packet after the status block */
-        if (l > sizeof(s->rx_packet) - frame_off) {
-            l = sizeof(s->rx_packet) - frame_off;
+        if (l > buf_size - frame_off - crc_len) {
+            l = buf_size - frame_off - crc_len;
         }
 
         memcpy(frame_buf, buf + len, l);
@@ -889,10 +930,7 @@ static ssize_t bcm2838_genet_rdma(BCM2838GenetState *s, uint32_t ring_idx,
                                          GENET_RDMA_LENGTH_STATUS,
                                          EOP, !!(len >= size));
 
-        buflength = l + sizeof(BCM2838GenetXmitStatus) + 2;
-        if (crc_fwd) {
-            buflength += 4;
-        }
+        buflength = frame_off + l + crc_len;
 
         desc->length_status = FIELD_DP32(desc->length_status,
                                          GENET_RDMA_LENGTH_STATUS,
@@ -946,6 +984,14 @@ static ssize_t bcm2838_genet_rdma(BCM2838GenetState *s, uint32_t ring_idx,
         desc = &rdma->descs[write_index];
         ring->write_ptr = write_index * desc_word_size;
         ring->write_ptr_hi = ((hwaddr)write_index * desc_word_size) >> 32;
+
+        if (len < size &&
+            !bcm2838_genet_rdma_free_descs(ring, start_index, end_index)) {
+            qemu_log_mask(LOG_GUEST_ERROR,
+                          "%s: RX ring %u full inside a frame\n",
+                          __func__, ring_idx);
+            break;
+        }
     }
 
     if (ring_idx == BCM2838_GENET_DMA_RING_DEFAULT) {
