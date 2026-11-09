@@ -501,8 +501,10 @@ _net_rx_pkt_calc_l4_csum(struct NetRxPkt *pkt)
             csl = be16_to_cpu(pkt->l4hdr_info.hdr.udp.uh_ulen);
             trace_net_rx_pkt_l4_csum_calc_ip4_udp();
         } else {
-            csl = be16_to_cpu(pkt->ip4hdr_info.ip4_hdr.ip_len) -
-                  IP_HDR_GET_LEN(&pkt->ip4hdr_info.ip4_hdr);
+            uint16_t iplen = be16_to_cpu(pkt->ip4hdr_info.ip4_hdr.ip_len);
+            uint16_t iphdr_len = IP_HDR_GET_LEN(&pkt->ip4hdr_info.ip4_hdr);
+
+            csl = (iplen >= iphdr_len) ? (iplen - iphdr_len) : 0;
             trace_net_rx_pkt_l4_csum_calc_ip4_tcp();
         }
 
@@ -517,9 +519,9 @@ _net_rx_pkt_calc_l4_csum(struct NetRxPkt *pkt)
             struct ip6_header *ip6hdr = &pkt->ip6hdr_info.ip6_hdr;
             size_t full_ip6hdr_len = pkt->l4hdr_off - pkt->l3hdr_off;
             size_t ip6opts_len = full_ip6hdr_len - sizeof(struct ip6_header);
+            uint16_t plen = be16_to_cpu(ip6hdr->ip6_ctlun.ip6_un1.ip6_un1_plen);
 
-            csl = be16_to_cpu(ip6hdr->ip6_ctlun.ip6_un1.ip6_un1_plen) -
-                  ip6opts_len;
+            csl = (plen >= ip6opts_len) ? (plen - ip6opts_len) : 0;
             trace_net_rx_pkt_l4_csum_calc_ip6_tcp();
         }
 
