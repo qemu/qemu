@@ -302,13 +302,11 @@ static void gen_log_sreg_write(DisasContext *ctx, int rnum, TCGv_i32 val)
     if (rnum == HEX_SREG_MODECTL || rnum == HEX_SREG_SYSCFG) {
         translator_io_start(&ctx->base);
     }
-    if (rnum == HEX_SREG_IMASK &&
-        ctx->hex_def->hex_version < HEX_VER_V81) {
-        reg_mask = 0xffff0000;
-    }
-
     if (reg_mask != IMMUTABLE) {
-        if (rnum < HEX_SREG_GLB_START) {
+        if (rnum == HEX_SREG_IMASK) {
+            /* Commit through a helper to serialize with iassignw/setimask. */
+            tcg_gen_mov_i32(ctx->t_sreg_new_value[rnum], val);
+        } else if (rnum < HEX_SREG_GLB_START) {
             gen_masked_reg_write(val, hex_t_sreg[rnum], reg_mask);
             if (ctx->need_commit || rnum == HEX_SREG_SSR ||
                 rnum == HEX_SREG_CCR) {
@@ -343,7 +341,8 @@ static void gen_read_sreg(DisasContext *ctx, TCGv_i32 dst, int reg_num)
         reg_num == HEX_SREG_PCYCLELO || reg_num == HEX_SREG_PCYCLEHI) {
         translator_io_start(&ctx->base);
     }
-    if (reg_num >= HEX_SREG_GLB_START || reg_num == HEX_SREG_BADVA) {
+    if (reg_num >= HEX_SREG_GLB_START || reg_num == HEX_SREG_BADVA ||
+        reg_num == HEX_SREG_IMASK) {
         gen_helper_sreg_read(dst, tcg_env, tcg_constant_i32(reg_num));
     } else {
         tcg_gen_mov_i32(dst, hex_t_sreg[reg_num]);
@@ -356,7 +355,9 @@ static void gen_read_sreg_pair(DisasContext *ctx, TCGv_i64 dst, int reg_num)
     if (reg_num == HEX_SREG_TIMERLO || reg_num == HEX_SREG_PCYCLELO) {
         translator_io_start(&ctx->base);
     }
-    if (reg_num < HEX_SREG_GLB_START) {
+    if (reg_num == HEX_SREG_IMASK) {
+        gen_helper_sreg_read_pair(dst, tcg_env, tcg_constant_i32(reg_num));
+    } else if (reg_num < HEX_SREG_GLB_START) {
         if (reg_num + 1 == HEX_SREG_BADVA) {
             TCGv_i32 badva = tcg_temp_new_i32();
             gen_helper_sreg_read(badva, tcg_env,
