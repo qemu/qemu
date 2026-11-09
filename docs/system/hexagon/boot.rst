@@ -41,8 +41,8 @@ The virt machine
 starts executing there.
 
 ``-bios`` with ``-kernel`` boots the kernel through Hexagon VM host
-firmware, as described in :ref:`hexagon-vm-boot`. The kernel window starts
-at ``0xa0000000``.
+firmware, as described in :ref:`hexagon-vm-boot`. Both ELF images load at
+their declared physical addresses.
 
 Otherwise, guest software reads the generated DTB at ``0x99800000``.
 ``-append`` sets its ``/chosen/bootargs`` property.
@@ -80,13 +80,13 @@ Booting a kernel through Hexagon VM host firmware
 
 On the ``virt`` and board-specific machines, ``-bios`` with ``-kernel``
 starts the kernel through Hexagon VM host firmware. QEMU loads the firmware
-ELF as linked and adds the machine's kernel base to the kernel ELF's
-physical load addresses, so the kernel's addresses are relative to the
-start of its window. The kernel must use the corresponding Hexagon VM
-guest layout. QEMU starts thread zero at a boot stub at ``0x99c00000``.
-The stub passes the DTB address with the low word in ``r0`` and the high
-word in ``r1``, then jumps to the firmware's ELF entry point. The Hexagon
-VM host defines the child VM's register and execution state.
+ELF as linked. On ``virt``, it also loads the kernel ELF as linked. The
+board-specific machines add their configured kernel base to the kernel ELF's
+physical load addresses, so those kernels are relative to the start of the
+board's guest window. QEMU starts thread zero at a boot stub at
+``0x99c00000``. The stub passes the DTB address with the low word in ``r0``
+and the high word in ``r1``, then jumps to the firmware's ELF entry point.
+The Hexagon VM host defines the child VM's register and execution state.
 
 QEMU places the DTB after the loaded kernel.  QEMU copies it to guest RAM
 before entering the firmware. An optional ``-initrd`` is placed

@@ -105,11 +105,23 @@ guest software can access the host console and filesystem. Read the
 for details. Semihosting is enabled by default on hexagon-sim-compatible
 machines. This can be further configured through ``-semihosting-config``.
 
+Hexagon VM host
+---------------
+
+Guest operating systems can run under a Hexagon VM host, which provides
+virtual processor, memory management, interrupt, and timer services.
+The `Hexagon Virtual Machine Specification
+<https://docs.qualcomm.com/doc/80-NB419-3/80-NB419-3_REV_A_Hexagin_Virtual_Machine_Specification.pdf>`__
+describes the guest interface. The OS boot examples in
+:doc:`hexagon/operating-systems` use H2 as the Hexagon VM host; QEMU
+emulates the underlying DSP hardware.
+
 .. toctree::
    :caption: Hexagon documentation
 
    hexagon/machines
    hexagon/sdk-programs
    hexagon/boot
+   hexagon/operating-systems
    hexagon/emulation
    hexagon/cdsp
