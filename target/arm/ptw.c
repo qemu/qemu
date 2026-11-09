@@ -1406,7 +1406,7 @@ static int get_S1prot(CPUARMState *env, ARMMMUIdx mmu_idx, bool is_aa64,
         if (regime_has_2_ranges(mmu_idx) && !is_user) {
             xn = pxn || (user_rw & PAGE_WRITE);
         }
-    } else if (arm_feature(env, ARM_FEATURE_V7)) {
+    } else {
         switch (regime_el(env, mmu_idx)) {
         case 1:
         case 3:
@@ -1424,8 +1424,6 @@ static int get_S1prot(CPUARMState *env, ARMMMUIdx mmu_idx, bool is_aa64,
         case 2:
             break;
         }
-    } else {
-        xn = wxn = 0;
     }
 
     if (xn || (wxn && (prot_rw & PAGE_WRITE))) {
