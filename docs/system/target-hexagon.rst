@@ -93,6 +93,8 @@ its entry point::
 
     $ qemu-system-hexagon -M V68N_1024 -kernel ./prog.elf -append 'arg1 arg2'
 
+.. _hexagon-semihosting:
+
 Semihosting
 -----------
 Hexagon supports a semihosting interface similar to other architectures'.
@@ -107,6 +109,7 @@ machines. This can be further configured through ``-semihosting-config``.
    :caption: Hexagon documentation
 
    hexagon/machines
+   hexagon/sdk-programs
    hexagon/boot
    hexagon/emulation
    hexagon/cdsp
