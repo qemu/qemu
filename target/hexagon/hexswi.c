@@ -831,12 +831,6 @@ void hexagon_vmrte(CPUHexagonState *env)
     uint32_t old_ssr = env->t_sreg[HEX_SREG_SSR];
     CPUState *cs = env_cpu(env);
 
-    if (GET_FIELD(GSR_UM, gsr)) {
-        uint32_t sp = env->gpr[HEX_REG_SP];
-
-        env->gpr[HEX_REG_SP] = env->greg[HEX_GREG_GOSP];
-        env->greg[HEX_GREG_GOSP] = sp;
-    }
     SET_SYSTEM_FIELD(env, HEX_SREG_SSR, SSR_SS,
                      GET_FIELD(GSR_SS, gsr));
     SET_SYSTEM_FIELD(env, HEX_SREG_SSR, SSR_GM,
