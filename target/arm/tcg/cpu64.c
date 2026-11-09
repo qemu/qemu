@@ -505,7 +505,8 @@ static void aarch64_a64fx_initfn(Object *obj)
     SET_IDREG(isar, REVIDR, 0);
     cpu->ctr = 0x86668006;
     cpu->reset_sctlr = 0x30000180;
-    SET_IDREG(isar, ID_AA64PFR0, 0x0000000101111111); /* No RAS Extensions */
+    /* No RAS Extensions, GIC filled in later */
+    SET_IDREG(isar, ID_AA64PFR0, 0x0000000100111111);
     SET_IDREG(isar, ID_AA64PFR1, 0x0000000000000000);
     SET_IDREG(isar, ID_AA64DFR0, 0x0000000010305408);
     SET_IDREG(isar, ID_AA64DFR1, 0x0000000000000000);
