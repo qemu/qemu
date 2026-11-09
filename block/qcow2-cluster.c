@@ -1953,6 +1953,7 @@ discard_in_l2_slice(BlockDriverState *bs, uint64_t offset, uint64_t nb_clusters,
         QCow2ClusterType cluster_type =
             qcow2_get_cluster_type(bs, old_l2_entry);
         bool keep_reference = (cluster_type != QCOW2_CLUSTER_COMPRESSED) &&
+                              (old_l2_entry & QCOW_OFLAG_COPIED) &&
                               !full_discard &&
                               (s->discard_no_unref &&
                                type == QCOW2_DISCARD_REQUEST);
@@ -2097,8 +2098,9 @@ zero_in_l2_slice(BlockDriverState *bs, uint64_t offset,
         QCow2ClusterType type = qcow2_get_cluster_type(bs, old_l2_entry);
         bool unmap = (type == QCOW2_CLUSTER_COMPRESSED) ||
             ((flags & BDRV_REQ_MAY_UNMAP) && qcow2_cluster_is_allocated(type));
-        bool keep_reference =
-            (s->discard_no_unref && type != QCOW2_CLUSTER_COMPRESSED);
+        bool keep_reference = s->discard_no_unref &&
+                              type != QCOW2_CLUSTER_COMPRESSED &&
+                              (old_l2_entry & QCOW_OFLAG_COPIED);
         uint64_t new_l2_entry = old_l2_entry;
         uint64_t new_l2_bitmap = old_l2_bitmap;
 

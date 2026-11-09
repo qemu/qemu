@@ -337,6 +337,10 @@ vmdk_read_cid(BlockDriverState *bs, int parent, uint32_t *pcid)
         goto out;
     }
     p_name += cid_str_size;
+    if (p_name >= desc + DESC_SIZE) {
+        ret = -EINVAL;
+        goto out;
+    }
     if (sscanf(p_name, "%" SCNx32, &cid) != 1) {
         ret = -EINVAL;
         goto out;
@@ -508,6 +512,10 @@ static int GRAPH_RDLOCK vmdk_parent_open(BlockDriverState *bs)
         char *end_name;
 
         p_name += sizeof("parentFileNameHint") + 1;
+        if (p_name >= desc + DESC_SIZE + 1) {
+            ret = -EINVAL;
+            goto out;
+        }
         end_name = strchr(p_name, '\"');
         if (end_name == NULL) {
             ret = -EINVAL;
@@ -543,6 +551,11 @@ static int vmdk_add_extent(BlockDriverState *bs,
     VmdkExtent *extent;
     BDRVVmdkState *s = bs->opaque;
     int64_t nb_sectors;
+
+    if (!flat && cluster_sectors == 0) {
+        error_setg(errp, "Invalid zero granularity, image may be corrupt");
+        return -EINVAL;
+    }
 
     if (cluster_sectors > 0x200000) {
         /* 0x200000 * 512Bytes = 1GB for one cluster is unrealistic */
@@ -1039,7 +1052,10 @@ vmdk_open_vmdk4(BlockDriverState *bs, BdrvChild *file, int flags,
         error_setg(errp, "L2 table size too big");
         return -EINVAL;
     }
-
+    if (le64_to_cpu(header.granularity) > 0x200000) {
+        error_setg(errp, "Invalid granularity, image may be corrupt");
+        return -EFBIG;
+    }
     l1_entry_sectors = le32_to_cpu(header.num_gtes_per_gt)
                         * le64_to_cpu(header.granularity);
     if (l1_entry_sectors == 0) {
@@ -1299,6 +1315,12 @@ vmdk_parse_extents(const char *desc, BlockDriverState *bs, QDict *options,
             goto out;
         }
         extent->type = g_strdup(type);
+    }
+
+    if (s->num_extents == 0) {
+        error_setg(errp, "Invalid file: no extent lines present");
+        ret = -EINVAL;
+        goto out;
     }
 
     ret = 0;
@@ -1926,7 +1948,7 @@ vmdk_read_extent(VmdkExtent *extent, int64_t cluster_offset,
                  int64_t offset_in_cluster, QEMUIOVector *qiov, int bytes)
 {
     int ret;
-    int cluster_bytes, buf_bytes;
+    int64_t cluster_bytes, buf_bytes;
     uint8_t *cluster_buf, *compressed_data;
     uint8_t *uncomp_buf;
     uint32_t data_len;
