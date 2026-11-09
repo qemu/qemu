@@ -57,6 +57,7 @@
 #define HV_X64_MSR_GUEST_IDLE           0x400000f0
 
 static bool is_modern_os = true;
+static bool whpx_msr_exits_available = true;
 
 static const WHV_REGISTER_NAME whpx_register_names[] = {
 
@@ -442,8 +443,8 @@ static int whpx_set_xsave_state(const CPUState *cpu)
 
     qemu_vfree(xsavec_buf);
     if (FAILED(hr)) {
-        error_report("WHPX: Failed to get virtual processor context, hr=%08lx",
-                     hr);
+        error_report("WHPX: Failed to set xsave state, hr=%08lx", hr);
+        return -EIO;
     }
 
     return 0;
@@ -527,6 +528,35 @@ void whpx_set_registers(CPUState *cpu, WHPXStateLevel level)
     int v86, r86;
 
     assert(cpu_is_stopped(cpu) || qemu_cpu_is_self(cpu));
+
+    /* Assumes that cpu_synchronize_all_post_reset() runs cpu 0 first. */
+    if (level == WHPX_LEVEL_RESET_STATE && cpu->cpu_index == 0) {
+        hr = whp_dispatch.WHvResetPartition(whpx->partition);
+        if (FAILED(hr)) {
+            error_report("WHPX: Failed to reset partition, hr=%08lx", hr);
+        }
+    }
+
+    /* Reset hypervisor-owned TSC deadline. */
+    if (level == WHPX_LEVEL_RESET_STATE) {
+        WHV_REGISTER_VALUE tsc_deadline = {};
+
+        whpx_set_reg(cpu, WHvX64RegisterTscDeadline, tsc_deadline);
+    }
+
+    /*
+     * Re-arm partition's wait-for-SIPI state.
+     * whpx_vcpu_run() ignores cpu->halted, depends on SIPI for this.
+     * This must follow WHvResetPartition.
+     */
+    if (level == WHPX_LEVEL_RESET_STATE && whpx_irqchip_in_kernel()) {
+        WHV_REGISTER_VALUE activity = {};
+
+        whpx_get_reg(cpu, WHvRegisterInternalActivityState, &activity);
+        activity.InternalActivity.StartupSuspend = !cpu_is_bsp(x86_cpu);
+        activity.InternalActivity.HaltSuspend = 0;
+        whpx_set_reg(cpu, WHvRegisterInternalActivityState, activity);
+    }
 
     /*
      * Following MSRs have side effects on the guest or are too heavy for
@@ -744,8 +774,6 @@ static void whpx_get_registers_for_vmexit(CPUState *cpu, WHPXStateLevel level)
     rflags_to_lflags(env);
 
     assert(idx == RTL_NUMBER_OF(whpx_register_names_for_vmexit));
-
-    x86_update_hflags(env);
 }
 
 static void whpx_get_legacy_fp_registers(CPUState *cpu, WHPXStateLevel level)
@@ -809,9 +837,28 @@ static void whpx_get_legacy_fp_registers(CPUState *cpu, WHPXStateLevel level)
     idx += 1;
 }
 
-static int whpx_get_xsave_state(CPUState *cpu)
+static HRESULT whpx_get_xsave_state_buffer(const CPUState *cpu, void *buf,
+                                           size_t buf_len,
+                                           UINT32 *bytes_written)
 {
     struct whpx_state *whpx = &whpx_global;
+
+    if (!whpx_is_legacy_os()) {
+        return whp_dispatch.WHvGetVirtualProcessorState(
+            whpx->partition, cpu->cpu_index,
+            WHvVirtualProcessorStateTypeXsaveState,
+            buf,
+            buf_len, bytes_written);
+    } else {
+        return whp_dispatch.WHvGetVirtualProcessorXsaveState(
+            whpx->partition, cpu->cpu_index,
+            buf,
+            buf_len, bytes_written);
+    }
+}
+
+static int whpx_get_xsave_state(CPUState *cpu)
+{
     X86CPU *x86cpu = X86_CPU(cpu);
     CPUX86State *env = &x86cpu->env;
     int ret;
@@ -824,27 +871,43 @@ static int whpx_get_xsave_state(CPUState *cpu)
     xsavec_buf = qemu_memalign(page, xsavec_buf_len);
     memset(xsavec_buf, 0, xsavec_buf_len);
 
-    if (!whpx_is_legacy_os()) {
-        hr = whp_dispatch.WHvGetVirtualProcessorState(
-            whpx->partition, cpu->cpu_index,
-            WHvVirtualProcessorStateTypeXsaveState,
-            xsavec_buf,
-            xsavec_buf_len, &bytes_written);
-    } else {
-        hr = whp_dispatch.WHvGetVirtualProcessorXsaveState(
-            whpx->partition, cpu->cpu_index,
-            xsavec_buf,
-            xsavec_buf_len, &bytes_written);
-    }
-    if (FAILED(hr) || bytes_written == 0) {
-        error_report("failed to get xsave state: %s", strerror(errno));
-        return -errno;
+    bytes_written = 0;
+    hr = whpx_get_xsave_state_buffer(cpu, xsavec_buf, xsavec_buf_len,
+                                     &bytes_written);
+
+    /*
+     * whpx_get_xsave_max_len() returns the size of user state components
+     * enabled in XCR0. The hypervisor returns an XSAVES image, which also
+     * contains the supervisor state, so the whpx_get_xsave_max_len() size
+     * may be too small.
+     */
+    if (hr == WHV_E_INSUFFICIENT_BUFFER && bytes_written > xsavec_buf_len) {
+        qemu_vfree(xsavec_buf);
+        xsavec_buf_len = bytes_written;
+        xsavec_buf = qemu_memalign(page, xsavec_buf_len);
+        memset(xsavec_buf, 0, xsavec_buf_len);
+
+        bytes_written = 0;
+        hr = whpx_get_xsave_state_buffer(cpu, xsavec_buf, xsavec_buf_len,
+                                         &bytes_written);
     }
 
-    ret = decompact_xsave_area(xsavec_buf, xsavec_buf_len, env);
+    if (FAILED(hr)) {
+        error_report("WHPX: Failed to get xsave state, hr=%08lx", hr);
+        qemu_vfree(xsavec_buf);
+        return -EIO;
+    }
+
+    if (bytes_written == 0) {
+        error_report("WHPX: Failed to get xsave state, no data returned");
+        qemu_vfree(xsavec_buf);
+        return -EIO;
+    }
+
+    ret = decompact_xsave_area(xsavec_buf, bytes_written, env);
     qemu_vfree(xsavec_buf);
     if (ret < 0) {
-        error_report("failed to decompact xsave area");
+        error_report("WHPX: Failed to decompact xsave area");
         return ret;
     }
     x86_cpu_xrstor_all_areas(x86cpu, env->xsave_buf, env->xsave_buf_len);
@@ -1452,10 +1515,10 @@ uint64_t whpx_get_supported_msr_feature(uint32_t index)
         cap = WHvCapabilityCodeVmxEptVpidCap;
         break;
     case MSR_IA32_VMX_TRUE_PINBASED_CTLS:
-        cap = WHvCapabilityCodeVmxPinbasedCtls;
+        cap = WHvCapabilityCodeVmxTruePinbasedCtls;
         break;
     case MSR_IA32_VMX_TRUE_PROCBASED_CTLS:
-        cap = WHvCapabilityCodeVmxProcbasedCtls;
+        cap = WHvCapabilityCodeVmxTrueProcbasedCtls;
         break;
     case MSR_IA32_VMX_TRUE_ENTRY_CTLS:
         cap = WHvCapabilityCodeVmxTrueEntryCtls;
@@ -1474,6 +1537,31 @@ uint64_t whpx_get_supported_msr_feature(uint32_t index)
         if (FAILED(hr)) {
             return 0;
         }
+
+        switch (index) {
+        case MSR_IA32_VMX_PROCBASED_CTLS2:
+        case MSR_IA32_VMX_TRUE_PINBASED_CTLS:
+        case MSR_IA32_VMX_TRUE_PROCBASED_CTLS:
+        case MSR_IA32_VMX_TRUE_ENTRY_CTLS:
+        case MSR_IA32_VMX_TRUE_EXIT_CTLS: {
+            /*
+             * These MSRs hold the allowed-0 settings in the low half and the
+             * allowed-1 settings in the high half.  QEMU's feature words want
+             * only the bits that can be one but do not have to be one, so
+             * apply the same transformation as
+             * kvm_arch_get_supported_msr_feature(); make_vmx_msr_value()
+             * restores the must-be-one bits later.
+             */
+            uint32_t must_be_one = (uint32_t)val;
+            uint32_t can_be_one = (uint32_t)(val >> 32);
+
+            val = can_be_one & ~must_be_one;
+            break;
+        }
+        default:
+            break;
+        }
+
         return val;
     }
     return 0;
@@ -2619,10 +2707,14 @@ int whpx_vcpu_run(CPUState *cpu)
                 }
             }
 
-            /* CPUID[0xD,{1,2}].EBX are dynamic depending on guest features. */
+            /*
+             * CPUID[0xD,{0,1}].EBX are dynamic: the XSAVE area size for the
+             * guest's current XCR0, resp. XCR0 | IA32_XSS. For sub-leaf >= 2,
+             * EBX is the component's fixed offset, which QEMU already reports.
+             */
             if (vcpu->exit_ctx.CpuidAccess.Rax == 0xd) {
-                if (vcpu->exit_ctx.CpuidAccess.Rcx == 1
-                    || vcpu->exit_ctx.CpuidAccess.Rcx == 2) {
+                if (vcpu->exit_ctx.CpuidAccess.Rcx == 0
+                    || vcpu->exit_ctx.CpuidAccess.Rcx == 1) {
                     reg_values[4].Reg64 = vcpu->exit_ctx.CpuidAccess.DefaultResultRbx;
                 }
             }
@@ -2890,6 +2982,16 @@ static PropValue whpx_default_props[] = {
     { NULL, NULL },
 };
 
+/*
+ * x2APIC is reached through MSRs, so emulating it in userspace requires the
+ * MSR exit bitmap. Hosts without that property must fall back to xAPIC,
+ * which is MMIO based and therefore still intercepted.
+ */
+static PropValue whpx_no_msr_exit_props[] = {
+    { "x2apic", "off" },
+    { NULL, NULL },
+};
+
 
 void whpx_cpu_instance_init(CPUState *cs)
 {
@@ -2897,7 +2999,8 @@ void whpx_cpu_instance_init(CPUState *cs)
     X86CPUClass *xcc = X86_CPU_GET_CLASS(cpu);
 
     host_cpu_instance_init(cpu);
-    x86_cpu_apply_props(cpu, whpx_default_props);
+    x86_cpu_apply_props(cpu, whpx_msr_exits_available ? whpx_default_props
+                                                      : whpx_no_msr_exit_props);
 
     if (xcc->max_features) {
         whpx_cpu_max_instance_init(cpu);
@@ -3154,13 +3257,34 @@ int whpx_accel_init(AccelState *as, MachineState *ms)
     memset(&processor_features, 0, sizeof(WHV_PROCESSOR_FEATURES_BANKS));
     processor_features.BanksCount = 2;
 
-    hr = whp_dispatch.WHvGetCapability(
-        WHvCapabilityCodeProcessorFeaturesBanks, &processor_features,
-        sizeof(WHV_PROCESSOR_FEATURES_BANKS), &whpx_cap_size);
-    if (FAILED(hr)) {
-        error_report("WHPX: Failed to get processor features, hr=%08lx", hr);
-        ret = -ENOSPC;
-        goto error;
+    if (whpx_is_legacy_os()) {
+        /*
+         * WHvCapabilityCodeProcessorFeaturesBanks is implemented starting
+         * from Windows 10 version 20H2 (19041). Fall back to the single-bank
+         * capability on earlier Windows 10 releases.
+         */
+        WHV_PROCESSOR_FEATURES legacy_features = {0};
+
+        processor_features.BanksCount = 1;
+        hr = whp_dispatch.WHvGetCapability(
+            WHvCapabilityCodeProcessorFeatures, &legacy_features,
+            sizeof(legacy_features), &whpx_cap_size);
+        if (FAILED(hr)) {
+            warn_report("WHPX: Failed to get legacy processor features,"
+                        " hr=%08lx", hr);
+        } else {
+            processor_features.Bank0 = legacy_features;
+        }
+    } else {
+        hr = whp_dispatch.WHvGetCapability(
+            WHvCapabilityCodeProcessorFeaturesBanks, &processor_features,
+            sizeof(WHV_PROCESSOR_FEATURES_BANKS), &whpx_cap_size);
+        if (FAILED(hr)) {
+            error_report("WHPX: Failed to get processor features,"
+                " hr=%08lx", hr);
+            ret = -ENOSPC;
+            goto error;
+        }
     }
 
     whpx_rdtsc_cap = processor_features.Bank0.RdtscpSupport;
@@ -3207,15 +3331,23 @@ int whpx_accel_init(AccelState *as, MachineState *ms)
         }
     }
 
-    hr = whp_dispatch.WHvSetPartitionProperty(
-            whpx->partition,
-            WHvPartitionPropertyCodeProcessorFeaturesBanks,
-            &processor_features,
-            sizeof(WHV_PROCESSOR_FEATURES_BANKS));
-    if (FAILED(hr)) {
-        error_report("WHPX: Failed to set processor features, hr=%08lx", hr);
-        ret = -EINVAL;
-        goto error;
+    /*
+     * The matching partition property is available on Windows 10 version
+     * 20H2 (19041). and later. Rely on the whpx_is_legacy_os() check to
+     * enable this code only on Server 2022 or Windows 11.
+     */
+    if (!whpx_is_legacy_os()) {
+        hr = whp_dispatch.WHvSetPartitionProperty(
+                whpx->partition,
+                WHvPartitionPropertyCodeProcessorFeaturesBanks,
+                &processor_features,
+                sizeof(WHV_PROCESSOR_FEATURES_BANKS));
+        if (FAILED(hr)) {
+            error_report("WHPX: Failed to set processor features,"
+                " hr=%08lx", hr);
+            ret = -EINVAL;
+            goto error;
+        }
     }
 
 
@@ -3276,10 +3408,20 @@ int whpx_accel_init(AccelState *as, MachineState *ms)
             WHvPartitionPropertyCodeX64MsrExitBitmap,
             &prop,
             sizeof(WHV_PARTITION_PROPERTY));
+    /*
+     * Earlier Windows 10 releases not implement this property.
+     * It is implemented starting from Windows 10 version 1903 (18362).
+     */
     if (FAILED(hr)) {
-        error_report("WHPX: Failed to set MSR exit bitmap, hr=%08lx", hr);
-        ret = -EINVAL;
-        goto error;
+        if (hr == WHV_E_UNKNOWN_PROPERTY) {
+            whpx_msr_exits_available = false;
+            warn_report("WHPX: MSR exit bitmap unsupported on this Windows "
+                        "version, falling back to xAPIC");
+        } else {
+            error_report("WHPX: Failed to set MSR exit bitmap, hr=%08lx", hr);
+            ret = -EINVAL;
+            goto error;
+        }
     }
 
     hr = whp_dispatch.WHvSetPartitionProperty(
