@@ -139,20 +139,27 @@ void eth_get_protocols(const struct iovec *iov, size_t iovcnt, size_t iovoff,
     bool fragment = false;
     size_t input_size = iov_size(iov, iovcnt);
     size_t copied;
+    uint32_t hdr_size;
     uint8_t ip_p;
 
     *hasip4 = *hasip6 = false;
-    *l3hdr_off = iovoff + eth_get_l2_hdr_length_iov(iov, iovcnt, iovoff);
     l4hdr_info->proto = ETH_L4_HDR_PROTO_INVALID;
+
+    if (input_size < iovoff) {
+        return;
+    }
+
+    hdr_size = eth_get_l2_hdr_length_iov(iov, iovcnt, iovoff);
+    if (input_size - iovoff < hdr_size) {
+        return;
+    }
+
+    *l3hdr_off = iovoff + hdr_size;
 
     proto = eth_get_l3_proto(iov, iovcnt, *l3hdr_off);
 
     if (proto == ETH_P_IP) {
         struct ip_header *iphdr = &ip4hdr_info->ip4_hdr;
-
-        if (input_size < *l3hdr_off) {
-            return;
-        }
 
         copied = iov_to_buf(iov, iovcnt, *l3hdr_off, iphdr, sizeof(*iphdr));
         if (copied < sizeof(*iphdr) ||
