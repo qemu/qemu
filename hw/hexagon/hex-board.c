@@ -20,6 +20,7 @@
 #include "hw/hexagon/hex-subsys.h"
 #include "qemu/error-report.h"
 #include "qemu/guest-random.h"
+#include "qemu/units.h"
 #include "system/address-spaces.h"
 #include "system/device_tree.h"
 #include "system/reset.h"
@@ -230,6 +231,143 @@ uint64_t hex_board_load_elf(const char *filename,
         exit(1);
     }
     return entry;
+}
+
+void hex_board_fdt_add_memory(MachineState *ms, hwaddr base, hwaddr size)
+{
+    g_autofree char *nodename = g_strdup_printf("/memory@%" HWADDR_PRIx, base);
+
+    qemu_fdt_add_subnode(ms->fdt, nodename);
+    qemu_fdt_setprop_string(ms->fdt, nodename, "device_type", "memory");
+    qemu_fdt_setprop_cells(ms->fdt, nodename, "reg", extract64(base, 32, 32),
+                           extract64(base, 0, 32), extract64(size, 32, 32),
+                           extract64(size, 0, 32));
+}
+
+void hex_board_fdt_add_vm_timer(MachineState *ms, hwaddr base, hwaddr size,
+                                int irq)
+{
+    static const char compat[] = "qcom,h2-timer\0hvm-timer";
+    g_autofree char *name = g_strdup_printf("/soc/gpt@%" HWADDR_PRIx, base);
+
+    qemu_fdt_add_subnode(ms->fdt, name);
+    qemu_fdt_setprop(ms->fdt, name, "compatible", compat, sizeof(compat));
+    qemu_fdt_setprop_cells(ms->fdt, name, "interrupts", irq, 0);
+    qemu_fdt_setprop_cells(ms->fdt, name, "reg", extract64(base, 32, 32),
+                           extract64(base, 0, 32), extract64(size, 32, 32),
+                           extract64(size, 0, 32));
+}
+
+enum {
+    STUB_FDT_HI = 11,
+    STUB_FDT_LO,
+    STUB_ENTRY_ADDR,
+};
+
+static const uint32_t vm_boot_stub[] = {
+    /* Load fdt_base_low value into r0: */
+    0x099c4000, /* { immext(#0x99c00000) */
+    0x7800c606, /*   r6 = ##-0x662fffd0 } */
+    0x9186c000, /* { r0 = memw(r6+#0x0) } */
+
+    /* Load fdt_base_high value into r1: */
+    0x099c4000, /* { immext(#0x99c00000) */
+    0x7800c586, /*   r6 = ##-0x662fffd4 } */
+    0x9186c001, /* { r1 = memw(r6+#0x0) } */
+
+    /* Load next_stage_entry value into r7: */
+    0x099c4000, /* { immext(#0x99c00000) */
+    0x7800c687, /*   r7 = ##-0x662fffcc } */
+    0x9187c007, /* { r7 = memw(r7+#0x0) } */
+
+    /* Jump to next_stage_entry, r1:0 now contains fdt_base: */
+    0x5287c000, /* { jumpr r7 } */
+    0x0, /* Invalid packet */
+    0x0, /* Pad for fdt_base_high */
+    0x0, /* Pad for fdt_base_low */
+    0x0, /* Pad for next_stage_entry */
+};
+
+static uint64_t vm_guest_translate(void *opaque, uint64_t addr)
+{
+    return addr + *(hwaddr *)opaque;
+}
+
+/* Place the FDT's room after the kernel, and the initrd after that. */
+static void hex_board_load_initrd(MachineState *ms, hwaddr ram_end,
+                                  hwaddr fdt_addr, int fdt_size)
+{
+    hwaddr start = fdt_addr + 4 * MiB;
+    hwaddr available;
+    ssize_t size;
+
+    available = fdt_addr < ram_end ? ram_end - fdt_addr : 0;
+    if (fdt_size > available) {
+        error_report("no room for the FDT (size 0x%x): only 0x%" HWADDR_PRIx
+                     " bytes available at 0x%" HWADDR_PRIx,
+                     fdt_size, available, fdt_addr);
+        exit(1);
+    }
+
+    if (!ms->initrd_filename) {
+        return;
+    }
+
+    if (start >= ram_end) {
+        error_report("no room for the initrd: RAM ends at 0x%" HWADDR_PRIx
+                     " but the initrd would start at 0x%" HWADDR_PRIx,
+                     ram_end, start);
+        exit(1);
+    }
+
+    size = load_image_targphys_as(ms->initrd_filename, start, ram_end - start,
+                                  &address_space_memory, &error_fatal);
+
+    qemu_fdt_setprop_u64(ms->fdt, "/chosen", "linux,initrd-start", start);
+    qemu_fdt_setprop_u64(ms->fdt, "/chosen", "linux,initrd-end", start + size);
+}
+
+void hex_board_check_initrd(MachineState *ms, bool firmware)
+{
+    if (ms->initrd_filename && !(ms->kernel_filename && firmware)) {
+        error_report("-initrd needs both -kernel and the H2 loadlinux "
+                     "firmware given with -bios");
+        exit(1);
+    }
+}
+
+uint64_t hex_board_load_vm_guest(MachineState *ms, const char *firmware,
+                                 hwaddr ddr_base, hwaddr kernel_addr,
+                                 hwaddr stub_base, int fdt_size,
+                                 hwaddr *fdt_addr)
+{
+    uint64_t firmware_entry, image_high;
+    hwaddr ram_end = ddr_base + ms->ram_size;
+    uint32_t stub[ARRAY_SIZE(vm_boot_stub)];
+
+    if (ddr_base > stub_base || ram_end <= kernel_addr) {
+        error_report("RAM (%" PRIu64 " MiB at 0x%" HWADDR_PRIx ") is too "
+                     "small: the kernel is loaded at 0x%" HWADDR_PRIx,
+                     ms->ram_size / MiB, ddr_base, kernel_addr);
+        exit(1);
+    }
+
+    firmware_entry = hex_board_load_elf(firmware, NULL, NULL, NULL);
+    hex_board_load_elf(ms->kernel_filename, vm_guest_translate, &kernel_addr,
+                       &image_high);
+    *fdt_addr = QEMU_ALIGN_UP(image_high + 16 * MiB, 4 * MiB);
+    hex_board_load_initrd(ms, ram_end, *fdt_addr, fdt_size);
+
+    for (size_t i = 0; i < ARRAY_SIZE(stub); i++) {
+        stub[i] = cpu_to_le32(vm_boot_stub[i]);
+    }
+    stub[STUB_FDT_LO] = cpu_to_le32(extract64(*fdt_addr, 0, 32));
+    stub[STUB_FDT_HI] = cpu_to_le32(extract64(*fdt_addr, 32, 32));
+    stub[STUB_ENTRY_ADDR] = cpu_to_le32(extract64(firmware_entry, 0, 32));
+    rom_add_blob_fixed_as("bootloader", stub, sizeof(stub), stub_base,
+                          &address_space_memory);
+
+    return stub_base;
 }
 
 void hex_board_load_fdt(MachineState *ms, int fdt_size, hwaddr addr)

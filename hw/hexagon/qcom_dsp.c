@@ -43,38 +43,6 @@ static const int QCOM_DSP_GPT_IRQ = 12;
 
 #define QCOM_DSP_L2_ECC_SIZE 0x1000
 
-#define QCOM_DSP_MAX_KERNEL_RAM (896 * MiB)
-
-static const uint32_t bootloader[] = {
-    /* Load fdt_base_low value into r0: */
-    0x099c4000, /* { immext(#0x99c00000) */
-    0x7800c606, /*   r6 = ##-0x662fffd0 } */
-    0x9186c000, /* { r0 = memw(r6+#0x0) } */
-
-    /* Load fdt_base_high value into r1: */
-    0x099c4000, /* { immext(#0x99c00000) */
-    0x7800c586, /*   r6 = ##-0x662fffd4 } */
-    0x9186c001, /* { r1 = memw(r6+#0x0) } */
-
-    /* Load next_stage_entry value into r7: */
-    0x099c4000, /* { immext(#0x99c00000) */
-    0x7800c687, /*   r7 = ##-0x662fffcc } */
-    0x9187c007, /* { r7 = memw(r7+#0x0) } */
-
-    /* Jump to next_stage_entry, r1:0 now contains fdt_base: */
-    0x5287c000, /* { jumpr r7 } */
-    0x0, /* Invalid packet */
-    0x0, /* Pad for fdt_base_high */
-    0x0, /* Pad for fdt_base_low */
-    0x0, /* Pad for next_stage_entry */
-};
-
-enum {
-    FDT_HI = 11,
-    FDT_LO,
-    ENTRY_ADDR,
-};
-
 static const QcomDspMachineInfo *qcom_dsp_info(MachineState *ms)
 {
     return QCOM_DSP_MACHINE_GET_CLASS(ms)->info;
@@ -142,125 +110,20 @@ static void qcom_dsp_create_fdt(QcomDspMachineState *qms)
     qemu_fdt_setprop_string(ms->fdt, "/soc", "compatible", "simple-bus");
 }
 
-/*
- * The H2 hypervisor provides the guest timer through hypercalls, so this
- * node only tells the kernel's timer driver which interrupt to expect.
- */
-static void qcom_dsp_fdt_add_gpt(MachineState *ms)
-{
-    static const char compat[] = "qcom,h2-timer\0hvm-timer";
-    g_autofree char *name = g_strdup_printf("/soc/gpt@%" PRIx64,
-                                            qcom_dsp_memmap[QCOM_DSP_GPT].base);
-
-    qemu_fdt_add_subnode(ms->fdt, name);
-    qemu_fdt_setprop(ms->fdt, name, "compatible", compat, sizeof(compat));
-    qemu_fdt_setprop_cells(ms->fdt, name, "interrupts", QCOM_DSP_GPT_IRQ, 0);
-    qemu_fdt_setprop_cells(ms->fdt, name, "reg", 0x0,
-                           qcom_dsp_memmap[QCOM_DSP_GPT].base,
-                           qcom_dsp_memmap[QCOM_DSP_GPT].size);
-}
-
 static void qcom_dsp_fdt_add_memory(MachineState *ms)
 {
     hwaddr kernel_addr = qcom_dsp_info(ms)->kernel_addr;
     hwaddr ram_end = qcom_dsp_info(ms)->cfg->ddr_base + ms->ram_size;
-    hwaddr size = MIN(ram_end - kernel_addr, QCOM_DSP_MAX_KERNEL_RAM);
-    g_autofree char *nodename = g_strdup_printf("/memory@%" HWADDR_PRIx,
-                                                kernel_addr);
 
-    qemu_fdt_add_subnode(ms->fdt, nodename);
-    qemu_fdt_setprop_string(ms->fdt, nodename, "device_type", "memory");
-    qemu_fdt_setprop_cells(ms->fdt, nodename, "reg", 0, kernel_addr,
-                           size);
-}
-
-static uint64_t qcom_dsp_kernel_translate(void *opaque, uint64_t addr)
-{
-    return addr + qcom_dsp_info(MACHINE(opaque))->kernel_addr;
-}
-
-static uint64_t qcom_dsp_load_kernel(MachineState *ms, bool through_firmware,
-                                     hwaddr *image_high)
-{
-    return hex_board_load_elf(ms->kernel_filename,
-                              through_firmware ? qcom_dsp_kernel_translate
-                                               : NULL,
-                              ms, image_high);
-}
-
-static uint64_t qcom_dsp_load_firmware(QcomDspMachineState *qms)
-{
-    return hex_board_load_elf(qms->firmware_path, NULL, NULL, NULL);
-}
-
-/*
- * Place the FDT after the kernel image, inside the RAM window the kernel
- * maps, and the initrd after that.
- */
-static void qcom_dsp_load_initrd(QcomDspMachineState *qms)
-{
-    MachineState *ms = MACHINE(qms);
-    hwaddr start = qms->fdt_addr + 4 * MiB;
-    hwaddr ram_end = qcom_dsp_info(ms)->cfg->ddr_base + ms->ram_size;
-    hwaddr available;
-    ssize_t size;
-
-    available = qms->fdt_addr < ram_end ? ram_end - qms->fdt_addr : 0;
-    if (qms->fdt_size > available) {
-        error_report("no room for the FDT (size 0x%x): only 0x%" HWADDR_PRIx
-                     " bytes available at 0x%" HWADDR_PRIx,
-                     qms->fdt_size, available, qms->fdt_addr);
-        exit(1);
-    }
-
-    if (!ms->initrd_filename) {
-        return;
-    }
-
-    if (start >= ram_end) {
-        error_report("no room for the initrd: RAM ends at 0x%" HWADDR_PRIx
-                     " but the initrd would start at 0x%" HWADDR_PRIx,
-                     ram_end, start);
-        exit(1);
-    }
-
-    size = load_image_targphys_as(ms->initrd_filename, start, ram_end - start,
-                                  &address_space_memory, &error_fatal);
-
-    qemu_fdt_setprop_u64(ms->fdt, "/chosen", "linux,initrd-start", start);
-    qemu_fdt_setprop_u64(ms->fdt, "/chosen", "linux,initrd-end", start + size);
-}
-
-/*
- * A boot stub that passes the FDT address to the firmware in r1:r0, then
- * jumps to the firmware's entry point.
- */
-static uint64_t qcom_dsp_setup_boot_stub(QcomDspMachineState *qms,
-                                         uint64_t firmware_entry)
-{
-    hwaddr bootl_base = qcom_dsp_memmap[QCOM_DSP_BOOT].base;
-    uint32_t stub[ARRAY_SIZE(bootloader)];
-
-    for (size_t i = 0; i < ARRAY_SIZE(stub); i++) {
-        stub[i] = cpu_to_le32(bootloader[i]);
-    }
-    stub[FDT_LO] = cpu_to_le32(extract64(qms->fdt_addr, 0, 32));
-    stub[FDT_HI] = cpu_to_le32(extract64(qms->fdt_addr, 32, 32));
-    stub[ENTRY_ADDR] = cpu_to_le32(extract64(firmware_entry, 0, 32));
-
-    g_assert(sizeof(stub) <= qcom_dsp_memmap[QCOM_DSP_BOOT].size);
-    rom_add_blob_fixed_as("bootloader", stub, sizeof(stub), bootl_base,
-                          &address_space_memory);
-
-    return bootl_base;
+    hex_board_fdt_add_memory(ms, kernel_addr,
+                             MIN(ram_end - kernel_addr,
+                                 HEX_BOARD_MAX_KERNEL_RAM));
 }
 
 /* Reject boot options that do not make sense together, and find -bios. */
 static void qcom_dsp_check_boot_options(QcomDspMachineState *qms)
 {
     MachineState *ms = MACHINE(qms);
-    hwaddr ddr_base = qcom_dsp_info(ms)->cfg->ddr_base;
-    hwaddr kernel_addr = qcom_dsp_info(ms)->kernel_addr;
 
     if (ms->firmware) {
         qms->firmware_path = qemu_find_file(QEMU_FILE_TYPE_BIOS, ms->firmware);
@@ -270,43 +133,28 @@ static void qcom_dsp_check_boot_options(QcomDspMachineState *qms)
         }
     }
 
-    if (ms->initrd_filename && !(ms->kernel_filename && qms->firmware_path)) {
-        error_report("-initrd needs both -kernel and the H2 loadlinux "
-                     "firmware given with -bios");
-        exit(1);
-    }
-
-    if (ms->kernel_filename && qms->firmware_path &&
-        (ddr_base > qcom_dsp_memmap[QCOM_DSP_BOOT].base ||
-         ddr_base + ms->ram_size <= kernel_addr)) {
-        error_report("RAM (%" PRIu64 " MiB at 0x%" HWADDR_PRIx ") is too "
-                     "small: the kernel is loaded at 0x%" HWADDR_PRIx,
-                     ms->ram_size / MiB, ddr_base, kernel_addr);
-        exit(1);
-    }
+    hex_board_check_initrd(ms, qms->firmware_path);
 }
 
 /* Load what -bios and -kernel name and return where CPU 0 starts, if known. */
 static bool qcom_dsp_load_images(QcomDspMachineState *qms, uint64_t *start)
 {
     MachineState *ms = MACHINE(qms);
-    hwaddr image_high = 0;
+    const QcomDspMachineInfo *info = qcom_dsp_info(ms);
 
     if (ms->kernel_filename && qms->firmware_path) {
-        uint64_t firmware_entry = qcom_dsp_load_firmware(qms);
-
-        qcom_dsp_load_kernel(ms, true, &image_high);
-        qms->fdt_addr = QEMU_ALIGN_UP(image_high + 16 * MiB, 4 * MiB);
-        qcom_dsp_load_initrd(qms);
-        *start = qcom_dsp_setup_boot_stub(qms, firmware_entry);
+        *start = hex_board_load_vm_guest(ms, qms->firmware_path,
+                                         info->cfg->ddr_base, info->kernel_addr,
+                                         qcom_dsp_memmap[QCOM_DSP_BOOT].base,
+                                         qms->fdt_size, &qms->fdt_addr);
         return true;
     }
     if (ms->kernel_filename) {
-        *start = qcom_dsp_load_kernel(ms, false, &image_high);
+        *start = hex_board_load_elf(ms->kernel_filename, NULL, NULL, NULL);
         return true;
     }
     if (qms->firmware_path) {
-        *start = qcom_dsp_load_firmware(qms);
+        *start = hex_board_load_elf(qms->firmware_path, NULL, NULL, NULL);
         return true;
     }
     return false;
@@ -330,7 +178,9 @@ static void qcom_dsp_init(MachineState *ms)
 
     hex_board_fdt_add_hvx(ms, info->cfg);
     l2vic_phandle = hex_board_fdt_add_l2vic(ms, info->cfg);
-    qcom_dsp_fdt_add_gpt(ms);
+    hex_board_fdt_add_vm_timer(ms, qcom_dsp_memmap[QCOM_DSP_GPT].base,
+                               qcom_dsp_memmap[QCOM_DSP_GPT].size,
+                               QCOM_DSP_GPT_IRQ);
     /* loadlinux gives the kernel a virtual CPU for every thread that runs. */
     hex_board_fdt_add_cpus(ms);
     if (ms->kernel_filename && qms->firmware_path) {
