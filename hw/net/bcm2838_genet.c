@@ -902,15 +902,24 @@ static ssize_t bcm2838_genet_rdma(BCM2838GenetState *s, uint32_t ring_idx,
         uint8_t *frame_buf = dma_buf + frame_off;
 
         bool crc_fwd = FIELD_EX32(s->regs.umac.cmd, GENET_UMAC_CMD, CRC_FWD);
+        const size_t crc_len = crc_fwd ? 4 : 0;
         size_t buflength;
         uint32_t prod_index;
 
-        if (l > ring->ring_buf_size) {
-            l = ring->ring_buf_size;
+        /*
+         * The buffer holds the status block, the 2 byte pad, the payload
+         * and (with CRC forwarding) the CRC. buf_size is at most
+         * MAX_FRAME_SIZE, so the BUFLENGTH computed below always fits
+         * its 12 bit field.
+         */
+        if (buf_size <= frame_off + crc_len) {
+            qemu_log_mask(LOG_GUEST_ERROR,
+                          "%s: RX buffer size %zu too small\n",
+                          __func__, buf_size);
+            return -1;
         }
-        /* Never copy more than fits in rx_packet after the status block */
-        if (l > sizeof(s->rx_packet) - frame_off) {
-            l = sizeof(s->rx_packet) - frame_off;
+        if (l > buf_size - frame_off - crc_len) {
+            l = buf_size - frame_off - crc_len;
         }
 
         memcpy(frame_buf, buf + len, l);
@@ -921,10 +930,7 @@ static ssize_t bcm2838_genet_rdma(BCM2838GenetState *s, uint32_t ring_idx,
                                          GENET_RDMA_LENGTH_STATUS,
                                          EOP, !!(len >= size));
 
-        buflength = l + sizeof(BCM2838GenetXmitStatus) + 2;
-        if (crc_fwd) {
-            buflength += 4;
-        }
+        buflength = frame_off + l + crc_len;
 
         desc->length_status = FIELD_DP32(desc->length_status,
                                          GENET_RDMA_LENGTH_STATUS,
