@@ -422,7 +422,8 @@ static void aarch64_a64fx_initfn(Object *obj)
     cpu->revidr = 0x00000000;
     cpu->ctr = 0x86668006;
     cpu->reset_sctlr = 0x30000180;
-    cpu->isar.id_aa64pfr0 =   0x0000000101111111; /* No RAS Extensions */
+    /* No RAS Extensions, GIC filled in later */
+    cpu->isar.id_aa64pfr0 = 0x0000000100111111;
     cpu->isar.id_aa64pfr1 = 0x0000000000000000;
     cpu->isar.id_aa64dfr0 = 0x0000000010305408;
     cpu->isar.id_aa64dfr1 = 0x0000000000000000;
