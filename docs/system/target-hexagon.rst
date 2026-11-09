@@ -21,8 +21,8 @@ reset and the first instructions are fetched from DDR via the EVB/reset vector.
 In a real system, a TBU/SMMU would normally arbitrate AXI accesses but
 we don't have a need to model that for QEMU.
 
-Hexagon DSP cores use simultaneous multithreading (SMT) with as many as 8
-hardware threads.
+Hexagon DSP cores use simultaneous multithreading (SMT). The number of
+hardware threads depends on the machine.
 
 .. admonition:: Diagram
 
@@ -100,6 +100,7 @@ machines. This can be further configured through ``-semihosting-config``.
 Hexagon Features
 ================
 .. toctree::
+   hexagon/machines
    hexagon/emulation
    hexagon/cdsp
 
