@@ -779,6 +779,13 @@ static void bcm2838_genet_write(void *opaque, hwaddr offset, uint64_t value,
         FIELD_EX32(value, GENET_DMA_CTRL, EN)) {
         qemu_flush_queued_packets(ncs);
     }
+    /* The guest gave descriptors back to an RX ring */
+    if (offset >= BCM2838_GENET_RDMA_RINGS &&
+        offset < BCM2838_GENET_RDMA_RINGS + sizeof(s->regs.rdma.rings) &&
+        (offset - BCM2838_GENET_RDMA_RINGS) % sizeof(BCM2838GenetRdmaRing)
+        == BCM2838_GENET_RRING_CONS_INDEX) {
+        qemu_flush_queued_packets(ncs);
+    }
     bcm2838_genet_set_irq_default(s);
     bcm2838_genet_set_irq_prio(s);
 }
@@ -823,6 +830,23 @@ static bool is_packet_multicast(const uint8_t *buf, size_t size)
     return !!(buf[0] & 0x01);
 }
 
+/*
+ * Descriptors of an RX ring that the guest has handed back: the ring
+ * holds END - START + 1 of them, and PROD - CONS (modulo 2^16) are full.
+ */
+static unsigned bcm2838_genet_rdma_free_descs(BCM2838GenetRdmaRing *ring,
+                                              hwaddr start_index,
+                                              hwaddr end_index)
+{
+    uint16_t used = FIELD_EX32(ring->prod_index, GENET_DMA_PROD_INDEX, INDEX)
+                    - FIELD_EX32(ring->cons_index, GENET_DMA_CONS_INDEX, INDEX);
+
+    if (end_index < start_index || used > end_index - start_index) {
+        return 0;
+    }
+    return end_index - start_index + 1 - used;
+}
+
 static ssize_t bcm2838_genet_rdma(BCM2838GenetState *s, uint32_t ring_idx,
                                   const void *buf, size_t size)
 {
@@ -855,6 +879,12 @@ static ssize_t bcm2838_genet_rdma(BCM2838GenetState *s, uint32_t ring_idx,
                       BCM2838_GENET_DMA_DESC_CNT - 1);
         return -1;
     }
+
+    /* A full ring: keep the frame queued until the guest frees some */
+    if (!bcm2838_genet_rdma_free_descs(ring, start_index, end_index)) {
+        return 0;
+    }
+
     desc = &rdma->descs[write_index];
 
     desc->length_status = FIELD_DP32(desc->length_status,
@@ -948,6 +978,14 @@ static ssize_t bcm2838_genet_rdma(BCM2838GenetState *s, uint32_t ring_idx,
         desc = &rdma->descs[write_index];
         ring->write_ptr = write_index * desc_word_size;
         ring->write_ptr_hi = ((hwaddr)write_index * desc_word_size) >> 32;
+
+        if (len < size &&
+            !bcm2838_genet_rdma_free_descs(ring, start_index, end_index)) {
+            qemu_log_mask(LOG_GUEST_ERROR,
+                          "%s: RX ring %u full inside a frame\n",
+                          __func__, ring_idx);
+            break;
+        }
     }
 
     if (ring_idx == BCM2838_GENET_DMA_RING_DEFAULT) {
