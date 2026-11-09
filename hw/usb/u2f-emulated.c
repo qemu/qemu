@@ -90,8 +90,7 @@ struct U2FEmulatedState {
     QemuMutex pending_out_mutex;
 
     /* Emulation thread and sync */
-    QemuCond key_cond;
-    QemuMutex key_mutex;
+    QemuSemaphore key_sem;
     QemuThread key_thread;
     bool stop_thread;
     EventNotifier notifier;
@@ -148,9 +147,7 @@ static void u2f_emulated_recv_from_guest(U2FKeyState *base,
     u2f_pending_out_add(key, packet);
     qemu_mutex_unlock(&key->pending_out_mutex);
 
-    qemu_mutex_lock(&key->key_mutex);
-    qemu_cond_signal(&key->key_cond);
-    qemu_mutex_unlock(&key->key_mutex);
+    qemu_sem_post(&key->key_sem);
 }
 
 static void *u2f_emulated_thread(void* arg)
@@ -162,9 +159,7 @@ static void *u2f_emulated_thread(void* arg)
 
     while (true) {
         /* Wait signal */
-        qemu_mutex_lock(&key->key_mutex);
-        qemu_cond_wait(&key->key_cond, &key->key_mutex);
-        qemu_mutex_unlock(&key->key_mutex);
+        qemu_sem_wait(&key->key_sem);
 
         /* Exit thread check */
         if (key->stop_thread) {
@@ -331,10 +326,9 @@ static void u2f_emulated_realize(U2FKeyState *base, Error **errp)
     event_notifier_set_handler(&key->notifier, u2f_emulated_event_handler);
 
     /* Synchronization */
-    qemu_cond_init(&key->key_cond);
+    qemu_sem_init(&key->key_sem, 0);
     qemu_mutex_init(&key->vdev_mutex);
     qemu_mutex_init(&key->pending_out_mutex);
-    qemu_mutex_init(&key->key_mutex);
     u2f_emulated_reset(key);
 
     /* Thread */
@@ -349,7 +343,7 @@ static void u2f_emulated_unrealize(U2FKeyState *base)
 
     /* Thread */
     key->stop_thread = true;
-    qemu_cond_signal(&key->key_cond);
+    qemu_sem_post(&key->key_sem);
     qemu_thread_join(&key->key_thread);
 
     /* Notifier */
@@ -357,9 +351,8 @@ static void u2f_emulated_unrealize(U2FKeyState *base)
     event_notifier_cleanup(&key->notifier);
 
     /* Synchronization */
-    qemu_cond_destroy(&key->key_cond);
+    qemu_sem_destroy(&key->key_sem);
     qemu_mutex_destroy(&key->vdev_mutex);
-    qemu_mutex_destroy(&key->key_mutex);
     qemu_mutex_destroy(&key->pending_out_mutex);
 
     /* Vdev */
