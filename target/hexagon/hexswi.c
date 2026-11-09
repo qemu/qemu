@@ -809,6 +809,9 @@ static void guest_event_entry(CPUHexagonState *env, uint32_t cause,
     gsr = deposit32(gsr, reg_field_info[GSR_IE].offset,
                     reg_field_info[GSR_IE].width,
                     GET_FIELD(CCR_GIE, env->t_sreg[HEX_SREG_CCR]));
+    gsr = deposit32(gsr, reg_field_info[GSR_CFI].offset,
+                    reg_field_info[GSR_CFI].width,
+                    GET_FIELD(SSR_CFI, old_ssr));
     env->greg[HEX_GREG_GSR] = gsr;
     SET_SYSTEM_FIELD(env, HEX_SREG_SSR, SSR_SS, 0);
     SET_SYSTEM_FIELD(env, HEX_SREG_SSR, SSR_GM, 1);
@@ -816,7 +819,8 @@ static void guest_event_entry(CPUHexagonState *env, uint32_t cause,
     SET_SYSTEM_FIELD(env, HEX_SREG_CCR, CCR_GIE, 0);
     env->greg[HEX_GREG_GELR] = event_pc;
     if (set_gbadva) {
-        env->greg[HEX_GREG_GBADVA] = env->t_sreg[HEX_SREG_BADVA];
+        env->greg[HEX_GREG_GBADVA] = env->t_sreg[
+            GET_FIELD(SSR_BVS, old_ssr) ? HEX_SREG_BADVA1 : HEX_SREG_BADVA0];
     }
     env->gpr[HEX_REG_PC] = gevb + vec_offset;
 }
