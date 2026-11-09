@@ -55,20 +55,14 @@
 #include "backend-ldst.h"
 
 
-/* DEBUG defines */
-#define DEBUG_TLB
-
-#ifdef DEBUG_TLB
-# define DEBUG_TLB_GATE 1
+#ifdef CONFIG_DEBUG_TCG
+#define assert_cpu_is_self_or_stopped(cpu) \
+    assert(qemu_cpu_is_self(cpu) || cpu_is_stopped(cpu))
 #else
-# define DEBUG_TLB_GATE 0
+#define assert_cpu_is_self_or_stopped(cpu) \
+    do { (void)(cpu); } while (0)
 #endif
 
-#define assert_cpu_is_self(cpu) do {                              \
-        if (DEBUG_TLB_GATE) {                                     \
-            g_assert(!(cpu)->created || qemu_cpu_is_self(cpu));   \
-        }                                                         \
-    } while (0)
 
 /* run_on_cpu_data.target_ptr should always be big enough for a
  * vaddr even on 32 bit builds
@@ -357,7 +351,7 @@ static void tlb_flush_by_mmuidx_async_work(CPUState *cpu, run_on_cpu_data data)
     MMUIdxMap all_dirty, work, to_clean;
     int64_t now = get_clock_realtime();
 
-    assert_cpu_is_self(cpu);
+    assert_cpu_is_self_or_stopped(cpu);
 
     qemu_spin_lock(&cpu->neg.tlb.c.lock);
 
@@ -391,7 +385,7 @@ static void tlb_flush_by_mmuidx_async_work(CPUState *cpu, run_on_cpu_data data)
 
 void tlb_flush_by_mmuidx(CPUState *cpu, MMUIdxMap idxmap)
 {
-    assert_cpu_is_self(cpu);
+    assert_cpu_is_self_or_stopped(cpu);
 
     tlb_flush_by_mmuidx_async_work(cpu, RUN_ON_CPU_HOST_INT(idxmap));
 }
@@ -464,7 +458,7 @@ static void tlb_flush_vtlb_page_mask_locked(CPUState *cpu, int mmu_idx,
     CPUTLBDesc *d = &cpu->neg.tlb.d[mmu_idx];
     int k;
 
-    assert_cpu_is_self(cpu);
+    assert_cpu_is_self_or_stopped(cpu);
     for (k = 0; k < CPU_VTLB_SIZE; k++) {
         if (tlb_flush_entry_mask_locked(&d->vtable[k], page, mask)) {
             tlb_n_used_entries_dec(cpu, mmu_idx);
@@ -509,7 +503,7 @@ static void tlb_flush_page_by_mmuidx_async_0(CPUState *cpu,
 {
     int mmu_idx;
 
-    assert_cpu_is_self(cpu);
+    assert_cpu_is_self_or_stopped(cpu);
 
     qemu_spin_lock(&cpu->neg.tlb.c.lock);
     for (mmu_idx = 0; mmu_idx < NB_MMU_MODES; mmu_idx++) {
@@ -573,7 +567,7 @@ static void tlb_flush_page_by_mmuidx_async_2(CPUState *cpu,
 
 void tlb_flush_page_by_mmuidx(CPUState *cpu, vaddr addr, MMUIdxMap idxmap)
 {
-    assert_cpu_is_self(cpu);
+    assert_cpu_is_self_or_stopped(cpu);
 
     /* This should already be page aligned */
     addr &= TARGET_PAGE_MASK;
@@ -686,7 +680,7 @@ static void tlb_flush_range_by_mmuidx_async_0(CPUState *cpu,
 {
     int mmu_idx;
 
-    assert_cpu_is_self(cpu);
+    assert_cpu_is_self_or_stopped(cpu);
 
     qemu_spin_lock(&cpu->neg.tlb.c.lock);
     for (mmu_idx = 0; mmu_idx < NB_MMU_MODES; mmu_idx++) {
@@ -730,7 +724,7 @@ void tlb_flush_range_by_mmuidx(CPUState *cpu, vaddr addr,
 {
     TLBFlushRangeData d;
 
-    assert_cpu_is_self(cpu);
+    assert_cpu_is_self_or_stopped(cpu);
 
     /* If no page bits are significant, this devolves to tlb_flush. */
     if (bits < TARGET_PAGE_BITS) {
@@ -915,7 +909,7 @@ static void tlb_set_dirty(CPUState *cpu, vaddr addr)
 {
     int mmu_idx;
 
-    assert_cpu_is_self(cpu);
+    assert_cpu_is_self_or_stopped(cpu);
 
     addr &= TARGET_PAGE_MASK;
     qemu_spin_lock(&cpu->neg.tlb.c.lock);
@@ -996,7 +990,7 @@ void tlb_set_page_full(CPUState *cpu, int mmu_idx,
     int asidx, wp_flags, prot;
     bool is_ram, is_romd;
 
-    assert_cpu_is_self(cpu);
+    assert_cpu_is_self_or_stopped(cpu);
 
     if (full->lg_page_size <= TARGET_PAGE_BITS) {
         sz = TARGET_PAGE_SIZE;
@@ -1265,7 +1259,7 @@ static bool victim_tlb_hit(CPUState *cpu, size_t mmu_idx, size_t index,
 {
     size_t vidx;
 
-    assert_cpu_is_self(cpu);
+    assert_cpu_is_self_or_stopped(cpu);
     for (vidx = 0; vidx < CPU_VTLB_SIZE; ++vidx) {
         CPUTLBEntry *vtlb = &cpu->neg.tlb.d[mmu_idx].vtable[vidx];
         uint64_t cmp = tlb_read_idx(vtlb, access_type);
