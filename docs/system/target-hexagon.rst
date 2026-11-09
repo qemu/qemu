@@ -8,15 +8,17 @@ Hexagon System emulator
 Use the ``qemu-system-hexagon`` executable to simulate a 32-bit Hexagon
 machine.
 
-Hexagon Machines
-================
+DSP subsystem
+=============
 
 Hexagon DSPs are suited to various functions and generally appear in a
 "DSP subsystem" of a larger system-on-chip (SoC).
 
 Hexagon DSPs are often included in a subsystem that looks like the diagram
 below.  Instructions are loaded into DDR before the DSP is brought out of
-reset and the first instructions are fetched from DDR via the EVB/reset vector.
+reset and the first instructions are fetched from DDR via the reset vector.
+QEMU's ELF boot path instead starts at the ELF entry point; the guest sets
+up its own ``EVB``.
 
 In a real system, a TBU/SMMU would normally arbitrate AXI accesses but
 we don't have a need to model that for QEMU.
@@ -60,32 +62,36 @@ hardware threads depends on the machine.
 
 Components
 ----------
-Other than l2vic and HVX, the components below are not implemented in QEMU.
+The devices instantiated depend on the machine. QEMU implements the
+interrupt controller, timer, configuration table, and accelerator contexts;
+local RAM regions are provided where the machine configuration calls for
+them.
 
 * L2VIC: the L2 vectored interrupt controller.  Supports 1024 input
   interrupts, edge- or level-triggered.  The core ISA has system registers
   ``VID``, ``VID1`` which read through to the L2VIC device.
-* QTimer: ARMSSE-based programmable timer device. Its interrupts are
+* QTimer: programmable timer device. Its interrupts are
   wired to the L2VIC.  System registers ``TIMER``, ``UTIMER`` read
   through to the QTimer device.
 * QDSP6SS: DSP subsystem features, accessible to the entire SoC, including
-  DSP NMI, watchdog, reset, etc.
-* CSR: Configuration/Status Registers.
+  DSP NMI, watchdog, reset, etc. Board models provide selected registers
+  for firmware initialization.
+* CSR: the QTimer control registers are mapped at the machine's CSR base
+  address; see :doc:`hexagon/machines`.
 * TCM: DSP-exclusive tightly-coupled memory.  This memory can be used for
   DSPs when isolated from DDR and in some bootstrapping modes.
 * VTCM: DSP-exclusive vector tightly-coupled memory.  This memory is accessed
   by some HVX instructions.
-* HVX: the vector coprocessor supports 64 and 128-byte vector registers.
-  64-byte mode is not implemented in QEMU.
+* HVX: the vector coprocessor. See :doc:`hexagon/emulation` for supported
+  modes and instruction sets.
 
 
 Bootstrapping
 -------------
-Hexagon systems do not generally have access to a block device.  So, for
-QEMU the typical use case involves loading a binary or ELF file into memory
-and executing from the indicated start address::
+Use ``-kernel`` to load an ELF file into memory and start execution at
+its entry point::
 
-    $ qemu-system-hexagon -kernel ./prog -append 'arg1 arg2'
+    $ qemu-system-hexagon -M V68N_1024 -kernel ./prog.elf -append 'arg1 arg2'
 
 Semihosting
 -----------
@@ -97,10 +103,9 @@ guest software can access the host console and filesystem. Read the
 for details. Semihosting is enabled by default on hexagon-sim-compatible
 machines. This can be further configured through ``-semihosting-config``.
 
-Hexagon Features
-================
 .. toctree::
+   :caption: Hexagon documentation
+
    hexagon/machines
    hexagon/emulation
    hexagon/cdsp
-
