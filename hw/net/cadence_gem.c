@@ -1603,8 +1603,11 @@ static uint64_t gem_read(void *opaque, hwaddr offset, unsigned size)
 {
     CadenceGEMState *s;
     uint32_t retval;
+    unsigned shift;
+
     s = opaque;
 
+    shift = (offset & 3) * 8;
     offset >>= 2;
     retval = s->regs[offset];
 
@@ -1638,7 +1641,7 @@ static uint64_t gem_read(void *opaque, hwaddr offset, unsigned size)
 
     DB_PRINT("0x%08x\n", retval);
     gem_update_int_status(s);
-    return retval;
+    return extract32(retval, shift, size * 8);
 }
 
 /*
@@ -1649,35 +1652,43 @@ static void gem_write(void *opaque, hwaddr offset, uint64_t val,
         unsigned size)
 {
     CadenceGEMState *s = (CadenceGEMState *)opaque;
-    uint32_t readonly;
+    uint32_t access_mask;
+    uint32_t writable_mask;
+    uint32_t write_val;
+    unsigned shift;
     int i;
 
     DB_PRINT("offset: 0x%04x write: 0x%08x ", (unsigned)offset, (unsigned)val);
+    shift = (offset & 3) * 8;
+    access_mask = MAKE_64BIT_MASK(shift, size * 8);
+    write_val = (uint32_t)val << shift;
     offset >>= 2;
 
     /* Squash bits which are read only in write value */
-    val &= ~(s->regs_ro[offset]);
-    /* Preserve (only) bits which are read only and wtc in register */
-    readonly = s->regs[offset] & (s->regs_ro[offset] | s->regs_w1c[offset]);
+    write_val &= ~(s->regs_ro[offset]);
 
-    /* Copy register write to backing store */
-    s->regs[offset] = (val & ~s->regs_w1c[offset]) | readonly;
+    /* Copy writable bits in the accessed lanes to the backing store */
+    writable_mask = access_mask &
+                    ~(s->regs_ro[offset] | s->regs_w1c[offset]);
+    s->regs[offset] = (s->regs[offset] & ~writable_mask) |
+                      (write_val & writable_mask);
 
     /* do w1c */
-    s->regs[offset] &= ~(s->regs_w1c[offset] & val);
+    s->regs[offset] &= ~(s->regs_w1c[offset] & write_val);
 
     /* Handle register write side effects */
     switch (offset) {
     case R_NWCTRL:
-        if (FIELD_EX32(val, NWCTRL, ENABLE_RECEIVE)) {
+        if (FIELD_EX32(write_val, NWCTRL, ENABLE_RECEIVE)) {
             for (i = 0; i < s->num_priority_queues; ++i) {
                 gem_get_rx_desc(s, i);
             }
         }
-        if (FIELD_EX32(val, NWCTRL, TRANSMIT_START)) {
+        if (FIELD_EX32(write_val, NWCTRL, TRANSMIT_START)) {
             gem_transmit(s);
         }
-        if (!(FIELD_EX32(val, NWCTRL, ENABLE_TRANSMIT))) {
+        if ((access_mask & R_NWCTRL_ENABLE_TRANSMIT_MASK) &&
+            !(FIELD_EX32(s->regs[offset], NWCTRL, ENABLE_TRANSMIT))) {
             /* Reset to start of Q when transmit disabled. */
             for (i = 0; i < s->num_priority_queues; i++) {
                 s->tx_desc_addr[i] = gem_get_tx_queue_base_addr(s, i);
@@ -1692,37 +1703,37 @@ static void gem_write(void *opaque, hwaddr offset, uint64_t val,
         gem_update_int_status(s);
         break;
     case R_RXQBASE:
-        s->rx_desc_addr[0] = val;
+        s->rx_desc_addr[0] = s->regs[offset];
         break;
     case R_RECEIVE_Q1_PTR ... R_RECEIVE_Q7_PTR:
-        s->rx_desc_addr[offset - R_RECEIVE_Q1_PTR + 1] = val;
+        s->rx_desc_addr[offset - R_RECEIVE_Q1_PTR + 1] = s->regs[offset];
         break;
     case R_TXQBASE:
-        s->tx_desc_addr[0] = val;
+        s->tx_desc_addr[0] = s->regs[offset];
         break;
     case R_TRANSMIT_Q1_PTR ... R_TRANSMIT_Q7_PTR:
-        s->tx_desc_addr[offset - R_TRANSMIT_Q1_PTR + 1] = val;
+        s->tx_desc_addr[offset - R_TRANSMIT_Q1_PTR + 1] = s->regs[offset];
         break;
     case R_RXSTATUS:
         gem_update_int_status(s);
         break;
     case R_IER:
-        s->regs[R_IMR] &= ~val;
+        s->regs[R_IMR] &= ~write_val;
         gem_update_int_status(s);
         break;
     case R_JUMBO_MAX_LEN:
-        s->regs[R_JUMBO_MAX_LEN] = val & MAX_JUMBO_FRAME_SIZE_MASK;
+        s->regs[R_JUMBO_MAX_LEN] &= MAX_JUMBO_FRAME_SIZE_MASK;
         break;
     case R_INT_Q1_ENABLE ... R_INT_Q7_ENABLE:
-        s->regs[R_INT_Q1_MASK + offset - R_INT_Q1_ENABLE] &= ~val;
+        s->regs[R_INT_Q1_MASK + offset - R_INT_Q1_ENABLE] &= ~write_val;
         gem_update_int_status(s);
         break;
     case R_IDR:
-        s->regs[R_IMR] |= val;
+        s->regs[R_IMR] |= write_val;
         gem_update_int_status(s);
         break;
     case R_INT_Q1_DISABLE ... R_INT_Q7_DISABLE:
-        s->regs[R_INT_Q1_MASK + offset - R_INT_Q1_DISABLE] |= val;
+        s->regs[R_INT_Q1_MASK + offset - R_INT_Q1_DISABLE] |= write_val;
         gem_update_int_status(s);
         break;
     case R_SPADDR1LO:
@@ -1738,7 +1749,9 @@ static void gem_write(void *opaque, hwaddr offset, uint64_t val,
         s->sar_active[(offset - R_SPADDR1HI) / 2] = true;
         break;
     case R_PHYMNTNC:
-        gem_handle_phy_access(s);
+        if (access_mask & (R_PHYMNTNC_OP_MASK | R_PHYMNTNC_ST_MASK)) {
+            gem_handle_phy_access(s);
+        }
         break;
     }
 
