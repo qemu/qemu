@@ -43,13 +43,13 @@ void hex_board_create_fdt(MachineState *ms, const char *model,
     ms->fdt = fdt;
 
     qemu_fdt_setprop_cell(fdt, "/", "#address-cells", 0x2);
-    qemu_fdt_setprop_cell(fdt, "/", "#size-cells", 0x1);
+    qemu_fdt_setprop_cell(fdt, "/", "#size-cells", 0x2);
     qemu_fdt_setprop_string(fdt, "/", "model", model);
     qemu_fdt_setprop_string(fdt, "/", "compatible", compatible);
 
     qemu_fdt_add_subnode(fdt, "/soc");
     qemu_fdt_setprop_cell(fdt, "/soc", "#address-cells", 0x2);
-    qemu_fdt_setprop_cell(fdt, "/soc", "#size-cells", 0x1);
+    qemu_fdt_setprop_cell(fdt, "/soc", "#size-cells", 0x2);
     qemu_fdt_setprop(fdt, "/soc", "ranges", NULL, 0);
 
     qemu_fdt_add_subnode(fdt, "/chosen");
@@ -78,7 +78,7 @@ int32_t hex_board_fdt_add_l2vic(MachineState *ms,
     qemu_fdt_setprop_cell(ms->fdt, nodename, "#interrupt-cells", 2);
     qemu_fdt_setprop(ms->fdt, nodename, "compatible", compat, sizeof(compat));
     qemu_fdt_setprop_cells(ms->fdt, nodename, "reg", 0, cfg->l2vic_base,
-                           cfg->l2vic_size);
+                           0, cfg->l2vic_size);
     qemu_fdt_setprop(ms->fdt, nodename, "interrupt-controller", NULL, 0);
     qemu_fdt_setprop_cell(ms->fdt, nodename, "phandle", l2vic_phandle);
 
@@ -95,7 +95,8 @@ void hex_board_fdt_add_hvx(MachineState *ms,
         qemu_fdt_setprop_string(ms->fdt, "/soc/vtcm", "compatible",
                                 "qcom,hexagon_vtcm");
         qemu_fdt_setprop_cells(ms->fdt, "/soc/vtcm", "reg", 0,
-                               t->vtcm_base << 16, t->vtcm_size_kb * 1024);
+                               t->vtcm_base << 16, 0,
+                               t->vtcm_size_kb * 1024);
     }
 
     if (t->ext_contexts > 0) {
@@ -175,7 +176,7 @@ void hex_board_create_uart(MachineState *ms, hwaddr base, hwaddr size,
     qemu_fdt_add_subnode(ms->fdt, nodename);
     /* Can't use setprop_string because of the embedded NUL */
     qemu_fdt_setprop(ms->fdt, nodename, "compatible", compat, sizeof(compat));
-    qemu_fdt_setprop_cells(ms->fdt, nodename, "reg", 0, base, size);
+    qemu_fdt_setprop_cells(ms->fdt, nodename, "reg", 0, base, 0, size);
     fdt_set_irq(ms, nodename, irq);
     qemu_fdt_setprop_cell(ms->fdt, nodename, "interrupt-parent",
                           l2vic_phandle);
@@ -211,7 +212,7 @@ void hex_board_create_virtio(MachineState *ms, hwaddr base, hwaddr size,
         qemu_fdt_add_subnode(ms->fdt, nodename);
         qemu_fdt_setprop_string(ms->fdt, nodename, "compatible",
                                 "virtio,mmio");
-        qemu_fdt_setprop_cells(ms->fdt, nodename, "reg", 0, slot, size);
+        qemu_fdt_setprop_cells(ms->fdt, nodename, "reg", 0, slot, 0, size);
         fdt_set_irq(ms, nodename, irq);
         qemu_fdt_setprop_cell(ms->fdt, nodename, "interrupt-parent",
                               l2vic_phandle);
