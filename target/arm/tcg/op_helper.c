@@ -803,6 +803,10 @@ void HELPER(cpsr_write_eret)(CPUARMState *env, uint32_t val)
     mask = aarch32_cpsr_valid_mask(env->features, &env_archcpu(env)->isar);
     cpsr_write(env, val, mask, CPSRWriteExceptionReturn);
 
+    if (arm_feature(env, ARM_FEATURE_V8)) {
+        arm_clear_exclusive(env);
+    }
+
     /* Generated code has already stored the new PC value, but
      * without masking out its low bits, because which bits need
      * masking depends on whether we're returning to Thumb or ARM
