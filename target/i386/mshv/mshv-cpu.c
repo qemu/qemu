@@ -1511,7 +1511,13 @@ static int set_synic_state(const CPUState *cpu)
     return 0;
 }
 
-int mshv_arch_store_vcpu_state(const CPUState *cpu)
+/*
+ * The put_state param is passed to decide whether we need a full restoration
+ * of all registers (e.g. after a migration ) or just a subset during runtime
+ * (e.g after "info registers"). The latter should avoid writing registers that
+ * cause a side-effect.
+ */
+int mshv_arch_store_vcpu_state(const CPUState *cpu, MshvPutState put_state)
 {
     int ret;
 
@@ -1541,7 +1547,7 @@ int mshv_arch_store_vcpu_state(const CPUState *cpu)
         return ret;
     }
 
-    ret = mshv_set_msrs(cpu);
+    ret = mshv_set_msrs(cpu, put_state);
     if (ret < 0) {
         return ret;
     }

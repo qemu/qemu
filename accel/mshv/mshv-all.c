@@ -764,10 +764,10 @@ static int mshv_cpu_exec(CPUState *cpu)
 
     do {
         if (cpu->vcpu_dirty) {
-            ret = mshv_arch_store_vcpu_state(cpu);
+            ret = mshv_arch_store_vcpu_state(cpu, MSHV_PUT_RUNTIME_STATE);
             if (ret) {
-                error_report("Failed to put registers after init: %s",
-                              strerror(-ret));
+                error_report("Failed to put registers at runtime: %s",
+                             strerror(-ret));
                 ret = -1;
                 break;
             }
@@ -895,7 +895,7 @@ static void mshv_start_vcpu_thread(CPUState *cpu)
 static void do_mshv_cpu_synchronize_post_init(CPUState *cpu,
                                               run_on_cpu_data arg)
 {
-    int ret = mshv_arch_store_vcpu_state(cpu);
+    int ret = mshv_arch_store_vcpu_state(cpu, MSHV_PUT_FULL_STATE);
     if (ret < 0) {
         error_report("Failed to put registers after init: %s", strerror(-ret));
         abort();
@@ -911,7 +911,7 @@ static void mshv_cpu_synchronize_post_init(CPUState *cpu)
 
 static void mshv_cpu_synchronize_post_reset(CPUState *cpu)
 {
-    int ret = mshv_arch_store_vcpu_state(cpu);
+    int ret = mshv_arch_store_vcpu_state(cpu, MSHV_PUT_RESET_STATE);
     if (ret) {
         error_report("Failed to put registers after reset: %s",
                      strerror(-ret));

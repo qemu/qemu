@@ -324,6 +324,20 @@ static bool msr_supported(uint32_t name)
     return true;
 }
 
+static bool msr_is_runtime_safe(uint32_t name)
+{
+    switch (name) {
+    /*
+     * HV_X64_REGISTER_TSC will invalidate the guest's tsc_page if written to
+     * while the guest's timer is not frozen.
+     */
+    case HV_X64_REGISTER_TSC:
+        return false;
+    default:
+        return true;
+    }
+}
+
 int mshv_get_msrs(CPUState *cpu)
 {
     int ret = 0;
@@ -406,13 +420,14 @@ static void load_from_env(const CPUState *cpu, struct hv_register_assoc *assocs,
     load_from_env_mtrr_phys(cpu, &assocs[mtrr_offset], MSHV_MTRR_MSR_COUNT);
 }
 
-int mshv_set_msrs(const CPUState *cpu)
+int mshv_set_msrs(const CPUState *cpu, MshvPutState put_state)
 {
     size_t n_assocs = MSHV_MSR_TOTAL_COUNT;
     struct hv_register_assoc assocs[MSHV_MSR_TOTAL_COUNT] = { 0 };
     int ret;
     size_t i, j;
     X86CPU *x86cpu = X86_CPU(cpu);
+    bool runtime = (put_state <= MSHV_PUT_RUNTIME_STATE);
 
     load_from_env(cpu, assocs, n_assocs);
 
@@ -429,6 +444,10 @@ int mshv_set_msrs(const CPUState *cpu)
         }
 
         if (!msr_supported(name)) {
+            continue;
+        }
+
+        if (runtime && !msr_is_runtime_safe(name)) {
             continue;
         }
 
