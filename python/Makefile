@@ -15,8 +15,8 @@ help:
 	@echo "make check-tox:"
 	@echo "    Run tests against multiple python versions."
 	@echo "    These tests use the newest dependencies."
-	@echo "    Requires: Python 3.12 - 3.14, and tox."
-	@echo "    Hint (Fedora): 'sudo dnf install python3-tox python3.14'"
+	@echo "    Requires: Python 3.12 - 3.15, and tox."
+	@echo "    Hint (Fedora): 'sudo dnf install python3-tox python3.15'"
 	@echo "    The variable QEMU_TOX_EXTRA_ARGS can be use to pass extra"
 	@echo "    arguments to tox".
 	@echo ""
