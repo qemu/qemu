@@ -380,6 +380,17 @@ uint32_t virtio_snd_set_pcm_params(VirtIOSound *s,
         return cpu_to_le32(VIRTIO_SND_S_BAD_MSG);
     }
 
+    if (le32_to_cpu(params->buffer_bytes)
+        % le32_to_cpu(params->period_bytes) != 0) {
+        error_report("%s: 5.14.6.6.3.2 period_bytes MUST be a divider of "
+                     "buffer_bytes, i.e. buffer_bytes %% period_bytes == 0. "
+                     "Got buffer_bytes = %"PRIu32", period_bytes = %"PRIu32,
+                     VIRTIO_DEVICE(s)->name,
+                     le32_to_cpu(params->buffer_bytes),
+                     le32_to_cpu(params->period_bytes));
+        return cpu_to_le32(VIRTIO_SND_S_BAD_MSG);
+    }
+
     st_params = virtio_snd_pcm_get_params(s, stream_id);
 
     st_params->buffer_bytes = le32_to_cpu(params->buffer_bytes);
