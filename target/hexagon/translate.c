@@ -804,8 +804,13 @@ static void gen_start_packet(DisasContext *ctx)
         int reg_num = ctx->sreg_log[i];
         if (reg_num < HEX_SREG_GLB_START) {
             ctx->t_sreg_new_value[reg_num] = tcg_temp_new();
-            tcg_gen_mov_tl(ctx->t_sreg_new_value[reg_num],
-                          hex_t_sreg[reg_num]);
+            if (reg_num == HEX_SREG_IMASK) {
+                gen_helper_sreg_read(ctx->t_sreg_new_value[reg_num], tcg_env,
+                                     tcg_constant_i32(reg_num));
+            } else {
+                tcg_gen_mov_tl(ctx->t_sreg_new_value[reg_num],
+                              hex_t_sreg[reg_num]);
+            }
         }
     }
     for (i = 0; i < NUM_GREGS; i++) {
@@ -1071,8 +1076,11 @@ static void gen_sreg_writes(DisasContext *ctx)
                                   old_reg);
             /* A CCR write can change context, so end the TB. */
             ctx->base.is_jmp = DISAS_NORETURN;
+        } else if (reg_num == HEX_SREG_IMASK) {
+            gen_helper_sreg_write_masked(tcg_env, tcg_constant_i32(reg_num),
+                                         ctx->t_sreg_new_value[reg_num]);
+            gen_helper_pending_interrupt(tcg_env);
         } else if ((reg_num == HEX_SREG_STID) ||
-                    (reg_num == HEX_SREG_IMASK) ||
                    (reg_num == HEX_SREG_IPENDAD) ||
                    (reg_num == HEX_SREG_IPEND) ||
                    (reg_num == HEX_SREG_IAD)) {
@@ -1715,7 +1723,7 @@ void hexagon_translate_init(void)
                 hexagon_gregnames[i]);
     }
     for (i = 0; i < NUM_SREGS; i++) {
-        if (i < HEX_SREG_GLB_START) {
+        if (i < HEX_SREG_GLB_START && i != HEX_SREG_IMASK) {
             hex_t_sreg[i] = tcg_global_mem_new_i32(tcg_env,
                 offsetof(CPUHexagonState, t_sreg[i]),
                 hexagon_sregnames[i]);

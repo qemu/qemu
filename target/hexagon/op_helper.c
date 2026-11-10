@@ -1994,6 +1994,10 @@ void HELPER(sreg_write_masked)(CPUHexagonState *env, uint32_t reg, uint32_t val)
 {
     BQL_LOCK_GUARD();
     if (reg < HEX_SREG_GLB_START) {
+        if (reg == HEX_SREG_IMASK &&
+            env_archcpu(env)->cfg.hex_def->hex_version < HEX_VER_V81) {
+            val = deposit32(env->t_sreg[reg], 0, 16, val);
+        }
         env->t_sreg[reg] = val;
     } else {
         HexagonCPU *cpu = env_archcpu(env);

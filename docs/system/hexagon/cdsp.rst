@@ -1,21 +1,12 @@
 .. SPDX-License-Identifier: GPL-2.0-or-later
 
-Compute DSP
-===========
+Board-specific boot firmware
+============================
 
-A Hexagon CDSP is designed as a computation offload device for an SoC.  The
-``V66G_1024`` machine contains:
-
-* L2VIC interrupt controller
-* QTimer timer device
-
-This machine will support any Hexagon CPU, but will default to ``v66``.
-
-H2 boot firmware
-----------------
-
-These machines can be started through the H2 hypervisor images shipped in
-``pc-bios``, selected with ``-bios``:
+The CDSP/NSP machines can use the host firmware shipped in ``pc-bios``,
+selected with ``-bios``. These images contain H2 and either the ``booter``
+or ``loadlinux`` loader. Use ``-L`` to specify QEMU's firmware directory
+when running an uninstalled build.
 
 .. list-table::
    :header-rows: 1
@@ -45,16 +36,22 @@ These machines can be started through the H2 hypervisor images shipped in
      - ``0xa0000000``
      - ``sa8797p_nsp0``
 
+``hexagon_loadlinux_<suffix>``
+  Boots a guest operating system written for the Hexagon VM interface.
+  Despite the name, it is not specific to Linux. H2 starts the guest from
+  an image that QEMU has placed at the ``-kernel`` address in the table
+  above.
+
 ``hexagon_booter_<suffix>``
-  H2 plus a loader that reads guest ELF files from the host through QEMU
-  semihosting::
+  Runs H2 user programs.  The booter creates a VM, loads a program
+  that it reads from the host through semihosting, and waits for the
+  program to exit::
 
     qemu-system-hexagon -M qcs6490-cdsp -serial stdio -display none \
         -bios hexagon_booter_qcs6490_cdsp \
-        -semihosting-config enable=on,target=native,arg=booter,arg=guest.elf
+        -semihosting-config enable=on,target=native,arg=booter,arg=prog.elf
 
-  Guests are loaded at ``0xa2000000``.
+  Programs are loaded at ``0xa2000000`` by default; the booter's
+  ``--guest_base`` option changes this (``arg=--help`` lists its options).
 
-``hexagon_loadlinux_<suffix>``
-  H2 plus a loader that starts a kernel which QEMU has placed at the
-  ``-kernel`` address in the table above.
+  For more info, see <https://github.com/qualcomm/hexagon-hypervisor>.

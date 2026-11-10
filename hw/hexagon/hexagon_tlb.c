@@ -325,6 +325,7 @@ uint32_t hexagon_tlb_invalidate_asid(HexagonTLBState *tlb, uint32_t asid)
 {
     uint32_t invalidated = 0;
 
+    QEMU_LOCK_GUARD(&tlb->lock);
     for (uint32_t i = 0; i < tlb->num_entries; i++) {
         uint64_t entry = tlb->entries[i];
 
