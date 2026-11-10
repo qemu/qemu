@@ -14621,6 +14621,10 @@ static bool decode_opc_legacy(CPUMIPSState *env, DisasContext *ctx)
             gen_compute_compact_branch(ctx, op, rs, rt, imm << 2);
         } else {
             /* OPC_BLEZL */
+            if (rt != 0) {
+                gen_reserved_instruction(ctx);
+                break;
+            }
             check_insn(ctx, ISA_MIPS2);
             gen_compute_branch(ctx, op, 4, rs, rt, imm << 2, 4);
         }
@@ -14635,6 +14639,10 @@ static bool decode_opc_legacy(CPUMIPSState *env, DisasContext *ctx)
             gen_compute_compact_branch(ctx, op, rs, rt, imm << 2);
         } else {
             /* OPC_BGTZL */
+            if (rt != 0) {
+                gen_reserved_instruction(ctx);
+                break;
+            }
             check_insn(ctx, ISA_MIPS2);
             gen_compute_branch(ctx, op, 4, rs, rt, imm << 2, 4);
         }
