@@ -62,55 +62,27 @@ class TestNbdMulticonn(iotests.QMPTestCase):
         except OSError:
             pass
 
-    @contextmanager
-    def run_server(self, max_connections=None):
-        args = {
-            'addr': {
-                'type': 'unix',
-                'data': {'path': nbd_sock}
-            }
-        }
-        if max_connections is not None:
-            args['max-connections'] = max_connections
-
-        self.vm.cmd('nbd-server-start', args)
-        yield
-
-        self.vm.cmd('nbd-server-stop')
-
-    def add_export(self, name, writable=None):
-        args = {
-            'type': 'nbd',
-            'id': name,
-            'node-name': 'n',
-            'name': name,
-        }
-        if writable is not None:
-            args['writable'] = writable
-
-        self.vm.cmd('block-export-add', args)
-
     def test_default_settings(self):
-        with self.run_server():
-            self.add_export('r')
-            self.add_export('w', writable=True)
+        with self.run_nbd_server(nbd_sock):
+            self.add_nbd_export('n', 'r')
+            self.add_nbd_export('n', 'w', writable=True)
             with open_nbd('r') as h:
                 self.assertTrue(h.can_multi_conn())
             with open_nbd('w') as h:
                 self.assertTrue(h.can_multi_conn())
 
     def test_limited_connections(self):
-        with self.run_server(max_connections=1):
-            self.add_export('r')
-            self.add_export('w', writable=True)
+        with self.run_nbd_server(nbd_sock, max_conn=1):
+            self.add_nbd_export('n', 'r')
+            self.add_nbd_export('n', 'w', writable=True)
             with open_nbd('r') as h:
                 self.assertFalse(h.can_multi_conn())
             with open_nbd('w') as h:
                 self.assertFalse(h.can_multi_conn())
 
     def test_parallel_writes(self):
-        with self.run_server():
-            self.add_export('w', writable=True)
+        with self.run_nbd_server(nbd_sock):
+            self.add_nbd_export('n', 'w', writable=True)
 
             clients = [nbd.NBD() for _ in range(3)]
             for c in clients:
