@@ -14,7 +14,7 @@ config-cc.mak: Makefile
 I386_SRCS=$(notdir $(wildcard $(I386_SRC)/*.c))
 ALL_X86_TESTS=$(I386_SRCS:.c=)
 SKIP_I386_TESTS=test-i386-ssse3 test-avx test-3dnow test-mmx test-flags
-X86_64_TESTS:=$(filter test-i386-adcox test-i386-bmi2 test-idiv-overflow $(SKIP_I386_TESTS), $(ALL_X86_TESTS))
+X86_64_TESTS:=$(filter test-i386-adcox test-i386-bmi2 test-idiv-overflow test-i386-enter $(SKIP_I386_TESTS), $(ALL_X86_TESTS))
 
 test-i386-sse-exceptions: CFLAGS += -msse4.1 -mfpmath=sse
 run-test-i386-sse-exceptions: QEMU_OPTS += -cpu max
@@ -66,6 +66,8 @@ run-test-i386-fprem: test-i386-fprem test-i386-fprem.ref
 else
 SKIP_I386_TESTS+=test-i386-fprem
 endif
+
+test-i386-enter: CFLAGS=-O2 -fomit-frame-pointer
 
 # Update TESTS
 I386_TESTS:=$(filter-out $(SKIP_I386_TESTS), $(ALL_X86_TESTS))
