@@ -21,6 +21,7 @@ NBD_MAGIC_REPLY = 0x0003e889045565a9         # Reply magic
 NBD_MAGIC_EXT_REPLY = 0x6e8a278c             # Structured reply magic
 NBD_FLAG_C_FIXED_NEWSTYLE = 0x1
 NBD_OPT_GO = 7
+NBD_OPT_STRUCTURED_REPLY = 8
 NBD_OPT_SET_META_CONTEXT = 10
 NBD_OPT_EXTENDED_HEADERS = 11
 NBD_REP_ACK = 1
@@ -127,6 +128,78 @@ class TestNbdRobustness(iotests.QMPTestCase):
                 self.recv_exact(s, length)
 
             self.assertTrue(self.vm.is_running())
+
+    def test_invalid_set_meta_context(self):
+        with self.run_nbd_server(nbd_sock):
+            self.add_nbd_export('n', 'r')
+
+            # Use raw socket traffic to intentionally violate NBD protocol
+            with socket.socket(socket.AF_UNIX, socket.SOCK_STREAM) as s:
+                s.connect(nbd_sock)
+                # Server sends NBDMAGIC(8) + IHAVEOPT(8) + flags(2)
+                data = self.recv_exact(s, 18)
+                magic, opt, flags = struct.unpack(">QQH", data)
+                self.assertEqual(magic, NBD_MAGIC_INIT)
+                self.assertEqual(opt, NBD_MAGIC_OPTS)
+                self.assertEqual(flags, 0x3)
+
+                # Reply with flags(4) - just fixed newstyle flag
+                s.sendall(struct.pack(">I", NBD_FLAG_C_FIXED_NEWSTYLE))
+
+                # Request NBD_OPT_STRUCTURED_REPLY, no extra payload
+                s.sendall(struct.pack(">QII", NBD_MAGIC_OPTS,
+                                      NBD_OPT_STRUCTURED_REPLY, 0))
+
+                # Expect successful reply:
+                # magic(8) + option(4) + reply(4) + length(4)
+                data = self.recv_exact(s, 20)
+                magic, opt, reply, length = struct.unpack(">QIII", data)
+                self.assertEqual(magic, NBD_MAGIC_REPLY)
+                self.assertEqual(opt, NBD_OPT_STRUCTURED_REPLY)
+                self.assertEqual(reply, NBD_REP_ACK)
+                self.assertEqual(length, 0)
+
+                # Request NBD_OPT_SET_META_CONTEXT with invalid length
+                # namelen(4) + str + queries(4) + {querylen(4) + str)
+                payload = struct.pack(">I", 1) + b'r'
+                payload += struct.pack(">II", 1, 1) + b'X'
+                s.sendall(struct.pack(">QII", NBD_MAGIC_OPTS,
+                                      NBD_OPT_SET_META_CONTEXT,
+                                      len(payload) + 1) + payload)
+
+                # Request NBD_OPT_GO, name but no info as payload
+                # (request is early, but does not hurt here)
+                payload = struct.pack(">I", 1) + b'r' + struct.pack(">H", 0)
+                s.sendall(struct.pack(">QII", NBD_MAGIC_OPTS, NBD_OPT_GO,
+                                      len(payload)) + payload)
+
+                # Expect error reply to SET_META_CONTEXT:
+                # magic(8) + option(4) + reply(4) + length(4)
+                data = self.recv_exact(s, 20)
+                magic, opt, reply, length = struct.unpack(">QIII", data)
+                self.assertEqual(magic, NBD_MAGIC_REPLY)
+                self.assertEqual(opt, NBD_OPT_SET_META_CONTEXT)
+                self.assertEqual(reply & 0x80000000, 0x80000000)
+                self.recv_exact(s, length)
+
+                # Expect early disconnect for unaligned GO. Could show up as
+                # either b'' or ConnectionResetError
+                try:
+                    data = s.recv(1)
+                    self.assertEqual(data, b'')
+                except ConnectionResetError:
+                    pass
+
+                # Further writes must trigger an error (EPIPE / ECONNRESET)
+                with self.assertRaises((BrokenPipeError, ConnectionResetError,
+                                        OSError)):
+                    s.sendall(b'X')
+
+            # QEMU should still be up
+            self.assertIsNone(self.vm.exitcode())
+            self.assertTrue(self.vm.is_running())
+            res = self.vm.cmd('query-status')
+            self.assertEqual(res['status'], 'running')
 
 if __name__ == '__main__':
     iotests.main(supported_fmts=['qcow2'])
