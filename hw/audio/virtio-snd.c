@@ -17,12 +17,15 @@
 
 #include "qemu/osdep.h"
 #include "qemu/iov.h"
+#include "qemu/units.h"
 #include "qemu/log.h"
 #include "qemu/error-report.h"
 #include "system/runstate.h"
 #include "trace.h"
 #include "qapi/error.h"
 #include "hw/audio/virtio-snd.h"
+
+#define MAX_BUFFER_MIB 500
 
 #define VIRTIO_SOUND_JACK_DEFAULT 0
 #define VIRTIO_SOUND_STREAM_DEFAULT 2
@@ -366,6 +369,14 @@ uint32_t virtio_snd_set_pcm_params(VirtIOSound *s,
                      le32_to_cpu(params->features),
                      le32_to_cpu(params->features)
                      & ~(stream->info.features));
+        return cpu_to_le32(VIRTIO_SND_S_BAD_MSG);
+    }
+    if (le32_to_cpu(params->buffer_bytes) > MAX_BUFFER_MIB * MiB) {
+        error_report("%s: given buffer_bytes value %"PRIu32" "
+                     "is too big: over %d MiB",
+                     VIRTIO_DEVICE(s)->name,
+                     le32_to_cpu(params->buffer_bytes),
+                     MAX_BUFFER_MIB);
         return cpu_to_le32(VIRTIO_SND_S_BAD_MSG);
     }
 
@@ -1037,6 +1048,8 @@ static void virtio_snd_handle_tx_xfer(VirtIODevice *vdev, VirtQueue *vq)
         }
 
         stream = &vsnd->streams[stream_id];
+        size = MIN(stream->params.buffer_bytes, size);
+
         if (stream->info.direction != VIRTIO_SND_D_OUTPUT) {
             goto tx_err;
         }
