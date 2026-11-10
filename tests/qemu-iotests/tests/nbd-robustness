@@ -1,0 +1,132 @@
+#!/usr/bin/env python3
+# group: rw auto quick
+#
+# Test cases for NBD robustness against malicious clients
+#
+# Copyright (C) 2026 Red Hat, Inc.
+#
+# SPDX-License-Identifier: GPL-2.0-or-later
+
+import os
+import socket
+import struct
+
+import iotests
+from iotests import qemu_img_create, qemu_io
+
+# Selected NBD Protocol Constants
+NBD_MAGIC_INIT = 0x4e42444d41474943          # "NBDMAGIC"
+NBD_MAGIC_OPTS = 0x49484156454f5054          # "IHAVEOPT"
+NBD_MAGIC_REPLY = 0x0003e889045565a9         # Reply magic
+NBD_MAGIC_EXT_REPLY = 0x6e8a278c             # Structured reply magic
+NBD_FLAG_C_FIXED_NEWSTYLE = 0x1
+NBD_OPT_GO = 7
+NBD_OPT_SET_META_CONTEXT = 10
+NBD_OPT_EXTENDED_HEADERS = 11
+NBD_REP_ACK = 1
+NBD_REP_INFO = 3
+NBD_CMD_BLOCK_STATUS = 7
+
+disk = os.path.join(iotests.test_dir, 'disk')
+size = '4M'
+nbd_sock = os.path.join(iotests.sock_dir, 'nbd_sock')
+
+
+class TestNbdRobustness(iotests.QMPTestCase):
+    def setUp(self):
+        qemu_img_create('-f', iotests.imgfmt, disk, size)
+        qemu_io('-c', 'w -P 1 0 2M', '-c', 'w -P 2 2M 2M', disk)
+
+        self.vm = iotests.VM()
+        self.vm.launch()
+        self.vm.cmd('blockdev-add', {
+            'driver': iotests.imgfmt,
+            'node-name': 'n',
+            'file': {'driver': 'file', 'filename': disk}
+        })
+
+    def tearDown(self):
+        self.vm.shutdown()
+        os.remove(disk)
+        try:
+            os.remove(nbd_sock)
+        except OSError:
+            pass
+
+    def recv_exact(self, s: socket.socket, n: int) -> bytes:
+        buf = bytearray()
+        while len(buf) < n:
+            chunk = s.recv(n - len(buf))
+            if not chunk:
+                raise EOFError(f"Unexpected EOF while reading {n} bytes "
+                               f"(got {len(buf)})")
+            buf.extend(chunk)
+        return bytes(buf)
+
+    def test_invalid_block_status(self):
+        with self.run_nbd_server(nbd_sock):
+            self.add_nbd_export('n', 'r')
+
+            # Use raw socket traffic to intentionally violate NBD protocol
+            with socket.socket(socket.AF_UNIX, socket.SOCK_STREAM) as s:
+                s.connect(nbd_sock)
+                # Server sends NBDMAGIC(8) + IHAVEOPT(8) + flags(2)
+                data = self.recv_exact(s, 18)
+                magic, opt, flags = struct.unpack(">QQH", data)
+                self.assertEqual(magic, NBD_MAGIC_INIT)
+                self.assertEqual(opt, NBD_MAGIC_OPTS)
+                self.assertEqual(flags, 0x3)
+
+                # Reply with flags(4) - just fixed newstyle flag
+                s.sendall(struct.pack(">I", NBD_FLAG_C_FIXED_NEWSTYLE))
+
+                # Request NBD_OPT_EXTENDED_HEADERS, no extra payload
+                s.sendall(struct.pack(">QII", NBD_MAGIC_OPTS,
+                                      NBD_OPT_EXTENDED_HEADERS, 0))
+
+                # Expect successful reply:
+                # magic(8) + option(4) + reply(4) + length(4)
+                data = self.recv_exact(s, 20)
+                magic, opt, reply, length = struct.unpack(">QIII", data)
+                self.assertEqual(magic, NBD_MAGIC_REPLY)
+                self.assertEqual(opt, NBD_OPT_EXTENDED_HEADERS)
+                self.assertEqual(reply, NBD_REP_ACK)
+                self.assertEqual(length, 0)
+
+                # Request NBD_OPT_GO, name but no info as payload
+                payload = struct.pack(">I", 1) + b'r' + struct.pack(">H", 0)
+                s.sendall(struct.pack(">QII", NBD_MAGIC_OPTS, NBD_OPT_GO,
+                                      len(payload)) + payload)
+
+                # Expect (and ignore) zero or more info packets before ack
+                while True:
+                    data = self.recv_exact(s, 20)
+                    magic, opt, reply, length = struct.unpack(">QIII", data)
+                    self.assertEqual(magic, NBD_MAGIC_REPLY)
+                    self.assertEqual(opt, NBD_OPT_GO)
+                    payload = self.recv_exact(s, length)
+                    if reply != NBD_REP_INFO:
+                        break
+                self.assertEqual(reply, NBD_REP_ACK)
+
+                # Send invalid NBD_CMD_BLOCK_STATUS with payload flag. This
+                # violates the NBD protocol (since no context was negotiated),
+                # but should not crash the server.
+                payload = struct.pack(">QI", 0x1000, 0)
+                s.sendall(struct.pack(">IHHQQQ", 0x21e41c71, 0x20,
+                                      NBD_CMD_BLOCK_STATUS, 1, 0,
+                                      len(payload)) + payload)
+
+                # Expect a rejection.
+                data = self.recv_exact(s, 32)
+                magic, flags, rtype, cookie, _, length = \
+                    struct.unpack(">IHHQQQ", data)
+                self.assertEqual(magic, NBD_MAGIC_EXT_REPLY)
+                self.assertEqual(rtype & 0x8000, 0x8000)
+                self.assertEqual(cookie, 1)
+                self.recv_exact(s, length)
+
+            self.assertTrue(self.vm.is_running())
+
+if __name__ == '__main__':
+    iotests.main(supported_fmts=['qcow2'])
