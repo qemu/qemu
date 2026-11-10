@@ -11,6 +11,7 @@
 #include "qobject/qdict.h"
 #include "qemu/iov.h"
 #include "qemu/sockets.h"
+#include "net/eth.h"
 
 /*
  * Test that changing interval at runtime affects packet release timing.
@@ -148,7 +149,8 @@ static void test_change_interval_timer(void)
     ret = recv(recv_sock, &len, sizeof(len), 0);
     g_assert_cmpint(ret, ==, sizeof(len));
     len = ntohl(len);
-    g_assert_cmpint(len, ==, sizeof(send_buf));
+    /* The snooped network device might or might not have asked for padding */
+    g_assert(len == sizeof(send_buf) || len == MAX(sizeof(send_buf), ETH_ZLEN));
 
     ret = recv(recv_sock, recv_buf, len, 0);
     g_assert_cmpint(ret, ==, len);
