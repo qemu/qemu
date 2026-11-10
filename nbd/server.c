@@ -1095,6 +1095,11 @@ nbd_negotiate_meta_queries(NBDClient *client, Error **errp)
             }
         }
     }
+    if (client->optlen > 0) {
+        return nbd_opt_invalid(client, errp,
+                               "Inconsistent lengths in option %s",
+                               nbd_opt_lookup(client->opt));
+    }
 
     if (meta->base_allocation) {
         ret = nbd_negotiate_send_meta_context(client, "base:allocation",
