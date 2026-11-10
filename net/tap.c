@@ -627,7 +627,7 @@ static TAPState *new_tap(NetClientState *peer,
     TAPState *s = TAP_NETDEV(object_new(TYPE_TAP_NETDEV));
 
     qemu_net_client_setup(&s->nc, &net_tap_info, peer, model, name,
-                          tap_net_client_destructor, true);
+                          tap_net_client_destructor, true, true);
 
     s->queue_index = queue_index;
 
