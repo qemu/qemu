@@ -351,6 +351,18 @@ uint32_t virtio_snd_set_pcm_params(VirtIOSound *s,
         error_report("Stream rate is not supported.");
         return cpu_to_le32(VIRTIO_SND_S_NOT_SUPP);
     }
+    if ((le32_to_cpu(params->features) & ~(stream->info.features)) > 0) {
+        error_report("%s: invalid stream features. "
+                     "Stream %d offers 0x%"PRIx32", "
+                     "guest requested 0x%"PRIx32
+                     " (invalid: 0x%"PRIx32")",
+                     VIRTIO_DEVICE(s)->name, stream_id,
+                     stream->info.features,
+                     le32_to_cpu(params->features),
+                     le32_to_cpu(params->features)
+                     & ~(stream->info.features));
+        return cpu_to_le32(VIRTIO_SND_S_BAD_MSG);
+    }
 
     st_params = virtio_snd_pcm_get_params(s, stream_id);
 
