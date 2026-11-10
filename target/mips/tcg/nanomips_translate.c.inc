@@ -4364,13 +4364,7 @@ static int decode_nanomips_32_48_opc(CPUMIPSState *env, DisasContext *ctx)
                     break;
                 case NM_BPOSGE32C:
                     check_dsp_r3(ctx);
-                    {
-                        imm = extract32(ctx->opcode, 1, 13)
-                            | extract32(ctx->opcode, 0, 1) << 13;
-
-                        gen_compute_branch_nm(ctx, OPC_BPOSGE32, 4, -1, -2,
-                                              imm << 1);
-                    }
+                    gen_compute_branch_nm(ctx, OPC_BPOSGE32, 4, -1, -2, s);
                     break;
                 default:
                     gen_reserved_instruction(ctx);
