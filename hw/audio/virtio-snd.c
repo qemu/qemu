@@ -38,6 +38,26 @@ typedef enum virtio_snd_pcm_state {
     VIRTIO_SND_PCM_STATE_RELEASED,
 } virtio_snd_pcm_state;
 
+static inline const char *pcm_state_to_str(virtio_snd_pcm_state s)
+{
+    switch (s) {
+    case VIRTIO_SND_PCM_STATE_UNINIT:
+        return "UNINIT";
+    case VIRTIO_SND_PCM_STATE_PARAMS_SET:
+        return "PARAMS_SET";
+    case VIRTIO_SND_PCM_STATE_PREPARED:
+        return "PREPARED";
+    case VIRTIO_SND_PCM_STATE_STARTED:
+        return "STARTED";
+    case VIRTIO_SND_PCM_STATE_STOPPED:
+        return "STOPPED";
+    case VIRTIO_SND_PCM_STATE_RELEASED:
+        return "RELEASED";
+    default:
+        return "invalid";
+    }
+}
+
 static inline bool virtio_snd_pcm_state_prepared(virtio_snd_pcm_state s)
 {
     return s > VIRTIO_SND_PCM_STATE_PARAMS_SET &&
@@ -310,8 +330,10 @@ uint32_t virtio_snd_set_pcm_params(VirtIOSound *s,
     case VIRTIO_SND_PCM_STATE_RELEASED:
         break;
     default:
-        error_report("%s unexpected stream state in %s: %"PRIu32,
-                     VIRTIO_DEVICE(s)->name, __func__, stream->state);
+        error_report("%s unexpected stream state in %s: "
+                     "%s (%"PRIu32")", VIRTIO_DEVICE(s)->name,
+                     __func__, pcm_state_to_str(stream->state),
+                     stream->state);
         return cpu_to_le32(VIRTIO_SND_S_BAD_MSG);
     }
 
@@ -535,8 +557,10 @@ static uint32_t virtio_snd_pcm_prepare(VirtIOSound *s, uint32_t stream_id)
     case VIRTIO_SND_PCM_STATE_RELEASED:
         break;
     default:
-        error_report("%s unexpected stream state in %s: %"PRIu32,
-                     VIRTIO_DEVICE(s)->name, __func__, stream->state);
+        error_report("%s unexpected stream state in %s: "
+                     "%s (%"PRIu32")", VIRTIO_DEVICE(s)->name,
+                     __func__, pcm_state_to_str(stream->state),
+                     stream->state);
         return cpu_to_le32(VIRTIO_SND_S_BAD_MSG);
     }
 
@@ -624,8 +648,10 @@ static uint32_t virtio_snd_pcm_start_stop(VirtIOSound *s,
         case VIRTIO_SND_PCM_STATE_STOPPED:
             break;
         default:
-            error_report("%s unexpected stream state in %s start: %"PRIu32,
-                         VIRTIO_DEVICE(s)->name, __func__, stream->state);
+            error_report("%s unexpected stream state in %s start: "
+                         "%s (%"PRIu32")", VIRTIO_DEVICE(s)->name,
+                         __func__, pcm_state_to_str(stream->state),
+                         stream->state);
             return cpu_to_le32(VIRTIO_SND_S_BAD_MSG);
         }
 
@@ -635,8 +661,9 @@ static uint32_t virtio_snd_pcm_start_stop(VirtIOSound *s,
         case VIRTIO_SND_PCM_STATE_STARTED:
             break;
         default:
-            error_report("%s unexpected stream state in %s stop: %"PRIu32,
-                         VIRTIO_DEVICE(s)->name, __func__,
+            error_report("%s unexpected stream state in %s stop: "
+                         "%s (%"PRIu32")", VIRTIO_DEVICE(s)->name,
+                         __func__, pcm_state_to_str(stream->state),
                          stream->state);
             return cpu_to_le32(VIRTIO_SND_S_BAD_MSG);
         }
@@ -736,8 +763,10 @@ static void virtio_snd_handle_pcm_release(VirtIOSound *s,
     case VIRTIO_SND_PCM_STATE_STOPPED:
         break;
     default:
-        error_report("%s unexpected stream state in %s: %"PRIu32,
-                     VIRTIO_DEVICE(s)->name, __func__, stream->state);
+        error_report("%s unexpected stream state in %s: "
+                     "%s (%"PRIu32")", VIRTIO_DEVICE(s)->name,
+                     __func__, pcm_state_to_str(stream->state),
+                     stream->state);
         cmd->resp.code = cpu_to_le32(VIRTIO_SND_S_BAD_MSG);
         return;
     }
