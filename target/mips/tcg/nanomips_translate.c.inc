@@ -3745,7 +3745,7 @@ static int decode_nanomips_32_48_opc(CPUMIPSState *env, DisasContext *ctx)
                                 extract32(ctx->opcode, 2, 1),
                                 extract32(ctx->opcode, 3, 9) << 3);
                     if ((ctx->opcode & 3) == NM_RESTORE_JRC) {
-                        gen_compute_branch_nm(ctx, OPC_JR, 2, 31, 0, 0);
+                        gen_compute_branch_nm(ctx, OPC_JR, 4, 31, 0, 0);
                     }
                     break;
                 default:
