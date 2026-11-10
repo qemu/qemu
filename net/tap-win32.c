@@ -682,25 +682,14 @@ static ssize_t tap_receive(NetClientState *nc, const uint8_t *buf, size_t size)
 static void tap_win32_send(void *opaque)
 {
     TAPState *s = opaque;
-    uint8_t *buf, *orig_buf;
+    uint8_t *buf;
     int max_size = 4096;
     int size;
-    uint8_t min_pkt[ETH_ZLEN];
-    size_t min_pktsz = sizeof(min_pkt);
 
     size = tap_win32_read(s->handle, &buf, max_size);
     if (size > 0) {
-        orig_buf = buf;
-
-        if (net_peer_needs_padding(&s->nc)) {
-            if (eth_pad_short_frame(min_pkt, &min_pktsz, buf, size)) {
-                buf = min_pkt;
-                size = min_pktsz;
-            }
-        }
-
         qemu_send_packet(&s->nc, buf, size);
-        tap_win32_free_buffer(s->handle, orig_buf);
+        tap_win32_free_buffer(s->handle, buf);
     }
 }
 
