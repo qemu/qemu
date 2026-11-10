@@ -1989,7 +1989,7 @@ static void gen_popa(DisasContext *s)
     gen_stack_update(s, 8 * size);
 }
 
-static void gen_enter(DisasContext *s, int esp_addend, int level)
+static void gen_enter(DisasContext *s, uint16_t esp_addend, int level)
 {
     MemOp d_ot = mo_pushpop(s, s->dflag);
     MemOp a_ot = mo_stacksize(s);

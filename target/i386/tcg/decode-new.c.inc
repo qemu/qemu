@@ -1972,7 +1972,7 @@ static const X86OpEntry opcodes_root[256] = {
     [0xBE] = X86_OP_ENTRYwr(MOV, LoBits,v, I,v),
     [0xBF] = X86_OP_ENTRYwr(MOV, LoBits,v, I,v),
 
-    [0xC8] = X86_OP_ENTRYrr(ENTER, I,w, I,b),
+    [0xC8] = X86_OP_ENTRYrr(ENTER, I_unsigned, w, I, b),
     [0xC9] = X86_OP_ENTRY0(LEAVE),
     [0xCA] = X86_OP_ENTRYr(RETF,  I,w),
     [0xCB] = X86_OP_ENTRY0(RETF),

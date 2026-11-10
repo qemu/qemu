@@ -37,6 +37,7 @@ tests += {
                '-lm', '-fno-pie', '-Wl,--no-warn-rwx-segments'],
   },
   'test-idiv-overflow.c': {},
+  'test-i386-enter.c': {'cflags': ['-O2', '-fomit-frame-pointer']},
   '../multiarch/sha512.c': {
      'exe_name': 'sha512-sse',
      'cflags': ['-msse4.1', '-O3'],
