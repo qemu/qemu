@@ -267,6 +267,11 @@ static void virtio_snd_handle_pcm_info(VirtIOSound *s,
         return;
     }
 
+    if (count == 0) {
+        cmd->payload_size = 0;
+        cmd->resp.code = cpu_to_le32(VIRTIO_SND_S_OK);
+        return;
+    }
     pcm_info = g_new0(virtio_snd_pcm_info, count);
     for (uint32_t i = 0; i < count; i++) {
         stream_id = i + start_id;
