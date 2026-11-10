@@ -2558,11 +2558,11 @@ static void gen_compute_branch_cp1_nm(DisasContext *ctx, uint32_t op,
     btarget = addr_add(ctx, ctx->base.pc_next + 4, offset);
 
     switch (op) {
-    case NM_BC1EQZC:
+    case OPC_BC1EQZ:
         tcg_gen_xori_i64(t0, t0, 1);
         ctx->hflags |= MIPS_HFLAG_BC;
         break;
-    case NM_BC1NEZC:
+    case OPC_BC1NEZ:
         /* t0 already set */
         ctx->hflags |= MIPS_HFLAG_BC;
         break;
