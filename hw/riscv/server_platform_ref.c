@@ -561,7 +561,7 @@ static void rvserver_ref_machine_init(MachineState *machine)
                 base_hartid, hart_count,
                 RISCV_ACLINT_DEFAULT_MTIMECMP,
                 RISCV_ACLINT_DEFAULT_MTIME,
-                RISCV_ACLINT_DEFAULT_TIMEBASE_FREQ, true);
+                RVSERVER_ACLINT_TIMEBASE_FREQ, true);
 
         /* Per-socket interrupt controller */
         s->irqchip[i] = riscv_create_aia(system_memory, true, s->aia_guests,
