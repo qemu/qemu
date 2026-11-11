@@ -246,7 +246,7 @@ static bool vhdx_log_hdr_is_valid(VHDXLogEntries *log, VHDXLogEntryHeader *hdr,
         goto exit;
     }
 
-    if (hdr->descriptor_count * sizeof(VHDXLogDescriptor) > hdr->entry_length) {
+    if (hdr->descriptor_count > hdr->entry_length / sizeof(VHDXLogDescriptor)) {
         goto exit;
     }
 
@@ -360,6 +360,10 @@ vhdx_log_read_desc(BlockDriverState *bs, BDRVVHDXState *s, VHDXLogEntries *log,
     }
 
     desc_sectors = vhdx_compute_desc_sectors(hdr.descriptor_count);
+    if (desc_sectors > UINT32_MAX / VHDX_LOG_SECTOR_SIZE) {
+        ret = -EINVAL;
+        goto exit;
+    }
     desc_entries = qemu_try_blockalign(bs->file->bs,
                                        desc_sectors * VHDX_LOG_SECTOR_SIZE);
     if (desc_entries == NULL) {
