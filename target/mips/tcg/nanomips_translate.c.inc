@@ -3573,7 +3573,7 @@ static int decode_nanomips_32_48_opc(CPUMIPSState *env, DisasContext *ctx)
                 }
                 break;
             case NM_BREAK:
-                generate_exception_end(ctx, EXCP_BREAK);
+                generate_exception_break(ctx, extract32(ctx->opcode, 0, 19));
                 break;
             case NM_SDBBP:
                 if (is_uhi(ctx, extract32(ctx->opcode, 0, 19))) {
@@ -4508,7 +4508,7 @@ static int decode_isa_nanomips(CPUMIPSState *env, DisasContext *ctx)
                 }
                 break;
             case NM_BREAK16:
-                generate_exception_end(ctx, EXCP_BREAK);
+                generate_exception_break(ctx, extract32(ctx->opcode, 0, 3));
                 break;
             case NM_SDBBP16:
                 if (is_uhi(ctx, extract32(ctx->opcode, 0, 3))) {
