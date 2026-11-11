@@ -1820,7 +1820,7 @@ static void decode_micromips32_opc(CPUMIPSState *env, DisasContext *ctx)
         case CACHE:
             check_cp0_enabled(ctx);
             if (ctx->hflags & MIPS_HFLAG_ITC_CACHE) {
-                gen_cache_operation(ctx, rt, rs, imm);
+                gen_cache_operation(ctx, rt, rs, SIMM(ctx->opcode, 0, 9));
             }
             break;
         case LWC2:
