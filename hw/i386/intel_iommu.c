@@ -1649,7 +1649,7 @@ static int vtd_address_space_sync(VTDAddressSpace *vtd_as)
  * or second stage translation, it depends on PGTT setting.
  */
 static bool vtd_dev_pt_enabled(IntelIOMMUState *s, VTDContextEntry *ce,
-                               uint32_t pasid)
+                               uint32_t pasid, VTDPASIDEntry *pasid_entry)
 {
     VTDPASIDEntry pe;
     int ret;
@@ -1663,6 +1663,11 @@ static bool vtd_dev_pt_enabled(IntelIOMMUState *s, VTDContextEntry *ce,
              */
             return false;
         }
+
+        if (pasid_entry) {
+            *pasid_entry = pe;
+        }
+
         return vtd_pe_pgtt_is_pt(&pe);
     }
 
@@ -1689,7 +1694,7 @@ static bool vtd_as_pt_enabled(VTDAddressSpace *as)
         return false;
     }
 
-    return vtd_dev_pt_enabled(s, &ce, as->pasid);
+    return vtd_dev_pt_enabled(s, &ce, as->pasid, NULL);
 }
 
 /* Return whether the device is using IOMMU translation. */
@@ -1701,8 +1706,8 @@ static bool vtd_switch_address_space(VTDAddressSpace *as)
     assert(as);
 
     s = as->iommu_state;
-    use_iommu = s->dmar_enabled && !vtd_as_pt_enabled(as);
     pt = s->dmar_enabled && vtd_as_pt_enabled(as);
+    use_iommu = s->dmar_enabled && !pt;
 
     /*
      * When guest enables scalable mode and sets up first stage page table,
@@ -1887,23 +1892,34 @@ VTDAddressSpace *vtd_get_as_by_sid(IntelIOMMUState *s, uint16_t sid)
     return vtd_get_as_by_sid_and_pasid(s, sid, IOMMU_NO_PASID);
 }
 
-static void vtd_pt_enable_fast_path(IntelIOMMUState *s, uint16_t source_id)
+static bool vtd_try_enable_pt_fast_path(IntelIOMMUState *s,
+                                        VTDAddressSpace *vtd_as,
+                                        VTDContextEntry *ce, uint32_t pasid)
 {
-    VTDAddressSpace *vtd_as;
-    bool success = false;
+    VTDPASIDEntry pe;
 
-    vtd_as = vtd_get_as_by_sid(s, source_id);
-    if (!vtd_as) {
-        goto out;
+    if (!vtd_dev_pt_enabled(s, ce, pasid, &pe)) {
+        return false;
     }
 
-    if (vtd_switch_address_space(vtd_as) == false) {
-        /* We switched off IOMMU region successfully. */
-        success = true;
+    /*
+     * When this happens, it means firstly caching-mode is not
+     * enabled, and this is the first passthrough translation for
+     * the device. Let's enable the fast path for passthrough.
+     *
+     * When passthrough is disabled again for the device, we can
+     * capture it via context-cache invalidation in legacy mode or
+     * PASID-cache invalidation in scalable mode, then the IOMMU
+     * region can be swapped back.
+     */
+    if (!vtd_switch_address_space(vtd_as) && s->root_scalable) {
+        VTDPASIDCacheEntry *pc_entry = &vtd_as->pasid_cache_entry;
+
+        pc_entry->pasid_entry = pe;
+        pc_entry->valid = true;
     }
 
-out:
-    trace_vtd_pt_enable_fast_path(source_id, success);
+    return true;
 }
 
 /*
@@ -2167,23 +2183,12 @@ static bool vtd_do_iommu_translate(VTDAddressSpace *vtd_as, PCIBus *bus,
      * We don't need to translate for pass-through context entries.
      * Also, let's ignore IOTLB caching as well for PT devices.
      */
-    if (vtd_dev_pt_enabled(s, &ce, pasid)) {
+    if (vtd_try_enable_pt_fast_path(s, vtd_as, &ce, pasid)) {
         entry->iova = addr & VTD_PAGE_MASK_4K;
         entry->translated_addr = entry->iova;
         entry->addr_mask = ~VTD_PAGE_MASK_4K;
         entry->perm = IOMMU_RW;
-        trace_vtd_translate_pt(source_id, entry->iova);
-
-        /*
-         * When this happens, it means firstly caching-mode is not
-         * enabled, and this is the first passthrough translation for
-         * the device. Let's enable the fast path for passthrough.
-         *
-         * When passthrough is disabled again for the device, we can
-         * capture it via the context entry invalidation, then the
-         * IOMMU region can be swapped back.
-         */
-        vtd_pt_enable_fast_path(s, source_id);
+        trace_vtd_fast_path_translate_pt(source_id, entry->iova);
         vtd_iommu_unlock(s);
         return true;
     }
@@ -3133,6 +3138,7 @@ static void vtd_pasid_cache_sync_locked(gpointer key, gpointer value,
             vtd_address_space_unmap(vtd_as, n);
         }
         vtd_switch_address_space(vtd_as);
+        return;
     }
 
     /*
@@ -3158,11 +3164,11 @@ static void vtd_pasid_cache_sync_locked(gpointer key, gpointer value,
     }
 
     if (!pc_entry->valid) {
-        pc_entry->pasid_entry = pe;
         pc_entry->valid = true;
     } else if (!vtd_pasid_entry_compare(&pe, &pc_entry->pasid_entry)) {
         return;
     }
+    pc_entry->pasid_entry = pe;
 
     vtd_switch_address_space(vtd_as);
     vtd_address_space_sync(vtd_as);
