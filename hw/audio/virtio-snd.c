@@ -17,12 +17,15 @@
 
 #include "qemu/osdep.h"
 #include "qemu/iov.h"
+#include "qemu/units.h"
 #include "qemu/log.h"
 #include "qemu/error-report.h"
 #include "system/runstate.h"
 #include "trace.h"
 #include "qapi/error.h"
 #include "hw/audio/virtio-snd.h"
+
+#define MAX_BUFFER_MIB 500
 
 #define VIRTIO_SOUND_JACK_DEFAULT 0
 #define VIRTIO_SOUND_STREAM_DEFAULT 2
@@ -37,6 +40,26 @@ typedef enum virtio_snd_pcm_state {
     VIRTIO_SND_PCM_STATE_STOPPED,
     VIRTIO_SND_PCM_STATE_RELEASED,
 } virtio_snd_pcm_state;
+
+static inline const char *pcm_state_to_str(virtio_snd_pcm_state s)
+{
+    switch (s) {
+    case VIRTIO_SND_PCM_STATE_UNINIT:
+        return "UNINIT";
+    case VIRTIO_SND_PCM_STATE_PARAMS_SET:
+        return "PARAMS_SET";
+    case VIRTIO_SND_PCM_STATE_PREPARED:
+        return "PREPARED";
+    case VIRTIO_SND_PCM_STATE_STARTED:
+        return "STARTED";
+    case VIRTIO_SND_PCM_STATE_STOPPED:
+        return "STOPPED";
+    case VIRTIO_SND_PCM_STATE_RELEASED:
+        return "RELEASED";
+    default:
+        return "invalid";
+    }
+}
 
 static inline bool virtio_snd_pcm_state_prepared(virtio_snd_pcm_state s)
 {
@@ -247,6 +270,11 @@ static void virtio_snd_handle_pcm_info(VirtIOSound *s,
         return;
     }
 
+    if (count == 0) {
+        cmd->payload_size = 0;
+        cmd->resp.code = cpu_to_le32(VIRTIO_SND_S_OK);
+        return;
+    }
     pcm_info = g_new0(virtio_snd_pcm_info, count);
     for (uint32_t i = 0; i < count; i++) {
         stream_id = i + start_id;
@@ -298,8 +326,8 @@ uint32_t virtio_snd_set_pcm_params(VirtIOSound *s,
 
     stream = virtio_snd_pcm_get_stream(s, stream_id);
     if (!stream) {
-        virtio_error(VIRTIO_DEVICE(s), "invalid stream id: %"PRIu32,
-                     stream_id);
+        error_report("%s invalid stream id: %"PRIu32,
+                     VIRTIO_DEVICE(s)->name, stream_id);
         return cpu_to_le32(VIRTIO_SND_S_BAD_MSG);
     }
 
@@ -310,7 +338,9 @@ uint32_t virtio_snd_set_pcm_params(VirtIOSound *s,
     case VIRTIO_SND_PCM_STATE_RELEASED:
         break;
     default:
-        virtio_error(VIRTIO_DEVICE(s), "unexpected stream state: %"PRIu32,
+        error_report("%s unexpected stream state in %s: "
+                     "%s (%"PRIu32")", VIRTIO_DEVICE(s)->name,
+                     __func__, pcm_state_to_str(stream->state),
                      stream->state);
         return cpu_to_le32(VIRTIO_SND_S_BAD_MSG);
     }
@@ -328,6 +358,37 @@ uint32_t virtio_snd_set_pcm_params(VirtIOSound *s,
         !(supported_rates & BIT(params->rate))) {
         error_report("Stream rate is not supported.");
         return cpu_to_le32(VIRTIO_SND_S_NOT_SUPP);
+    }
+    if ((le32_to_cpu(params->features) & ~(stream->info.features)) > 0) {
+        error_report("%s: invalid stream features. "
+                     "Stream %d offers 0x%"PRIx32", "
+                     "guest requested 0x%"PRIx32
+                     " (invalid: 0x%"PRIx32")",
+                     VIRTIO_DEVICE(s)->name, stream_id,
+                     stream->info.features,
+                     le32_to_cpu(params->features),
+                     le32_to_cpu(params->features)
+                     & ~(stream->info.features));
+        return cpu_to_le32(VIRTIO_SND_S_BAD_MSG);
+    }
+    if (le32_to_cpu(params->buffer_bytes) > MAX_BUFFER_MIB * MiB) {
+        error_report("%s: given buffer_bytes value %"PRIu32" "
+                     "is too big: over %d MiB",
+                     VIRTIO_DEVICE(s)->name,
+                     le32_to_cpu(params->buffer_bytes),
+                     MAX_BUFFER_MIB);
+        return cpu_to_le32(VIRTIO_SND_S_BAD_MSG);
+    }
+
+    if (le32_to_cpu(params->buffer_bytes)
+        % le32_to_cpu(params->period_bytes) != 0) {
+        error_report("%s: 5.14.6.6.3.2 period_bytes MUST be a divider of "
+                     "buffer_bytes, i.e. buffer_bytes %% period_bytes == 0. "
+                     "Got buffer_bytes = %"PRIu32", period_bytes = %"PRIu32,
+                     VIRTIO_DEVICE(s)->name,
+                     le32_to_cpu(params->buffer_bytes),
+                     le32_to_cpu(params->period_bytes));
+        return cpu_to_le32(VIRTIO_SND_S_BAD_MSG);
     }
 
     st_params = virtio_snd_pcm_get_params(s, stream_id);
@@ -535,7 +596,9 @@ static uint32_t virtio_snd_pcm_prepare(VirtIOSound *s, uint32_t stream_id)
     case VIRTIO_SND_PCM_STATE_RELEASED:
         break;
     default:
-        virtio_error(VIRTIO_DEVICE(s), "unexpected stream state: %"PRIu32,
+        error_report("%s unexpected stream state in %s: "
+                     "%s (%"PRIu32")", VIRTIO_DEVICE(s)->name,
+                     __func__, pcm_state_to_str(stream->state),
                      stream->state);
         return cpu_to_le32(VIRTIO_SND_S_BAD_MSG);
     }
@@ -624,7 +687,9 @@ static uint32_t virtio_snd_pcm_start_stop(VirtIOSound *s,
         case VIRTIO_SND_PCM_STATE_STOPPED:
             break;
         default:
-            virtio_error(VIRTIO_DEVICE(s), "unexpected stream state: %"PRIu32,
+            error_report("%s unexpected stream state in %s start: "
+                         "%s (%"PRIu32")", VIRTIO_DEVICE(s)->name,
+                         __func__, pcm_state_to_str(stream->state),
                          stream->state);
             return cpu_to_le32(VIRTIO_SND_S_BAD_MSG);
         }
@@ -635,7 +700,9 @@ static uint32_t virtio_snd_pcm_start_stop(VirtIOSound *s,
         case VIRTIO_SND_PCM_STATE_STARTED:
             break;
         default:
-            virtio_error(VIRTIO_DEVICE(s), "unexpected stream state: %"PRIu32,
+            error_report("%s unexpected stream state in %s stop: "
+                         "%s (%"PRIu32")", VIRTIO_DEVICE(s)->name,
+                         __func__, pcm_state_to_str(stream->state),
                          stream->state);
             return cpu_to_le32(VIRTIO_SND_S_BAD_MSG);
         }
@@ -724,10 +791,8 @@ static void virtio_snd_handle_pcm_release(VirtIOSound *s,
     trace_virtio_snd_handle_pcm_release(stream_id);
     stream = virtio_snd_pcm_get_stream(s, stream_id);
     if (stream == NULL) {
-        error_report("already released stream %"PRIu32, stream_id);
-        virtio_error(VIRTIO_DEVICE(s),
-                     "already released stream %"PRIu32,
-                     stream_id);
+        error_report("%s already released stream %"PRIu32,
+                     VIRTIO_DEVICE(s)->name, stream_id);
         cmd->resp.code = cpu_to_le32(VIRTIO_SND_S_BAD_MSG);
         return;
     }
@@ -737,7 +802,9 @@ static void virtio_snd_handle_pcm_release(VirtIOSound *s,
     case VIRTIO_SND_PCM_STATE_STOPPED:
         break;
     default:
-        virtio_error(VIRTIO_DEVICE(s), "unexpected stream state: %"PRIu32,
+        error_report("%s unexpected stream state in %s: "
+                     "%s (%"PRIu32")", VIRTIO_DEVICE(s)->name,
+                     __func__, pcm_state_to_str(stream->state),
                      stream->state);
         cmd->resp.code = cpu_to_le32(VIRTIO_SND_S_BAD_MSG);
         return;
@@ -992,6 +1059,8 @@ static void virtio_snd_handle_tx_xfer(VirtIODevice *vdev, VirtQueue *vq)
         }
 
         stream = &vsnd->streams[stream_id];
+        size = MIN(stream->params.buffer_bytes, size);
+
         if (stream->info.direction != VIRTIO_SND_D_OUTPUT) {
             goto tx_err;
         }
