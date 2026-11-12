@@ -802,6 +802,14 @@ The ability to instrument QEMU helper functions with vCPU-aware trace
 points was removed in 7.0.
 
 
+``unavailable`` state no longer reported for trace events (removed in 11.2)
+'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+
+Trace events are now unconditionally built-in to all QEMU builds,
+so the concept of an 'unavailable' trace event no longer exists.
+The ``TraceEventState`` value ``unavailable`` can thus never
+be reported and has been removed from the schema.
+
 Human Monitor Protocol (HMP) commands
 -------------------------------------
 
