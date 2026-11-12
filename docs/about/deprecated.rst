@@ -476,7 +476,7 @@ Build features
 --------------
 
 Crypto AF_ALG backend (since 11.2)
-----------------------------------
+''''''''''''''''''''''''''''''''''
 
 The use of the AF_ALG backend for cryptography has been deprecated
 with no replacement.
