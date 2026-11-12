@@ -909,6 +909,7 @@ static void hppa_machine_reset(MachineState *ms, ResetType type)
         static const struct { uint32_t start, last; } io_btlb[] = {
             { 0xf0100000, 0xf01fffff },     /* LASI */
             { 0xfff80000, 0xffffffff },     /* central bus */
+            { 0xf00ff000, 0xf00fffff },     /* soft power button register */
         };
         CPUHPPAState *env = &cpu[0]->env;
 
