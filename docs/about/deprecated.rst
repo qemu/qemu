@@ -451,8 +451,8 @@ across versions).
 linux-user mode CPUs
 --------------------
 
-OABI and NWFPE support for Arm CPUs
-'''''''''''''''''''''''''''''''''''
+OABI and NWFPE support for Arm CPUs (since 11.0)
+''''''''''''''''''''''''''''''''''''''''''''''''
 
 Linux for 32-bit Arm has had two major ABIs: the original OABI and the
 more modern EABI. OABI support was marked as obsolete in GCC 4.7 and
