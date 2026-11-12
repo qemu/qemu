@@ -1393,14 +1393,17 @@ static void usb_mtp_command(MTPState *s, MTPControl *c)
         if (!FLAG_SET(s, MTP_FLAG_WRITABLE)) {
             usb_mtp_queue_result(s, RES_STORE_READ_ONLY,
                                  c->trans, 0, 0, 0, 0);
+            return;
         } else if (c->argv[0] && (c->argv[0] != QEMU_STORAGE_ID)) {
             /* First parameter points to storage id or is 0 */
             usb_mtp_queue_result(s, RES_STORE_NOT_AVAILABLE, c->trans,
                                  0, 0, 0, 0);
+            return;
         } else if (c->argv[1] && !c->argv[0]) {
             /* If second parameter is specified, first must also be specified */
             usb_mtp_queue_result(s, RES_DESTINATION_UNSUPPORTED, c->trans,
                                  0, 0, 0, 0);
+            return;
         } else {
             uint32_t handle = c->argv[1];
             if (handle == 0xFFFFFFFF || handle == 0) {
@@ -1412,9 +1415,11 @@ static void usb_mtp_command(MTPState *s, MTPControl *c)
             if (o == NULL) {
                 usb_mtp_queue_result(s, RES_INVALID_OBJECT_HANDLE, c->trans,
                                      0, 0, 0, 0);
+                return;
             } else if (o->format != FMT_ASSOCIATION) {
                 usb_mtp_queue_result(s, RES_INVALID_PARENT_OBJECT, c->trans,
                                      0, 0, 0, 0);
+                return;
             }
         }
         if (o) {
