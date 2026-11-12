@@ -513,7 +513,7 @@ enum {
     TLTIU = 0x0a,
     BC2EQZC = 0x0a,
     TGEIU = 0x0b,
-    BC2NEZC = 0x0a,
+    BC2NEZC = 0x0b,
     TNEI = 0x0c,
     R6_SYNCI = 0x0c,
     LUI = 0x0d,
