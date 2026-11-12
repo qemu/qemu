@@ -1737,6 +1737,40 @@ static void test_cdrom_pio_raw(void)
     ahci_test_cdrom_raw(3, false);
 }
 
+/* Regression test: read the last sector of a medium over 4 TiB. */
+static void ahci_test_cdrom_high_lba(bool dma)
+{
+    AHCIQState *ahci;
+    g_autofree unsigned char *tx = g_malloc0(ATAPI_SECTOR_SIZE);
+    uint64_t lba = (uint64_t)INT32_MAX + 1;
+    AHCIOpts opts = {
+        .size = ATAPI_SECTOR_SIZE,
+        .lba = lba,
+        .atapi = true,
+        .atapi_dma = dma,
+        .post_cb = ahci_cb_cmp_buff,
+        .opaque = tx,
+    };
+
+    ahci = ahci_boot_and_enable("-blockdev driver=null-co,node-name=cd0,"
+                                "read-only=on,read-zeroes=on,size=%" PRIu64 " "
+                                "-M q35 "
+                                "-device ide-cd,drive=cd0 ",
+                                (lba + 1) * ATAPI_SECTOR_SIZE);
+    ahci_exec(ahci, ahci_port_select(ahci), CMD_ATAPI_READ_10, &opts);
+    ahci_shutdown(ahci);
+}
+
+static void test_cdrom_dma_high_lba(void)
+{
+    ahci_test_cdrom_high_lba(true);
+}
+
+static void test_cdrom_pio_high_lba(void)
+{
+    ahci_test_cdrom_high_lba(false);
+}
+
 /*
  * Regression test: a buffered ATAPI read completing after a command
  * engine restart must not dereference the cleared cur_cmd. Cover both
@@ -2427,6 +2461,8 @@ int main(int argc, char **argv)
     qtest_add_func("/ahci/cdrom/pio/single", test_cdrom_pio);
     qtest_add_func("/ahci/cdrom/pio/multi", test_cdrom_pio_multi);
     qtest_add_func("/ahci/cdrom/pio/raw", test_cdrom_pio_raw);
+    qtest_add_func("/ahci/cdrom/dma/high_lba", test_cdrom_dma_high_lba);
+    qtest_add_func("/ahci/cdrom/pio/high_lba", test_cdrom_pio_high_lba);
 
     qtest_add_func("/ahci/cdrom/pio/bcl", test_atapi_bcl);
     qtest_add_func("/ahci/cdrom/eject", test_atapi_tray);
