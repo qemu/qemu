@@ -4430,10 +4430,12 @@ static int decode_nanomips_32_48_opc(CPUMIPSState *env, DisasContext *ctx)
         {
             int32_t s = sextract32(ctx->opcode, 0, 1) << 11 |
                         extract32(ctx->opcode, 1, 10) << 1;
-            uint32_t u = extract32(ctx->opcode, 11, 7);
+            uint32_t opc = extract32(ctx->opcode, 18, 3);
+            uint32_t u = extract32(ctx->opcode, 11,
+                                   (opc == NM_BBEQZC ||
+                                    opc == NM_BBNEZC) ? 6 : 7);
 
-            gen_compute_imm_branch(ctx, extract32(ctx->opcode, 18, 3),
-                                   rt, u, s);
+            gen_compute_imm_branch(ctx, opc, rt, u, s);
         }
         break;
     default:
