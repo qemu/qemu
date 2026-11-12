@@ -13649,17 +13649,18 @@ static void decode_opc_special3_legacy(CPUMIPSState *env, DisasContext *ctx)
         switch (op2) {
 #if defined(TARGET_MIPS64)
         case OPC_LDX:
-            gen_lx(ctx, rd, rs, rt, MO_UQ);
+            check_mips_64(ctx);
+            gen_lx(ctx, rd, rs, rt, MO_UQ | ctx->default_tcg_memop_mask);
             break;
 #endif
         case OPC_LBUX:
             gen_lx(ctx, rd, rs, rt, MO_UB);
             break;
         case OPC_LHX:
-            gen_lx(ctx, rd, rs, rt, MO_SW);
+            gen_lx(ctx, rd, rs, rt, MO_SW | ctx->default_tcg_memop_mask);
             break;
         case OPC_LWX:
-            gen_lx(ctx, rd, rs, rt, MO_SL);
+            gen_lx(ctx, rd, rs, rt, MO_SL | ctx->default_tcg_memop_mask);
             break;
         default:            /* Invalid */
             MIPS_INVAL("MASK LX");
