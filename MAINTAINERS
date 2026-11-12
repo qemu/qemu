@@ -515,9 +515,9 @@ F: tests/functional/aarch64/test_kvm.py
 
 PPC KVM CPUs
 M: Nicholas Piggin <npiggin@gmail.com>
+M: Amit Machhiwal <amachhiw@linux.ibm.com>
 R: Harsh Prateek Bora <harshpb@linux.ibm.com>
-R: Amit Machhiwal <amachhiw@linux.ibm.com>
-S: Odd Fixes
+S: Maintained
 F: target/ppc/kvm.c
 
 S390 KVM CPUs
