@@ -25,6 +25,7 @@ static inline void cpu_clone_regs_child(CPUHexagonState *env,
         env->gpr[HEX_REG_SP] = newsp;
     }
     env->gpr[0] = 0;
+    env->hlx_ctx = &env->hlx_user_ctx;
 }
 
 static inline void cpu_clone_regs_parent(CPUHexagonState *env, unsigned flags)
