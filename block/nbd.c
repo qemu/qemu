@@ -1151,6 +1151,7 @@ nbd_co_receive_cmdread_reply(BDRVNBDState *s, uint64_t cookie,
     NBDReply reply;
     void *payload = NULL;
     Error *local_err = NULL;
+    uint64_t highwater = offset;
 
     NBD_FOREACH_REPLY_CHUNK(s, iter, cookie,
                             s->info.mode >= NBD_MODE_STRUCTURED,
@@ -1158,6 +1159,7 @@ nbd_co_receive_cmdread_reply(BDRVNBDState *s, uint64_t cookie,
     {
         int ret;
         NBDStructuredReplyChunk *chunk = &reply.structured;
+        NBDStructuredReadHole *slice = NULL;
 
         assert(nbd_reply_is_structured(&reply));
 
@@ -1165,8 +1167,9 @@ nbd_co_receive_cmdread_reply(BDRVNBDState *s, uint64_t cookie,
         case NBD_REPLY_TYPE_OFFSET_DATA:
             /*
              * special cased in nbd_co_receive_one_chunk, data is already
-             * in qiov
+             * in qiov, and payload is host-endian offset+length.
              */
+            slice = payload;
             break;
         case NBD_REPLY_TYPE_OFFSET_HOLE:
             ret = nbd_parse_offset_hole_payload(s, &reply.structured, payload,
@@ -1174,6 +1177,9 @@ nbd_co_receive_cmdread_reply(BDRVNBDState *s, uint64_t cookie,
             if (ret < 0) {
                 nbd_channel_error(s, ret);
                 nbd_iter_channel_error(&iter, ret, &local_err);
+            } else {
+                /* Successful parse swapped payload to host-endian. */
+                slice = payload;
             }
             break;
         default:
@@ -1187,8 +1193,24 @@ nbd_co_receive_cmdread_reply(BDRVNBDState *s, uint64_t cookie,
             }
         }
 
+        /* Initialize any region skipped by a malicious server. */
+        if (slice) {
+            if (slice->offset > highwater) {
+                qemu_iovec_memset(qiov, highwater - offset, 0,
+                                  slice->offset - highwater);
+            }
+            highwater = MAX(highwater, slice->offset + slice->length);
+        }
+
         g_free(payload);
         payload = NULL;
+    }
+
+    /* Initialize any trailing region not touched by server. */
+    if (iter.only_structured && iter.ret == 0 &&
+        highwater < offset + qiov->size) {
+        qemu_iovec_memset(qiov, highwater - offset, 0,
+                          offset + qiov->size - highwater);
     }
 
     error_propagate(errp, iter.err);
