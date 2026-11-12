@@ -110,9 +110,25 @@ static int hlx_find_new_value_producer(Packet *packet, int consumer,
 {
     for (int i = 0; i < packet->num_insns; i++) {
         Insn *insn = &packet->insn[i];
+        uint8_t regno;
 
-        if (i != consumer && GET_ATTRIB(insn->opcode, A_HLX) &&
-            insn->dest_idx != -1 && insn->regno[insn->dest_idx] == lreg) {
+        /*
+         * Skip ourselves, instructions without return values, and
+         * any non-HLX instructions.
+         */
+        if (i == consumer || !GET_ATTRIB(insn->opcode, A_HLX) ||
+            insn->dest_idx == -1) {
+            continue;
+        }
+
+        regno = insn->regno[insn->dest_idx];
+
+        /*
+         * Compare against the base register number, and against the top
+         * register for instructions returning pairs.
+         */
+        if (regno == lreg ||
+            (insn->has_pair_dest && regno + 1 == lreg)) {
             return i;
         }
     }
@@ -172,12 +188,13 @@ decode_fill_newvalue_regno(Packet *packet)
                 if (def_idx < 0 || packet->insn[def_idx].dest_idx == -1) {
                     return false;
                 }
+
+                /* Now patch up the consumer with the register number */
+                dst_idx = packet->insn[def_idx].dest_idx;
+                packet->insn[i].regno[use_regidx] =
+                    packet->insn[def_idx].regno[dst_idx];
             }
 
-            /* Now patch up the consumer with the register number */
-            dst_idx = packet->insn[def_idx].dest_idx;
-            packet->insn[i].regno[use_regidx] =
-                packet->insn[def_idx].regno[dst_idx];
             /*
              * We need to remember who produces this value to later
              * check if it was dynamically cancelled

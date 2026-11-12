@@ -810,6 +810,8 @@ class Hvx:
         return True
     def is_hlx_reg(self):
         return False
+    def is_pair(self):
+        return len(self.regid) == 2
     def hvx_off(self):
         return f"{self.reg_tcg()}_off"
     def hvx_base(self):

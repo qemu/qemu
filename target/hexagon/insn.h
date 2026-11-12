@@ -42,6 +42,7 @@ struct Instruction {
     int32_t new_read_idx;
     int32_t dest_idx;
     bool has_pred_dest;
+    bool has_pair_dest;
 
     bool part1;              /*
                               * cmp-jumps are split into two insns.

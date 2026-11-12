@@ -120,6 +120,40 @@ static void test_assign_rw(void)
     check_wp("LX_assign_rw", pw_out_lo, pw_out_hi, expected_w, HLX_HALF_ELEMS);
 }
 
+static void test_combine_assign_hi(void)
+{
+    /*
+     * Tests that a combine operation acts as a producer of a .new value for
+     * the high vector in a pair.
+     */
+    HLX_Vector l_lo;
+    HLX_Vector l_hi;
+
+    fill_w(pw_a_lo, pw_a_hi, VAL_W);
+
+    l_lo = Q6_L_tmp_mem_A(pw_a_lo);
+    l_hi = Q6_L_tmp_mem_A(pw_a_hi);
+
+    hlx_put_v(0, l_lo);
+    hlx_put_v(2, l_hi);
+    /*
+     * {
+     *     L7:6 = combine(L0, L2)
+     *     mem(R7) = L7.new
+     * }
+     */
+    asm volatile(HLX_PTRS HLX_LD0 HLX_LD2
+                 ".word 0xef24602d\n"
+                 ".word 0xa487c007\n"
+                 : : [stage] "r"(hlx_stage) : HLX_CLOBBERS);
+    Q6_mem_Ku16_new_AL(buf_a, hlx_get_v(7));
+
+    for (int j = 0; j < HLX_HALF_ELEMS; j++) {
+        expected[j] = VAL_B;
+    }
+    check_h("LX_assign_w (hi only)", buf_a, expected, HLX_HALF_ELEMS);
+}
+
 
 static void test_combine_w(void)
 {
@@ -336,6 +370,7 @@ int main(void)
     test_assign_s();
     test_assign_u();
     test_assign_rw();
+    test_combine_assign_hi();
 
     /* Combine and mux */
     test_combine_w();
