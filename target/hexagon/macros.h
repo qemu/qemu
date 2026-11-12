@@ -22,6 +22,7 @@
 #include "hex_regs.h"
 #include "reg_fields.h"
 #include "accel/tcg/getpc.h"
+#include "hlx_helper.h"
 
 #define GET_FIELD(FIELD, REGIN) \
     fEXTRACTU_BITS(REGIN, reg_field_info[FIELD].width, \
@@ -732,8 +733,10 @@ static inline TCGv gen_read_ireg(TCGv result, TCGv val, int shift)
                             EA, tcg_constant_i32(ABOVE), \
                             tcg_constant_i32(BELOW))
 #else
-#define fLOADMML(EA, DST, ABOVE, BELOW) \
-    do { HELPER(hlx_load_vec)(env, &(DST), (EA), (ABOVE), (BELOW)); } while (0)
+#define fLOADMML(EA, DST, ABOVE, BELOW)                                \
+    do {                                                               \
+        hlx_load_vec_ra(env, &(DST), (EA), (ABOVE), (BELOW), GETPC()); \
+    } while (0)
 #endif
 
 /* The helper logs the store for packet commit. */
@@ -742,8 +745,10 @@ static inline TCGv gen_read_ireg(TCGv result, TCGv val, int shift)
     gen_helper_hlx_store_vec(tcg_env, EA, tcg_constant_ptr((intptr_t)&(SRC)), \
                              tcg_constant_i32(ABOVE), tcg_constant_i32(BELOW))
 #else
-#define fSTOREMML(EA, SRC, ABOVE, BELOW) \
-    do { HELPER(hlx_store_vec)(env, (EA), &(SRC), (ABOVE), (BELOW)); } while (0)
+#define fSTOREMML(EA, SRC, ABOVE, BELOW)                                \
+    do {                                                                \
+        hlx_store_vec_ra(env, (EA), &(SRC), (ABOVE), (BELOW), GETPC()); \
+    } while (0)
 #endif
 
 /* Helpers receive .new registers in future_LRegs. */
