@@ -1533,8 +1533,10 @@ static void decode_and_translate_packet(CPUHexagonState *env, DisasContext *ctx)
             for (int pass = 0; pass < 3; pass++) {
                 for (i = 0; i < ctx->pkt.num_insns; i++) {
                     Insn *insn = &ctx->pkt.insn[i];
+                    bool hlx = GET_ATTRIB(insn->opcode, A_HLX);
                     bool tmp = GET_ATTRIB(insn->opcode, A_HLX_TMP);
-                    bool store = !tmp && GET_ATTRIB(insn->opcode, A_STORE);
+                    bool store = !tmp && hlx &&
+                                 GET_ATTRIB(insn->opcode, A_STORE);
                     if (pass != (tmp ? 0 : store ? 2 : 1)) {
                         continue;
                     }
@@ -1542,8 +1544,7 @@ static void decode_and_translate_packet(CPUHexagonState *env, DisasContext *ctx)
                     if (insn->hlx_new_zero) {
                         gen_hlx_new_zero(insn);
                     }
-                    if (GET_ATTRIB(insn->opcode, A_HLX) &&
-                        trace_event_get_state_backends(
+                    if (hlx && trace_event_get_state_backends(
                             TRACE_HEXAGON_HLX_OP)) {
                         gen_helper_hlx_trace_op(tcg_env,
                             tcg_constant_i32(insn->opcode));

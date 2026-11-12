@@ -229,6 +229,25 @@ static void test_store_fault(void)
     check_h("LX_S16b_new (fault)", buf_out, expected, HLX_HALF_ELEMS);
 }
 
+static void test_preserve_scalar_noshuf(void)
+{
+    uint32_t ret = 0;
+    uint32_t ptr = 0;
+    uint32_t val = 0x1234;
+    asm volatile("{\n"
+                 ".word 0xe5007822\n"
+                 "    memw(%[ptr]) = %[val]\n"
+                 "    %[ret] = memw(%[ptr])\n"
+                 "}:mem_noshuf\n"
+                 : [ret] "=r"(ret)
+                 : [ptr] "r"(&ptr), [val] "r"(val)
+                 : "memory");
+    if (ret != val) {
+        printf("FAIL broken scalar :mem_noshuf ordering\n");
+        err++;
+    }
+}
+
 int main(void)
 {
     init_vtcm();
@@ -252,6 +271,9 @@ int main(void)
 
     /* Store in a faulting packet */
     test_store_fault();
+
+    /* Make sure HLX packets preserve scalar :mem_noshuf ordering */
+    test_preserve_scalar_noshuf();
 
     puts(err ? "FAIL" : "PASS");
     return err;
