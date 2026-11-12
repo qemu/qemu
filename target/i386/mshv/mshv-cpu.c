@@ -1511,7 +1511,13 @@ static int set_synic_state(const CPUState *cpu)
     return 0;
 }
 
-int mshv_arch_store_vcpu_state(const CPUState *cpu)
+/*
+ * The put_state param is passed to decide whether we need a full restoration
+ * of all registers (e.g. after a migration ) or just a subset during runtime
+ * (e.g after "info registers"). The latter should avoid writing registers that
+ * cause a side-effect.
+ */
+int mshv_arch_store_vcpu_state(const CPUState *cpu, MshvPutState put_state)
 {
     int ret;
 
@@ -1541,7 +1547,7 @@ int mshv_arch_store_vcpu_state(const CPUState *cpu)
         return ret;
     }
 
-    ret = mshv_set_msrs(cpu);
+    ret = mshv_set_msrs(cpu, put_state);
     if (ret < 0) {
         return ret;
     }
@@ -2124,7 +2130,6 @@ static int arch_set_single_step(CPUState *cpu, bool enable)
 int mshv_run_vcpu(int vm_fd, CPUState *cpu, hv_message *msg, MshvVmExit *exit)
 {
     int ret;
-    enum MshvVmExit exit_reason;
     int cpu_fd = mshv_vcpufd(cpu);
     bool single_step;
 
@@ -2142,7 +2147,12 @@ int mshv_run_vcpu(int vm_fd, CPUState *cpu, hv_message *msg, MshvVmExit *exit)
 
     ret = ioctl(cpu_fd, MSHV_RUN_VP, msg);
     if (ret < 0) {
-        return MshvVmExitShutdown;
+        if (errno == EINTR) {
+            *exit = MshvVmExitSpecial;
+            return 0;
+        }
+        error_report("failed to run vCPU: %s", strerror(errno));
+        return -errno;
     }
 
     /* disable single stepping by flipping RFLAGS.TF */
@@ -2154,31 +2164,33 @@ int mshv_run_vcpu(int vm_fd, CPUState *cpu, hv_message *msg, MshvVmExit *exit)
 
     switch (msg->header.message_type) {
     case HVMSG_UNRECOVERABLE_EXCEPTION:
-        return MshvVmExitShutdown;
+        *exit = MshvVmExitShutdown;
+        return 0;
     case HVMSG_UNMAPPED_GPA:
     case HVMSG_GPA_INTERCEPT:
-        ret = handle_mmio(cpu, msg, &exit_reason);
+        ret = handle_mmio(cpu, msg, exit);
         if (ret < 0) {
             error_report("failed to handle mmio");
-            return -1;
+            return ret;
         }
-        return exit_reason;
+        return 0;
     case HVMSG_X64_IO_PORT_INTERCEPT:
         ret = handle_pio(cpu, msg);
         if (ret < 0) {
-            return MshvVmExitSpecial;
+            error_report("failed to handle PIO");
+            return ret;
         }
-        return MshvVmExitIgnore;
+        *exit = MshvVmExitIgnore;
+        return 0;
     case HVMSG_X64_EXCEPTION_INTERCEPT:
         bql_lock();
-        ret = handle_exception_interrupt(cpu, msg, &exit_reason);
+        ret = handle_exception_interrupt(cpu, msg, exit);
         bql_unlock();
         if (ret < 0) {
             error_report("failed to handle exception intercept");
             return -1;
         }
-        *exit = exit_reason;
-        return exit_reason;
+        return 0;
     default:
         break;
     }

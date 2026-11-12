@@ -49,6 +49,7 @@ struct AccelCPUState {
 
 typedef struct MshvMemoryListener {
     MemoryListener listener;
+    GHashTable *mapped_regions;
     int as_id;
 } MshvMemoryListener;
 
@@ -98,6 +99,15 @@ typedef enum MshvVmExit {
     MshvVmExitDebug    = 3,
 } MshvVmExit;
 
+typedef enum MshvPutState {
+    /* state subset only touched by the VCPU itself during runtime */
+    MSHV_PUT_RUNTIME_STATE = 1,
+    /* state subset modified during VCPU reset */
+    MSHV_PUT_RESET_STATE = 2,
+    /* full state set, modified during initialization or on vmload */
+    MSHV_PUT_FULL_STATE = 3,
+} MshvPutState;
+
 void mshv_init_mmio_emu(void);
 int mshv_create_vcpu(int vm_fd, uint8_t vp_index, int *cpu_fd);
 void mshv_remove_vcpu(int vm_fd, int cpu_fd);
@@ -107,7 +117,7 @@ int mshv_set_generic_regs(const CPUState *cpu, const hv_register_assoc *assocs,
                           size_t n_regs);
 int mshv_get_generic_regs(CPUState *cpu, hv_register_assoc *assocs,
                           size_t n_regs);
-int mshv_arch_store_vcpu_state(const CPUState *cpu);
+int mshv_arch_store_vcpu_state(const CPUState *cpu, MshvPutState state);
 int mshv_arch_load_vcpu_state(CPUState *cpu);
 int mshv_arch_set_partition_msrs(const CPUState *cpu);
 int mshv_arch_set_mp_state(const CPUState *cpu);
@@ -152,7 +162,7 @@ void mshv_log_global_stop(MemoryListener *listener);
 /* msr */
 int mshv_init_msrs(const CPUState *cpu);
 int mshv_get_msrs(CPUState *cpu);
-int mshv_set_msrs(const CPUState *cpu);
+int mshv_set_msrs(const CPUState *cpu, MshvPutState put_state);
 
 /* synic */
 int mshv_get_simp(int cpu_fd, uint8_t *page);

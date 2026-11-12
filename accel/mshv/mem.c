@@ -13,6 +13,7 @@
 #include "qemu/osdep.h"
 #include "qemu/error-report.h"
 #include "qapi/error.h"
+#include "qemu/main-loop.h"
 #include "linux/mshv.h"
 #include "system/address-spaces.h"
 #include "system/mshv.h"
@@ -168,6 +169,25 @@ static hwaddr align_section(MemoryRegionSection *section, hwaddr *start)
     return (size - delta) & qemu_real_host_page_mask();
 }
 
+static bool uaddr_is_mapped(MshvMemoryListener *mml, hwaddr start_addr)
+{
+    assert(bql_locked());
+
+    return g_hash_table_contains(mml->mapped_regions,
+                                 GINT_TO_POINTER(start_addr));
+}
+
+static void track_region(MshvMemoryListener *mml, hwaddr start_addr, bool add)
+{
+    assert(bql_locked());
+
+    if (add) {
+        g_hash_table_add(mml->mapped_regions, GINT_TO_POINTER(start_addr));
+    } else {
+        g_hash_table_remove(mml->mapped_regions, GINT_TO_POINTER(start_addr));
+    }
+}
+
 void mshv_set_phys_mem(MshvMemoryListener *mml, MemoryRegionSection *section,
                        bool add)
 {
@@ -176,15 +196,19 @@ void mshv_set_phys_mem(MshvMemoryListener *mml, MemoryRegionSection *section,
     bool writable = !area->readonly && !area->rom_device;
     hwaddr start_addr, mr_offset, size;
     void *ram;
+    bool is_mapped;
     MshvMemoryRegion mshv_mr = {0};
 
     size = align_section(section, &start_addr);
     trace_mshv_set_phys_mem(add, section->mr->name, start_addr);
 
     /*
-     * If the memory device is a writable non-ram area, we do not
-     * want to map it into the guest memory. If it is not a ROM device,
-     * we want to remove mshv memory mapping, so accesses will trap.
+     * ROM devices (e.g. pflash) have ram=false, rom_device=true.
+     * In romd_mode, they behave like RAM and should be mapped.
+     * Outside romd_mode, accesses should trap to QEMU for emulation.
+     *
+     * For non-RAM, non-rom_device regions (writable MMIO), we never map.
+     * For rom_device regions not in romd_mode, we want them unmapped.
      */
     if (!memory_region_is_ram(area)) {
         if (writable) {
@@ -195,6 +219,15 @@ void mshv_set_phys_mem(MshvMemoryListener *mml, MemoryRegionSection *section,
     }
 
     if (!size) {
+        return;
+    }
+
+    is_mapped = uaddr_is_mapped(mml, start_addr);
+
+    if (add && is_mapped) {
+        return;
+    }
+    if (!add && !is_mapped) {
         return;
     }
 
@@ -213,6 +246,8 @@ void mshv_set_phys_mem(MshvMemoryListener *mml, MemoryRegionSection *section,
         error_report("Failed to set memory region");
         abort();
     }
+
+    track_region(mml, start_addr, add);
 }
 
 static int enable_dirty_page_tracking(int vm_fd)

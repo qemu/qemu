@@ -29,6 +29,7 @@
 typedef struct MshvClockState {
     uint64_t ref_time;
     bool ref_time_pending;
+    bool time_frozen;
 } MshvClockState;
 
 static MshvClockState mshv_clock;
@@ -110,6 +111,58 @@ static int mshv_set_time_freeze(int vm_fd, int freeze)
     return 0;
 }
 
+static int ensure_time_frozen(int vm_fd)
+{
+    int ret;
+
+    /* Ensure time is frozen */
+    if (mshv_clock.time_frozen) {
+        return 0;
+    }
+
+    ret = mshv_set_time_freeze(vm_fd, 1);
+    if (ret < 0) {
+        error_report("Failed to freeze partition");
+        return -1;
+    }
+    mshv_clock.time_frozen = true;
+
+    return 0;
+}
+
+int mshv_clock_prepare_resume(int vm_fd)
+{
+    return ensure_time_frozen(vm_fd);
+}
+
+int mshv_clock_finish_resume(int vm_fd)
+{
+    int ret;
+    MshvClockState *s = &mshv_clock;
+
+    assert(mshv_clock.time_frozen);
+
+    /* Skip if we have nothing to restore, e.g. on initial boot. */
+    if (s->ref_time_pending) {
+        /* INVARIANT: reference time can only be written if time is frozen. */
+        ret = mshv_set_reference_time(vm_fd, s->ref_time);
+        if (ret < 0) {
+            error_report("Failed to restore reference time on resume");
+            return -1;
+        }
+        s->ref_time_pending = false;
+    }
+
+    ret = mshv_set_time_freeze(vm_fd, 0);
+    if (ret < 0) {
+        error_report("Failed to thaw partition");
+        return -1;
+    }
+    mshv_clock.time_frozen = false;
+
+    return 0;
+}
+
 static void mshv_clock_vm_state_change(void *opaque, bool running,
                                        RunState state)
 {
@@ -118,44 +171,28 @@ static void mshv_clock_vm_state_change(void *opaque, bool running,
     int ret;
 
     if (running) {
-        /* Skip if we have nothing to restore, e.g. on initial boot. */
-        if (!s->ref_time_pending) {
-            return;
-        }
-
-        ret = mshv_set_time_freeze(vm_fd, 1);
-        if (ret < 0) {
-            error_report("Failed to freeze partition time on resume");
-            abort();
-        }
-
-        /* INVARIANT: reference time can only be written if time is frozen. */
-        ret = mshv_set_reference_time(vm_fd, s->ref_time);
-        if (ret < 0) {
-            error_report("Failed to restore reference time on resume");
-            abort();
-        }
-
-        if (mshv_set_time_freeze(vm_fd, 0) < 0) {
-            error_report("Failed to unfreeze partition time on resume");
-            abort();
-        }
-
-        s->ref_time_pending = false;
-    } else {
-        /* Skip if we already have a to-be-set ref time */
-        if (s->ref_time_pending) {
-            return;
-        }
-
-        ret = mshv_get_reference_time(vm_fd, &s->ref_time);
-        if (ret < 0) {
-            error_report("Failed to capture reference time on stop");
-            abort();
-        }
-
-        s->ref_time_pending = true;
+        return;
     }
+
+    /* Ensure the time if frozen before we capture the reference time. */
+    ret = ensure_time_frozen(vm_fd);
+    if (ret < 0) {
+        error_report("Failed to freeze partition time on stop");
+        abort();
+    }
+
+    /* Skip if we already have a to-be-set ref time */
+    if (s->ref_time_pending) {
+        return;
+    }
+
+    ret = mshv_get_reference_time(vm_fd, &s->ref_time);
+    if (ret < 0) {
+        error_report("Failed to capture reference time on stop");
+        abort();
+    }
+
+    s->ref_time_pending = true;
 }
 
 /*
@@ -182,8 +219,19 @@ static const VMStateDescription vmstate_mshv_clock = {
     },
 };
 
-void mshv_clock_init(void)
+int mshv_clock_init(int vm_fd)
 {
+    int ret;
+
+    ret = mshv_set_time_freeze(vm_fd, 1);
+    if (ret < 0) {
+        error_report("Failed to freeze partition time on init");
+        return -1;
+    }
+    mshv_clock.time_frozen = true;
+
     vmstate_register(NULL, 0, &vmstate_mshv_clock, &mshv_clock);
     qemu_add_vm_change_state_handler(mshv_clock_vm_state_change, &mshv_clock);
+
+    return 0;
 }
