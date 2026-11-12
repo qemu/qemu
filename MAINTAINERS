@@ -3079,9 +3079,9 @@ F: tests/qtest/fw_cfg-test.c
 
 XIVE
 M: Glenn Miles <milesg@linux.ibm.com>
-R: Gautam Menghani <gautam@linux.ibm.com>
+M: Gautam Menghani <gautam@linux.ibm.com>
 L: qemu-ppc@nongnu.org
-S: Odd Fixes
+S: Maintained
 F: hw/*/*xive*
 F: include/hw/*/*xive*
 F: tests/qtest/*xive*
