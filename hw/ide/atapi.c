@@ -47,7 +47,7 @@ static void padstr8(uint8_t *buf, int buf_size, const char *src)
     }
 }
 
-static void lba_to_msf(uint8_t *buf, int lba)
+static void lba_to_msf(uint8_t *buf, int64_t lba)
 {
     lba += 150;
     buf[0] = (lba / 75) / 60;
@@ -71,7 +71,7 @@ static inline int media_is_cd(IDEState *s)
     return (media_present(s) && s->nb_sectors <= CD_MAX_SECTORS);
 }
 
-static void cd_data_to_raw(uint8_t *buf, int lba)
+static void cd_data_to_raw(uint8_t *buf, int64_t lba)
 {
     /* sync bytes */
     buf[0] = 0x00;
@@ -309,10 +309,10 @@ static void ide_atapi_cmd_reply(IDEState *s, int size, int max_size)
 }
 
 /* start a CD-ROM read command */
-static void ide_atapi_cmd_read_pio(IDEState *s, int lba, int nb_sectors,
-                                   int sector_size)
+static void ide_atapi_cmd_read_pio(IDEState *s, uint32_t lba,
+                                   int nb_sectors, int sector_size)
 {
-    assert(0 <= lba && lba < (s->nb_sectors >> 2));
+    assert(lba < (s->nb_sectors >> 2));
 
     s->lba = lba;
     s->packet_transfer_size = nb_sectors * sector_size;
@@ -409,10 +409,10 @@ eot:
 
 /* start a CD-ROM read command with DMA */
 /* XXX: test if DMA is available */
-static void ide_atapi_cmd_read_dma(IDEState *s, int lba, int nb_sectors,
-                                   int sector_size)
+static void ide_atapi_cmd_read_dma(IDEState *s, uint32_t lba,
+                                   int nb_sectors, int sector_size)
 {
-    assert(0 <= lba && lba < (s->nb_sectors >> 2));
+    assert(lba < (s->nb_sectors >> 2));
 
     s->lba = lba;
     s->packet_transfer_size = nb_sectors * sector_size;
@@ -427,7 +427,7 @@ static void ide_atapi_cmd_read_dma(IDEState *s, int lba, int nb_sectors,
     ide_start_dma(s, ide_atapi_cmd_read_dma_cb);
 }
 
-static void ide_atapi_cmd_read(IDEState *s, int lba, int nb_sectors,
+static void ide_atapi_cmd_read(IDEState *s, uint32_t lba, int nb_sectors,
                                int sector_size)
 {
     trace_ide_atapi_cmd_read(s, s->atapi_dma ? "dma" : "pio",
@@ -983,7 +983,7 @@ static void cmd_read(IDEState *s, uint8_t* buf)
     }
 
     lba = ldl_be_p(buf + 2);
-    if (lba >= total_sectors || lba + nb_sectors - 1 >= total_sectors) {
+    if (lba >= total_sectors || nb_sectors > total_sectors - lba) {
         ide_atapi_cmd_error(s, ILLEGAL_REQUEST, ASC_LOGICAL_BLOCK_OOR);
         return;
     }
@@ -1005,7 +1005,7 @@ static void cmd_read_cd(IDEState *s, uint8_t* buf)
     }
 
     lba = ldl_be_p(buf + 2);
-    if (lba >= total_sectors || lba + nb_sectors - 1 >= total_sectors) {
+    if (lba >= total_sectors || nb_sectors > total_sectors - lba) {
         ide_atapi_cmd_error(s, ILLEGAL_REQUEST, ASC_LOGICAL_BLOCK_OOR);
         return;
     }
