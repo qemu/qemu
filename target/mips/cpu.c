@@ -459,7 +459,7 @@ static void mips_cpu_reset_hold(Object *obj, ResetType type)
         env->CP0_PWField = 0x02;
     }
 
-    if (env->CP0_Config3 & (1 << CP0C3_ISA) & (1 << (CP0C3_ISA + 1))) {
+    if (extract32(env->CP0_Config3, CP0C3_ISA, 2) == 3) {
         /*  microMIPS on reset when Config3.ISA is 3 */
         env->hflags |= MIPS_HFLAG_M16;
     }
