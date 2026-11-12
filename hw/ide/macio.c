@@ -396,7 +396,7 @@ static void ide_dbdma_start(const IDEDMA *dma, IDEState *s,
     MACIO_DPRINTF("\n\n------------ IDE transfer\n");
     MACIO_DPRINTF("buffer_size: %x   buffer_index: %x\n",
                   s->io_buffer_size, s->io_buffer_index);
-    MACIO_DPRINTF("lba: %x    size: %x\n", s->lba, s->io_buffer_size);
+    MACIO_DPRINTF("lba: %" PRIx64 "    size: %x\n", s->lba, s->io_buffer_size);
     MACIO_DPRINTF("-------------------------\n");
 
     m->dma_active = true;

@@ -101,7 +101,7 @@ struct IDEState {
     int packet_transfer_size;
     int elementary_transfer_size;
     int32_t io_buffer_index;
-    int lba;
+    int64_t lba;
     int cd_sector_size;
     int atapi_dma; /* true if dma is requested for the packet cmd */
     BlockAcctCookie acct;
