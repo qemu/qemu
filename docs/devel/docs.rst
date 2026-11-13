@@ -5,7 +5,7 @@ QEMU Documentation
 
 QEMU's documentation is written in reStructuredText format and
 built using the Sphinx documentation generator. We generate both
-the HTML manual and the manpages from the some documentation sources.
+the HTML manual and the manpages from the same documentation sources.
 
 hxtool and .hx files
 --------------------

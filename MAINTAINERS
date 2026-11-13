@@ -2945,7 +2945,7 @@ F: tests/qtest/vmgenid-test.c
 
 VM Launch Update
 M: Ani Sinha <anisinha@redhat.com>
-M: Gerd Hoffman <kraxel@redhat.com>
+M: Gerd Hoffmann <kraxel@redhat.com>
 S: Maintained
 F: hw/misc/vmlaunchupdate.c
 F: include/hw/misc/vmlaunchupdate.h

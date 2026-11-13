@@ -20,7 +20,7 @@ to an implementation specific range in PAPR.
 ``H_RTAS (0xf000)``
 ===================
 
-RTAS stands for Run-Time Abstraction Sercies and is a set of runtime services
+RTAS stands for Run-Time Abstraction Services and is a set of runtime services
 generally provided by the firmware inside the guest to the operating system. It
 predates the existence of hypervisors (it was originally an extension to Open
 Firmware) and is still used by PAPR and LoPAR to provide various services that

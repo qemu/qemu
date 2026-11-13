@@ -158,7 +158,7 @@ IOMMUs introduce another level of complexity, since the address given to
 the guest virtio device to DMA to or from is not a guest physical
 address. This case is handled by having vhost code within QEMU register
 as a listener for IOMMU mapping changes. The vhost application maintains
-a cache of IOMMMU translations: sending translation requests back to
+a cache of IOMMU translations: sending translation requests back to
 QEMU on cache misses, and in turn receiving flush requests from QEMU
 when mappings are purged.
 
@@ -573,7 +573,7 @@ live migration
 When a remote process receives a live migration indication from QEMU, it
 will set up a channel using the received file descriptor with
 ``qio_channel_socket_new_fd()``. This channel will be used to create a
-*QEMUfile* that can be passed to ``qemu_save_device_state()`` to send
+*QEMUFile* that can be passed to ``qemu_save_device_state()`` to send
 the process's device state back to QEMU. This method will be reversed on
 restore - the channel will be passed to ``qemu_loadvm_state()`` to
 restore the device state.
@@ -853,7 +853,7 @@ intx irq descriptor
 
 The irq descriptors are created by the proxy object
 ``using event_notifier_init()`` to create the irq and re-sampling
-*eventds*, and ``kvm_vm_ioctl(KVM_IRQFD)`` to bind them to an interrupt.
+*eventfds*, and ``kvm_vm_ioctl(KVM_IRQFD)`` to bind them to an interrupt.
 The interrupt route can be found with
 ``pci_device_route_intx_to_irq()``.
 
