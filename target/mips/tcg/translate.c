@@ -8588,7 +8588,7 @@ static void gen_cp0(CPUMIPSState *env, DisasContext *ctx, uint32_t opc,
         opn = "mthc0";
         break;
     case OPC_MFTR:
-        check_cp0_enabled(ctx);
+        check_cp0_mt(ctx);
         if (rd == 0) {
             /* Treat as NOP. */
             return;
@@ -8598,7 +8598,7 @@ static void gen_cp0(CPUMIPSState *env, DisasContext *ctx, uint32_t opc,
         opn = "mftr";
         break;
     case OPC_MTTR:
-        check_cp0_enabled(ctx);
+        check_cp0_mt(ctx);
         gen_mttr(env, ctx, rd, rt, (ctx->opcode >> 5) & 1,
                  ctx->opcode & 0x7, (ctx->opcode >> 4) & 1);
         opn = "mttr";
