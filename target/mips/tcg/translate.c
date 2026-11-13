@@ -2063,7 +2063,7 @@ void gen_lx(DisasContext *ctx, int rd, int base, int index, MemOp mop)
 static void gen_ld(DisasContext *ctx, uint32_t opc,
                    int rt, int base, int offset)
 {
-    TCGv t0, t1;
+    TCGv t0, t1, t2, t3;
     int mem_idx = ctx->mem_idx;
 
     if (rt == 0 && ctx->insn_flags & (INSN_LOONGSON2E | INSN_LOONGSON2F |
@@ -2176,7 +2176,17 @@ static void gen_ld(DisasContext *ctx, uint32_t opc,
         t1 = tcg_temp_new();
         gen_load_gpr(t1, rt);
         gen_lxr(ctx, t1, t0, mem_idx, mo_endian(ctx) | MO_UL);
-        tcg_gen_ext32s_tl(t1, t1);
+        if (ctx->insn_flags & INSN_OCTEON) {
+            t2 = tcg_temp_new();
+            t3 = tcg_temp_new();
+            tcg_gen_ext32s_tl(t3, t1);
+            tcg_gen_andi_tl(t2, t0, 3);
+            tcg_gen_movcond_tl(TCG_COND_EQ, t1, t2,
+                               tcg_constant_tl(disas_is_bigendian(ctx) ? 3 : 0),
+                               t3, t1);
+        } else {
+            tcg_gen_ext32s_tl(t1, t1);
+        }
         gen_store_gpr(t1, rt);
         break;
     case OPC_LLE:
