@@ -1385,6 +1385,36 @@ class QMPTestCase(unittest.TestCase):
         case_notrun(reason)
         self.skipTest(reason)
 
+    @contextmanager
+    def run_nbd_server(self, nbd_sock: str,
+                       max_conn: Optional[int] = None) -> Iterator[None]:
+        args: Dict[str, Any] = {
+            'addr': {
+                'type': 'unix',
+                'data': {'path': nbd_sock}
+            }
+        }
+        if max_conn is not None:
+            args['max-connections'] = max_conn
+
+        self.vm.cmd('nbd-server-start', args)
+        try:
+            yield
+        finally:
+            self.vm.cmd('nbd-server-stop')
+
+    def add_nbd_export(self, node_name: str, name: str,
+                       writable: Optional[bool] = None) -> None:
+        args: Dict[str, Any] = {
+            'type': 'nbd',
+            'id': name,
+            'node-name': node_name,
+            'name': name,
+        }
+        if writable is not None:
+            args['writable'] = writable
+
+        self.vm.cmd('block-export-add', args)
 
 def notrun(reason):
     '''Skip this test suite'''

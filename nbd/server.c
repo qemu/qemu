@@ -1095,6 +1095,11 @@ nbd_negotiate_meta_queries(NBDClient *client, Error **errp)
             }
         }
     }
+    if (client->optlen > 0) {
+        return nbd_opt_invalid(client, errp,
+                               "Inconsistent lengths in option %s",
+                               nbd_opt_lookup(client->opt));
+    }
 
     if (meta->base_allocation) {
         ret = nbd_negotiate_send_meta_context(client, "base:allocation",
@@ -2584,17 +2589,18 @@ nbd_co_block_status_payload_read(NBDClient *client, NBDRequest *request,
         return -EINVAL;
     }
 
-    assert(client->contexts.exp == client->exp);
     nr_bitmaps = client->exp->nr_export_bitmaps;
     request->contexts = g_new0(NBDMetaContexts, 1);
     request->contexts->exp = client->exp;
 
-    if (payload_len % sizeof(uint32_t) ||
+    if (!client->contexts.count ||
+        payload_len % sizeof(uint32_t) ||
         payload_len < sizeof(NBDBlockStatusPayload) ||
         payload_len > (sizeof(NBDBlockStatusPayload) +
                        sizeof(id) * client->contexts.count)) {
         goto skip;
     }
+    assert(client->contexts.exp == client->exp);
 
     buf = g_malloc(payload_len);
     if (nbd_read(client->ioc, buf, payload_len,
