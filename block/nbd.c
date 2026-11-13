@@ -578,24 +578,36 @@ err:
     return rc;
 }
 
+/* Consume a field of payload, while swapping it in place to host-endian. */
 static inline uint16_t payload_advance16(uint8_t **payload)
 {
+    uint16_t value = lduw_be_p(*payload);
+    stw_he_p(*payload, value);
     *payload += 2;
-    return lduw_be_p(*payload - 2);
+    return value;
 }
 
 static inline uint32_t payload_advance32(uint8_t **payload)
 {
+    uint32_t value = ldl_be_p(*payload);
+    stl_he_p(*payload, value);
     *payload += 4;
-    return ldl_be_p(*payload - 4);
+    return value;
 }
 
 static inline uint64_t payload_advance64(uint8_t **payload)
 {
+    uint64_t value = ldq_be_p(*payload);
+    stq_he_p(*payload, value);
     *payload += 8;
-    return ldq_be_p(*payload - 8);
+    return value;
 }
 
+/*
+ * nbd_parse_offset_hole_payload:
+ * Parse a chunk for NBD_REPLY_TYPE_OFFSET_HOLE, updating payload in
+ * place to a host-endian description of the region described.
+ */
 static int nbd_parse_offset_hole_payload(BDRVNBDState *s,
                                          NBDStructuredReplyChunk *chunk,
                                          uint8_t *payload, uint64_t orig_offset,
