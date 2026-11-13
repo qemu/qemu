@@ -840,6 +840,7 @@ static void complete_collecting_data(Flash *s)
         default:
             break;
         }
+        s->write_enable = false;
         break;
     case BRWR:
     case EXTEND_ADDR_WRITE:
