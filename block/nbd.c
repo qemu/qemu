@@ -786,9 +786,17 @@ static int nbd_parse_error_payload(NBDStructuredReplyChunk *chunk,
     return 0;
 }
 
+/*
+ * nbd_co_receive_offset_data_payload:
+ * Helper to nbd_co_do_receive_one_chunk when server replies with
+ * structured reply to NBD_CMD_READ with an OFFSET_DATA chunk. On
+ * success, synthesize an NBDStructuredReadHole into @payload
+ * describing the same region that was populated into @qiov.
+ */
 static int coroutine_fn
 nbd_co_receive_offset_data_payload(BDRVNBDState *s, uint64_t orig_offset,
-                                   QEMUIOVector *qiov, Error **errp)
+                                   QEMUIOVector *qiov, void **payload,
+                                   Error **errp)
 {
     QEMUIOVector sub_qiov;
     uint64_t offset;
@@ -797,6 +805,7 @@ nbd_co_receive_offset_data_payload(BDRVNBDState *s, uint64_t orig_offset,
     NBDStructuredReplyChunk *chunk = &s->reply.structured;
 
     assert(nbd_reply_is_structured(&s->reply));
+    assert(payload);
 
     /* The NBD spec requires at least one byte of payload */
     if (chunk->length <= sizeof(offset)) {
@@ -825,6 +834,18 @@ nbd_co_receive_offset_data_payload(BDRVNBDState *s, uint64_t orig_offset,
     qemu_iovec_concat(&sub_qiov, qiov, offset - orig_offset, data_size);
     ret = qio_channel_readv_all(s->ioc, sub_qiov.iov, sub_qiov.niov, errp);
     qemu_iovec_destroy(&sub_qiov);
+
+    if (ret == 0) {
+        /*
+         * Give the caller a struct describing the same region we
+         * populated here, to allow for easier followup accounting
+         * between data and hole reads.
+         */
+        NBDStructuredReadHole *synth = g_new(NBDStructuredReadHole, 1);
+        synth->offset = offset;
+        synth->length = data_size;
+        *payload = synth;
+    }
 
     return ret < 0 ? -EIO : 0;
 }
@@ -867,18 +888,21 @@ static coroutine_fn int nbd_co_receive_structured_payload(
 
 /*
  * nbd_co_do_receive_one_chunk
+ * @qiov is non-NULL for NBD_CMD_READ, NULL for all other commands.
  * for simple reply:
  *   set request_ret to received reply error
- *   if qiov is not NULL: read payload to @qiov
+ *   if qiov is not NULL: read data to @qiov
+ *   either way, @payload stays NULL
  * for structured reply chunk:
- *   if error chunk: read payload, set @request_ret, do not set @payload
- *   else if offset_data chunk: read payload data to @qiov, do not set @payload
- *   else: read payload to @payload
+ *   if error chunk: read chunk payload, set @request_ret, @payload is NULL
+ *   else if offset_data chunk and @qiov: read data to @qiov, allocate
+ *     @payload as NBDStructuredReadHole describing region just populated
+ *   else: read payload to @payload; caller checks size and contents
  *
- * If function fails, @errp contains corresponding error message, and the
- * connection with the server is suspect.  If it returns 0, then the
- * transaction succeeded (although @request_ret may be a negative errno
- * corresponding to the server's error reply), and errp is unchanged.
+ * If function fails, @errp contains corresponding error message, @payload
+ * is NULL, and the connection with the server is suspect.  If it returns 0,
+ * then the transaction succeeded (although @request_ret may be a negative
+ * errno corresponding to the server's error reply), and errp is unchanged.
  */
 static coroutine_fn int nbd_co_do_receive_one_chunk(
         BDRVNBDState *s, uint64_t cookie, bool only_structured,
@@ -945,7 +969,7 @@ static coroutine_fn int nbd_co_do_receive_one_chunk(
 
         return nbd_co_receive_offset_data_payload(
                 s, nbd_request_by_cookie(s, cookie, &error_abort)->offset,
-                qiov, errp);
+                qiov, payload, errp);
     }
 
     if (nbd_reply_type_is_error(chunk->type)) {
@@ -1093,6 +1117,7 @@ static bool coroutine_fn nbd_reply_chunk_iter_receive(BDRVNBDState *s,
     return true;
 
 break_loop:
+    assert(payload == NULL || *payload == NULL);
     qemu_mutex_lock(&s->requests_lock);
     nbd_request_by_cookie(s, cookie, &error_abort)->coroutine = NULL;
     s->in_flight--;
