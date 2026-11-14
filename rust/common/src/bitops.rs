@@ -34,7 +34,7 @@ pub trait IntegerExt:
 
     #[inline]
     #[must_use]
-    fn bit(start: u32) -> Self
+    fn single_bit(start: u32) -> Self
     {
         debug_assert!(start < Self::BITS);
 
@@ -105,9 +105,9 @@ mod tests {
     }
 
     #[test]
-    fn test_bit() {
-        assert_eq!(u8::bit(7), 128);
-        assert_eq!(u32::bit(16), 0x10000);
+    fn test_single_bit() {
+        assert_eq!(u8::single_bit(7), 128);
+        assert_eq!(u32::single_bit(16), 0x10000);
     }
 
     #[test]
