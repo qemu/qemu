@@ -221,13 +221,31 @@ static const MemoryRegionOps imx2_wdt_ops = {
     },
 };
 
-static const VMStateDescription vmstate_imx2_wdt = {
-    .name = "imx2.wdt",
+static bool pretimeout_state_needed(void *opaque)
+{
+    /* The itimer is only present if pretimeout-support is enabled */
+    IMX2WdtState *s = opaque;
+
+    return s->pretimeout_support;
+}
+
+static const VMStateDescription vmstate_imx2_wdt_pretimeout = {
+    .name = "imx2.wdt/pretimeout",
     .version_id = 1,
     .minimum_version_id = 1,
+    .needed = pretimeout_state_needed,
+    .fields = (const VMStateField[]) {
+        VMSTATE_PTIMER(itimer, IMX2WdtState),
+        VMSTATE_END_OF_LIST()
+    }
+};
+
+static const VMStateDescription vmstate_imx2_wdt = {
+    .name = "imx2.wdt",
+    .version_id = 2,
+    .minimum_version_id = 2,
     .fields = (const VMStateField[]) {
         VMSTATE_PTIMER(timer, IMX2WdtState),
-        VMSTATE_PTIMER(itimer, IMX2WdtState),
         VMSTATE_BOOL(wicr_locked, IMX2WdtState),
         VMSTATE_BOOL(wcr_locked, IMX2WdtState),
         VMSTATE_UINT16(wcr, IMX2WdtState),
@@ -236,6 +254,10 @@ static const VMStateDescription vmstate_imx2_wdt = {
         VMSTATE_UINT16(wmcr, IMX2WdtState),
         VMSTATE_UINT16(wicr, IMX2WdtState),
         VMSTATE_END_OF_LIST()
+    },
+    .subsections = (const VMStateDescription * const []) {
+        &vmstate_imx2_wdt_pretimeout,
+        NULL
     }
 };
 
