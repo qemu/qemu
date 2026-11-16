@@ -166,6 +166,8 @@ static void raspi_peripherals_base_init(Object *obj)
     /* SPI */
     object_initialize_child(obj, "bcm2835-spi0", &s->spi[0],
                             TYPE_BCM2835_SPI);
+    object_initialize_child(obj, "spi-irq-splitter",
+                            &s->spi_irq_splitter, TYPE_SPLIT_IRQ);
 
     /* I2C */
     object_initialize_child(obj, "bcm2835-i2c0", &s->i2c[0],
@@ -480,10 +482,16 @@ void bcm_soc_peripherals_common_realize(DeviceState *dev, Error **errp)
 
     memory_region_add_subregion(&s->peri_mr, SPI0_OFFSET,
                 sysbus_mmio_get_region(SYS_BUS_DEVICE(&s->spi[0]), 0));
+    qdev_prop_set_uint32(DEVICE(&s->spi_irq_splitter), "num-lines", 2);
+    if (!qdev_realize(DEVICE(&s->spi_irq_splitter), NULL, errp)) {
+        return;
+    }
     sysbus_connect_irq(SYS_BUS_DEVICE(&s->spi[0]), 0,
-                       qdev_get_gpio_in_named(DEVICE(&s->ic),
-                                              BCM2835_IC_GPU_IRQ,
-                                              INTERRUPT_SPI));
+                       qdev_get_gpio_in(DEVICE(&s->spi_irq_splitter), 0));
+    qdev_connect_gpio_out(DEVICE(&s->spi_irq_splitter), 0,
+                          qdev_get_gpio_in_named(DEVICE(&s->ic),
+                                                 BCM2835_IC_GPU_IRQ,
+                                                 INTERRUPT_SPI));
 
     /* I2C */
     for (n = 0; n < 3; n++) {

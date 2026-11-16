@@ -321,7 +321,7 @@ eth_get_l2_hdr_length_iov(const struct iovec *iov, size_t iovcnt, size_t iovoff)
     size_t copied = iov_to_buf(iov, iovcnt, iovoff, p, ARRAY_SIZE(p));
 
     if (copied < ARRAY_SIZE(p)) {
-        return copied;
+        return MIN(copied, sizeof(struct eth_header));
     }
 
     return eth_get_l2_hdr_length(p);
@@ -394,6 +394,8 @@ typedef struct eth_l4_hdr_info_st {
     bool has_tcp_data;
 } eth_l4_hdr_info;
 
+#define SCTP_COMMON_HEADER_LEN 12
+
 void eth_get_protocols(const struct iovec *iov, size_t iovcnt, size_t iovoff,
                        bool *hasip4, bool *hasip6,
                        size_t *l3hdr_off,
@@ -436,5 +438,27 @@ eth_parse_ipv6_hdr(const struct iovec *pkt, int pkt_frags,
  */
 bool eth_pad_short_frame(uint8_t *padded_pkt, size_t *padded_buflen,
                          const void *pkt, size_t pkt_size);
+
+/**
+ * eth_pad_short_frame_iov - pad a short frame, iovec version
+ *
+ * This is equivalent to eth_pad_short_frame(), except that it works
+ * on a packet stored in a struct iovec.
+ *
+ * If the Ethernet frame size is shorter than 60 bytes, it will be padded to
+ * 60 bytes at the address @padded_pkt (and the caller will need to handle
+ * it as a not-in-an-iovec packet).
+ *
+ * @padded_pkt: buffer address to hold the padded frame
+ * @padded_buflen: pointer holding length of @padded_pkt. If the frame is
+ *                 padded, the length will be updated to the padded one.
+ * @iov: iovec holding the original Ethernet frame
+ * @iovcnt: number of elements in @iov
+ * @pkt_size: size of the original Ethernet frame (i.e. iov_size(iov, iovcnt))
+ * @return true if the frame is padded, otherwise false
+ */
+bool eth_pad_short_frame_iov(uint8_t *padded_pkt, size_t *padded_buflen,
+                             const struct iovec *iov, int iovcnt,
+                             size_t pkt_size);
 
 #endif

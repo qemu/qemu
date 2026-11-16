@@ -224,6 +224,7 @@ static const MemoryRegionOps imx2_wdt_ops = {
 static const VMStateDescription vmstate_imx2_wdt = {
     .name = "imx2.wdt",
     .version_id = 1,
+    .minimum_version_id = 1,
     .fields = (const VMStateField[]) {
         VMSTATE_PTIMER(timer, IMX2WdtState),
         VMSTATE_PTIMER(itimer, IMX2WdtState),

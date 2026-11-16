@@ -267,7 +267,8 @@ void qemu_net_client_setup(NetClientState *nc,
                            const char *model,
                            const char *name,
                            NetClientDestructor *destructor,
-                           bool is_datapath)
+                           bool is_datapath,
+                           bool do_not_pad)
 {
     nc->info = info;
     nc->model = g_strdup(model);
@@ -287,6 +288,7 @@ void qemu_net_client_setup(NetClientState *nc,
     nc->incoming_queue = qemu_new_net_queue(qemu_deliver_packet_iov, nc);
     nc->destructor = destructor;
     nc->is_datapath = is_datapath;
+    nc->do_not_pad = do_not_pad;
     QTAILQ_INIT(&nc->filters);
 }
 
@@ -301,7 +303,7 @@ NetClientState *qemu_new_net_client(NetClientInfo *info,
 
     nc = g_malloc0(info->size);
     qemu_net_client_setup(nc, info, peer, model, name,
-                          qemu_net_client_destructor, true);
+                          qemu_net_client_destructor, true, true);
 
     return nc;
 }
@@ -317,7 +319,7 @@ NetClientState *qemu_new_net_control_client(NetClientInfo *info,
 
     nc = g_malloc0(info->size);
     qemu_net_client_setup(nc, info, peer, model, name,
-                          qemu_net_client_destructor, false);
+                          qemu_net_client_destructor, false, true);
 
     return nc;
 }
@@ -344,7 +346,7 @@ NICState *qemu_new_nic(NetClientInfo *info,
 
     for (i = 0; i < queues; i++) {
         qemu_net_client_setup(&nic->ncs[i], info, peers[i], model, name,
-                              NULL, true);
+                              NULL, true, false);
         nic->ncs[i].queue_index = i;
     }
 
@@ -742,6 +744,8 @@ static ssize_t qemu_send_packet_async_with_flags(NetClientState *sender,
 {
     NetQueue *queue;
     int ret;
+    uint8_t min_pkt[ETH_ZLEN];
+    size_t min_pktsz = sizeof(min_pkt);
 
 #ifdef DEBUG_NET
     printf("qemu_send_packet_async:\n");
@@ -750,6 +754,13 @@ static ssize_t qemu_send_packet_async_with_flags(NetClientState *sender,
 
     if (sender->link_down || !sender->peer) {
         return size;
+    }
+
+    if (net_peer_needs_padding(sender)) {
+        if (eth_pad_short_frame(min_pkt, &min_pktsz, buf, size)) {
+            buf = min_pkt;
+            size = min_pktsz;
+        }
     }
 
     /* Let filters handle the packet first */
@@ -904,6 +915,19 @@ ssize_t qemu_sendv_packet_async(NetClientState *sender,
 
     if (sender->link_down || !sender->peer) {
         return size;
+    }
+
+    if (net_peer_needs_padding(sender)) {
+        uint8_t min_pkt[ETH_ZLEN];
+        size_t min_pktsz = sizeof(min_pkt);
+
+        /*
+         * If we pad the packet, we get back a simple buffer, so handle
+         * it by sending it to the non-iov qemu_send_packet function
+         */
+        if (eth_pad_short_frame_iov(min_pkt, &min_pktsz, iov, iovcnt, size)) {
+            return qemu_send_packet_async(sender, min_pkt, min_pktsz, sent_cb);
+        }
     }
 
     /* Let filters handle the packet first */

@@ -496,6 +496,7 @@ static void gsj_machine_class_init(ObjectClass *oc, const void *data)
     mc->init = quanta_gsj_init;
     mc->auto_create_sdcard = true;
     mc->default_ram_size = 512 * MiB;
+    mc->deprecation_reason = "No longer supported by OpenBMC";
 };
 
 static void gbs_bmc_machine_class_init(ObjectClass *oc, const void *data)

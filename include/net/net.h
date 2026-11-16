@@ -171,7 +171,8 @@ void qemu_net_client_setup(NetClientState *nc,
                            const char *model,
                            const char *name,
                            NetClientDestructor *destructor,
-                           bool is_datapath);
+                           bool is_datapath,
+                           bool do_not_pad);
 NetClientState *qemu_new_net_client(NetClientInfo *info,
                                     NetClientState *peer,
                                     const char *model,

@@ -71,6 +71,7 @@ struct BCMSocPeripheralBaseState {
     BCM2835SDHostState sdhost;
     UnimplementedDeviceState i2s;
     BCM2835SPIState spi[1];
+    SplitIRQ spi_irq_splitter;
     BCM2835I2CState i2c[3];
     OrIRQState orgated_i2c_irq;
     SplitIRQ orgated_i2c_irq_splitter;
