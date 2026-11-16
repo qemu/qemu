@@ -11,7 +11,6 @@
 #include "qemu/error-report.h"
 #include "system/device_tree.h"
 #include "hw/core/boards.h"
-#include "hw/core/sysbus-fdt.h"
 #include "hw/riscv/fdt-common.h"
 #include "target/riscv/cpu_bits.h"
 #include "hw/riscv/riscv-iommu-bits.h"
@@ -599,7 +598,7 @@ void riscv_create_fdt_imsic(void *fdt, IMSICFdtProps *props,
 }
 
 /* Caller must free string after use */
-static char *fdt_get_aplic_nodename(hwaddr aplic_addr)
+char *riscv_fdt_get_aplic_nodename(hwaddr aplic_addr)
 {
     return g_strdup_printf("/soc/interrupt-controller@%"HWADDR_PRIx,
                            aplic_addr);
@@ -613,7 +612,7 @@ static void create_fdt_one_aplic(void *fdt, APLICFdtProps *props,
                                  uint32_t aplic_child_phandle,
                                  bool m_mode)
 {
-    g_autofree char *aplic_name = fdt_get_aplic_nodename(aplic_addr);
+    g_autofree char *aplic_name = riscv_fdt_get_aplic_nodename(aplic_addr);
     g_autofree uint32_t *aplic_cells = g_new0(uint32_t, props->num_harts * 2);
     static const char * const aplic_compat[2] = {
         "qemu,aplic", "riscv,aplic"
@@ -694,14 +693,6 @@ void riscv_create_fdt_socket_aplic(void *fdt, APLICFdtProps *props,
                          msi_s_phandle, intc_phandles,
                          aplic_s_phandle, 0,
                          false);
-
-    if (!props->socket && props->platform_bus_irq) {
-        g_autofree char *aplic_name = fdt_get_aplic_nodename(aplic_addr);
-        platform_bus_add_all_fdt_nodes(fdt, aplic_name,
-                                       props->platform_bus->base,
-                                       props->platform_bus->size,
-                                       props->platform_bus_irq);
-    }
 
     aplic_phandles[props->socket] = aplic_s_phandle;
 }

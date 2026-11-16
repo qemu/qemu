@@ -21,6 +21,8 @@
 
 #include "target/riscv/cpu-qom.h"
 
+typedef struct RISCVAIASocket RISCVAIASocket;
+
 void kvm_riscv_reset_vcpu(RISCVCPU *cpu);
 /**
  * kvm_riscv_set_irq:
@@ -29,7 +31,8 @@ void kvm_riscv_reset_vcpu(RISCVCPU *cpu);
  * @level: %0 to clear the interrupt, non-zero to set it.
  */
 void kvm_riscv_set_irq(RISCVCPU *cpu, int irq, int level);
-void kvm_riscv_aia_create(MachineState *machine, uint64_t group_shift,
+void kvm_riscv_aia_create(const RISCVAIASocket *sockets,
+                          uint32_t socket_count, uint64_t group_shift,
                           uint64_t aia_irq_num, uint64_t aia_msi_num,
                           uint64_t aplic_base, uint64_t imsic_base,
                           uint64_t guest_num);

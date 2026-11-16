@@ -296,8 +296,6 @@ static void create_fdt_sockets(RISCVVirtState *s,
     if (s->aia_type != VIRT_AIA_TYPE_NONE) {
         aplic_props.aplic_m = !kvm_enabled() ? &s->memmap[VIRT_APLIC_M] : NULL;
         aplic_props.aplic_s = &s->memmap[VIRT_APLIC_S];
-        aplic_props.platform_bus = &s->memmap[VIRT_PLATFORM_BUS];
-        aplic_props.platform_bus_irq = VIRT_PLATFORM_BUS_IRQ;
         aplic_props.socket = 0;
         aplic_props.num_harts = ms->smp.cpus;
         aplic_props.numa_enabled = numa_enabled;
@@ -351,6 +349,15 @@ static void create_fdt_sockets(RISCVVirtState *s,
                 *irq_pcie_phandle = xplic_phandles[socket];
             }
         }
+    }
+
+    if (s->aia_type != VIRT_AIA_TYPE_NONE) {
+        g_autofree char *aplic_name =
+            riscv_fdt_get_aplic_nodename(s->memmap[VIRT_APLIC_S].base);
+        platform_bus_add_all_fdt_nodes(ms->fdt, aplic_name,
+                                       s->memmap[VIRT_PLATFORM_BUS].base,
+                                       s->memmap[VIRT_PLATFORM_BUS].size,
+                                       VIRT_PLATFORM_BUS_IRQ);
     }
 
     riscv_socket_fdt_write_distance_matrix(ms);
@@ -852,7 +859,15 @@ static void virt_machine_init(MachineState *machine)
     }
 
     if (kvm_enabled() && virt_use_kvm_aia_aplic_imsic(s->aia_type)) {
-        kvm_riscv_aia_create(machine, IMSIC_MMIO_GROUP_MIN_SHIFT,
+        g_autofree RISCVAIASocket *aia_sockets =
+                g_new(RISCVAIASocket, socket_count);
+        for (i = 0; i < socket_count; i++) {
+            aia_sockets[i].hartid_base = s->soc[i].hartid_base;
+            aia_sockets[i].num_harts = s->soc[i].num_harts;
+        }
+
+        kvm_riscv_aia_create(aia_sockets, socket_count,
+                             IMSIC_MMIO_GROUP_MIN_SHIFT,
                              VIRT_IRQCHIP_NUM_SOURCES, VIRT_IRQCHIP_NUM_MSIS,
                              s->memmap[VIRT_APLIC_S].base,
                              s->memmap[VIRT_IMSIC_S].base,

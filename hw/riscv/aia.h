@@ -10,8 +10,23 @@
 #define HW_RISCV_AIA_H
 
 #include "exec/hwaddr.h"
+#include "qemu/bitops.h"
 
-uint32_t imsic_num_bits(uint32_t count);
+typedef struct RISCVAIASocket {
+    uint32_t hartid_base;
+    uint32_t num_harts;
+} RISCVAIASocket;
+
+static inline uint32_t imsic_num_bits(uint32_t count)
+{
+    uint32_t ret = 0;
+
+    while (BIT(ret) < count) {
+        ret++;
+    }
+
+    return ret;
+}
 
 DeviceState *riscv_create_aia(MemoryRegion *container,
                              bool msimode, int aia_guests,
