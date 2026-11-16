@@ -390,6 +390,7 @@ static const TypeInfo vmmouse_info = {
     .parent        = TYPE_ISA_DEVICE,
     .instance_size = sizeof(VMMouseState),
     .class_init    = vmmouse_class_initfn,
+    .secure        = true,
 };
 
 static void vmmouse_register_types(void)

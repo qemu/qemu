@@ -220,6 +220,7 @@ static const TypeInfo gpex_host_info = {
     .instance_size = sizeof(GPEXHost),
     .instance_init = gpex_host_initfn,
     .class_init = gpex_host_class_init,
+    .secure = true,
 };
 
 /****************************************************************************
@@ -259,6 +260,7 @@ static const TypeInfo gpex_root_info = {
     .parent = TYPE_PCI_DEVICE,
     .instance_size = sizeof(GPEXRootState),
     .class_init = gpex_root_class_init,
+    .secure = true,
     .interfaces = (const InterfaceInfo[]) {
         { INTERFACE_CONVENTIONAL_PCI_DEVICE },
         { },

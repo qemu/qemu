@@ -166,6 +166,7 @@ static const TypeInfo spapr_tpm_proxy_info = {
     .parent        = TYPE_DEVICE,
     .instance_size = sizeof(SpaprTpmProxy),
     .class_init    = spapr_tpm_proxy_class_init,
+    .secure        = true,
 };
 
 static void spapr_tpm_proxy_register_types(void)

@@ -67,6 +67,7 @@ static const TypeInfo virtio_ccw_crypto = {
     .instance_size = sizeof(VirtIOCryptoCcw),
     .instance_init = virtio_ccw_crypto_instance_init,
     .class_init    = virtio_ccw_crypto_class_init,
+    .secure        = true,
 };
 
 static void virtio_ccw_crypto_register(void)

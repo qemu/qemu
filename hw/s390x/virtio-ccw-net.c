@@ -70,6 +70,7 @@ static const TypeInfo virtio_ccw_net = {
     .instance_size = sizeof(VirtIONetCcw),
     .instance_init = virtio_ccw_net_instance_init,
     .class_init    = virtio_ccw_net_class_init,
+    .secure        = true,
 };
 
 static void virtio_ccw_net_register(void)

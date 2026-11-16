@@ -188,6 +188,7 @@ static const TypeInfo gen_pcie_downstream_port_info = {
     .parent        = TYPE_PCIE_SLOT,
     .instance_size = sizeof(GenPCIEDownstreamPort),
     .class_init    = gen_pcie_downstream_port_class_init,
+    .secure        = true,
     .interfaces = (const InterfaceInfo[]) {
         { INTERFACE_PCIE_DEVICE },
         { }

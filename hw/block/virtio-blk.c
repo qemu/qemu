@@ -2118,6 +2118,7 @@ static const TypeInfo virtio_blk_info = {
     .instance_init = virtio_blk_instance_init,
     .class_init = virtio_blk_class_init,
     .class_size = sizeof(VirtIOBlkClass),
+    .secure = true,
 };
 
 static void virtio_register_types(void)

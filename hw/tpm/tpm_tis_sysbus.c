@@ -167,6 +167,7 @@ static const TypeInfo tpm_tis_sysbus_info = {
     .instance_init = tpm_tis_sysbus_initfn,
     .instance_finalize = tpm_tis_sysbus_finalize,
     .class_init  = tpm_tis_sysbus_class_init,
+    .secure = true,
     .interfaces = (const InterfaceInfo[]) {
         { TYPE_TPM_IF },
         { }

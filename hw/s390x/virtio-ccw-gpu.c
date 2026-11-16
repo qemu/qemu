@@ -66,6 +66,7 @@ static const TypeInfo virtio_ccw_gpu = {
     .instance_size = sizeof(VirtIOGPUCcw),
     .instance_init = virtio_ccw_gpu_instance_init,
     .class_init    = virtio_ccw_gpu_class_init,
+    .secure        = true,
 };
 module_obj(TYPE_VIRTIO_GPU_CCW);
 module_kconfig(VIRTIO_CCW);

@@ -236,6 +236,7 @@ static const TypeInfo vmgenid_device_info = {
     .parent        = TYPE_DEVICE,
     .instance_size = sizeof(VmGenIdState),
     .class_init    = vmgenid_device_class_init,
+    .secure        = true,
 };
 
 static void vmgenid_register_types(void)

@@ -612,6 +612,7 @@ static const TypeInfo emulated_card_info = {
     .parent        = TYPE_CCID_CARD,
     .instance_size = sizeof(EmulatedState),
     .class_init    = emulated_class_initfn,
+    .secure        = true,
 };
 module_obj(TYPE_EMULATED_CCID);
 module_kconfig(USB);

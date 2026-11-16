@@ -239,8 +239,16 @@ typedef struct VirtioPCIDeviceTypeInfo {
     const InterfaceInfo *interfaces;
 } VirtioPCIDeviceTypeInfo;
 
-/* Register virtio-pci type(s).  @t must be static. */
+/*
+ * Register virtio-pci type(s).
+ * @t must be static.
+ *
+ * Since they serve the virtualization use case, most virtio
+ * devices are expected to be classed as secure. In the rare
+ * scenario where this is not desired, use the second method.
+ */
 void virtio_pci_types_register(const VirtioPCIDeviceTypeInfo *t);
+void virtio_pci_types_register_insecure(const VirtioPCIDeviceTypeInfo *t);
 
 /**
  * virtio_pci_optimal_num_queues:

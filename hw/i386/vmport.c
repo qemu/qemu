@@ -301,6 +301,7 @@ static const TypeInfo vmport_info = {
     .parent        = TYPE_ISA_DEVICE,
     .instance_size = sizeof(VMPortState),
     .class_init    = vmport_class_initfn,
+    .secure        = true,
 };
 
 static void vmport_register_types(void)

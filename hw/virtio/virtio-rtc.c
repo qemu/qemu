@@ -181,6 +181,7 @@ static const TypeInfo virtio_rtc_info = {
     .parent = TYPE_VIRTIO_DEVICE,
     .instance_size = sizeof(VirtIORtc),
     .class_init = virtio_rtc_class_init,
+    .secure = true,
 };
 
 static void virtio_rtc_register_types(void)

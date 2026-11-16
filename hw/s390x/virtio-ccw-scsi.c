@@ -76,6 +76,7 @@ static const TypeInfo virtio_ccw_scsi = {
     .instance_size = sizeof(VirtIOSCSICcw),
     .instance_init = virtio_ccw_scsi_instance_init,
     .class_init    = virtio_ccw_scsi_class_init,
+    .secure        = true,
 };
 
 static void virtio_ccw_scsi_register(void)

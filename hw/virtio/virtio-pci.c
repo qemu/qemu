@@ -2510,7 +2510,9 @@ static void virtio_pci_non_transitional_instance_init(Object *obj)
     proxy->disable_modern = false;
 }
 
-void virtio_pci_types_register(const VirtioPCIDeviceTypeInfo *t)
+static void
+virtio_pci_types_register_internal(const VirtioPCIDeviceTypeInfo *t,
+                                   bool secure)
 {
     char *base_name = NULL;
     TypeInfo base_type_info = {
@@ -2527,6 +2529,7 @@ void virtio_pci_types_register(const VirtioPCIDeviceTypeInfo *t)
         .name = t->generic_name,
         .parent = base_type_info.name,
         .class_init = virtio_pci_generic_class_init,
+        .secure = secure,
         .interfaces = (const InterfaceInfo[]) {
             { INTERFACE_PCIE_DEVICE },
             { INTERFACE_CONVENTIONAL_PCI_DEVICE },
@@ -2562,6 +2565,7 @@ void virtio_pci_types_register(const VirtioPCIDeviceTypeInfo *t)
             .name          = t->non_transitional_name,
             .parent        = base_type_info.name,
             .instance_init = virtio_pci_non_transitional_instance_init,
+            .secure = secure,
             .interfaces = (const InterfaceInfo[]) {
                 { INTERFACE_PCIE_DEVICE },
                 { INTERFACE_CONVENTIONAL_PCI_DEVICE },
@@ -2576,6 +2580,7 @@ void virtio_pci_types_register(const VirtioPCIDeviceTypeInfo *t)
             .name          = t->transitional_name,
             .parent        = base_type_info.name,
             .instance_init = virtio_pci_transitional_instance_init,
+            .secure = secure,
             .interfaces = (const InterfaceInfo[]) {
                 /*
                  * Transitional virtio devices work only as Conventional PCI
@@ -2588,6 +2593,16 @@ void virtio_pci_types_register(const VirtioPCIDeviceTypeInfo *t)
         type_register_static(&transitional_type_info);
     }
     g_free(base_name);
+}
+
+void virtio_pci_types_register(const VirtioPCIDeviceTypeInfo *t)
+{
+    virtio_pci_types_register_internal(t, true);
+}
+
+void virtio_pci_types_register_insecure(const VirtioPCIDeviceTypeInfo *t)
+{
+    virtio_pci_types_register_internal(t, false);
 }
 
 unsigned virtio_pci_optimal_num_queues(unsigned fixed_queues)

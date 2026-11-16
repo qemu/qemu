@@ -282,6 +282,7 @@ static const TypeInfo virtio_rng_info = {
     .parent = TYPE_VIRTIO_DEVICE,
     .instance_size = sizeof(VirtIORNG),
     .class_init = virtio_rng_class_init,
+    .secure = true,
 };
 
 static void virtio_register_types(void)

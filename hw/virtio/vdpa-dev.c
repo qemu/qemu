@@ -412,6 +412,7 @@ static const TypeInfo vhost_vdpa_device_info = {
     .instance_size = sizeof(VhostVdpaDevice),
     .class_init = vhost_vdpa_device_class_init,
     .instance_init = vhost_vdpa_device_instance_init,
+    .secure = true,
 };
 
 static void register_vhost_vdpa_device_type(void)

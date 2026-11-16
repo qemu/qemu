@@ -51,7 +51,7 @@ module_kconfig(VIRTIO_PCI);
 
 static void virtio_gpu_gl_pci_register_types(void)
 {
-    virtio_pci_types_register(&virtio_gpu_gl_pci_info);
+    virtio_pci_types_register_insecure(&virtio_gpu_gl_pci_info);
 }
 
 type_init(virtio_gpu_gl_pci_register_types)
