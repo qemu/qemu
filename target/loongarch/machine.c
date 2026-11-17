@@ -178,7 +178,11 @@ static const VMStateDescription vmstate_pmu = {
 #if defined(CONFIG_TCG) && !defined(CONFIG_USER_ONLY)
 static bool tlb_needed(void *opaque)
 {
-    return tcg_enabled();
+    /*
+     * Not needed, will remove field of vmstate_tlb when virt-11.1 is
+     * deprecated.
+     */
+    return false;
 }
 
 /* TLB state */
