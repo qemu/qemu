@@ -86,7 +86,7 @@ class TestEnv(contextlib.AbstractContextManager['TestEnv']):
         with open(args[0], encoding="utf-8") as f:
             try:
                 if f.readline().rstrip() == '#!/usr/bin/env python3':
-                    args.insert(0, self.python)
+                    args.insert(0, str(self.python))
             except UnicodeDecodeError:  # binary test? for future.
                 pass
 
@@ -141,14 +141,14 @@ class TestEnv(contextlib.AbstractContextManager['TestEnv']):
              PYTHON (for bash tests)
              QEMU_PROG, QEMU_IMG_PROG, QEMU_IO_PROG, QEMU_NBD_PROG, QSD_PROG
         """
-        self.python = str(Path(sys.executable).absolute())
+        self.python = Path(sys.executable).absolute()
 
         # QEMU configure-time venv python executable
         venv_python = Path(
             os.path.join(self.build_root, "pyvenv", "bin", "python3")
         ).absolute()
 
-        if self.python != str(venv_python):
+        if str(self.python.parent) != str(venv_python.parent):
             runpath = os.path.join(self.build_root, "run")
             cmd = ' '.join(shlex.quote(x) for x in sys.argv)
             print(
@@ -163,7 +163,7 @@ class TestEnv(contextlib.AbstractContextManager['TestEnv']):
                 f"\t{runpath} {cmd}\n",
                 file=sys.stderr
             )
-            self.python = str(venv_python)
+            self.python = venv_python
 
         def root(*names: str) -> str:
             return os.path.join(self.build_root, *names)
