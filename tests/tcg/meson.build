@@ -356,11 +356,19 @@ foreach target, plan: tcg_tests
       file = files(src)
       exe_name = fs.stem(src)
       if 'exe_name' in setup
+        if exe_name == setup['exe_name']
+          error('test ' + exe_name +
+                ' has "exe_name" that matches default one, please remove it')
+        endif
         exe_name = setup['exe_name']
       endif
 
       test_name = exe_name
       if 'test_name' in setup
+        if test_name == setup['test_name']
+          error('test ' + test_name +
+                ' has "test_name" that matches default one, please remove it')
+        endif
         test_name = setup['test_name']
       endif
       if 'gdb_test' in setup
