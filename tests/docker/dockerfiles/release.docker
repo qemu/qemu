@@ -1,6 +1,6 @@
 ARG UBUNTU_VERSION="UBUNTU_VERSION_build_arg_must_be_set"
 
-FROM ubuntu:$UBUNTU_VERSION AS build
+FROM docker.io/library/ubuntu:$UBUNTU_VERSION AS build
 
 # add deb-src for apt build-dep
 RUN sed -e 's/Types: deb/Types: deb deb-src/' -i /etc/apt/sources.list.d/* || true
