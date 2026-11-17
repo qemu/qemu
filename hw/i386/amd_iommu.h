@@ -216,7 +216,8 @@
 /*
  * Take a PTE value with mode=0x07 and return the page size it encodes.
  */
-#define PTE_LARGE_PAGE_SIZE(pte)    (1ULL << (1 + cto64(((pte) | 0xfffULL))))
+#define PTE_LARGE_PAGE_SIZE(pte) \
+    (1ULL << (1 + cto64((((pte) & AMDVI_DEV_PT_ROOT_MASK) | 0xfffULL))))
 
 /* Return number of PTEs to use for a given page size (expected power of 2) */
 #define PAGE_SIZE_PTE_COUNT(pgsz)       (1ULL << ((ctz64(pgsz) - 12) % 9))

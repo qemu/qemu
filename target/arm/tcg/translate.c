@@ -4296,6 +4296,12 @@ static bool op_stl(DisasContext *s, arg_STL *a, MemOp mop)
     tmp = load_reg(s, a->rt);
     tcg_gen_mb(TCG_MO_ALL | TCG_BAR_STRL);
     gen_aa32_st_i32(s, tmp, addr, get_mem_index(s), mop | MO_ALIGN);
+    /*
+     * STL has the same RCsc store-release semantics as the AArch64 STLR
+     * and must be ordered before a subsequent RCsc load-acquire (LDA).
+     * The barrier above only orders previous accesses before the store.
+     */
+    tcg_gen_mb(TCG_MO_ALL | TCG_BAR_SC);
     disas_set_da_iss(s, mop, a->rt | ISSIsAcqRel | ISSIsWrite);
 
     return true;
@@ -4452,7 +4458,7 @@ static bool op_lda(DisasContext *s, arg_LDA *a, MemOp mop)
     disas_set_da_iss(s, mop, a->rt | ISSIsAcqRel);
 
     store_reg(s, a->rt, tmp);
-    tcg_gen_mb(TCG_MO_ALL | TCG_BAR_STRL);
+    tcg_gen_mb(TCG_MO_ALL | TCG_BAR_LDAQ);
     return true;
 }
 
