@@ -2645,7 +2645,7 @@ static void gen_lookup_and_goto_ptr(DisasContext *ctx)
          * tcg_gen_lookup_and_goto_ptr will exit the TB if
          * CF_NO_GOTO_PTR is set. Count insns now.
          */
-        if (ctx->base.tb->flags & CF_NO_GOTO_PTR) {
+        if (tb_cflags(ctx->base.tb) & CF_NO_GOTO_PTR) {
             pmu_count_insns(ctx);
         }
 
@@ -5160,7 +5160,7 @@ static void ppc_tr_tb_stop(DisasContextBase *dcbase, CPUState *cs)
          * tcg_gen_lookup_and_goto_ptr will exit the TB if
          * CF_NO_GOTO_PTR is set. Count insns now.
          */
-        if (ctx->base.tb->flags & CF_NO_GOTO_PTR) {
+        if (tb_cflags(ctx->base.tb) & CF_NO_GOTO_PTR) {
             pmu_count_insns(ctx);
         }
 
