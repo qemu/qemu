@@ -1380,11 +1380,17 @@ static uint16_t nvme_tx(NvmeCtrl *n, NvmeSg *sg, void *ptr, uint32_t len,
     if (sg->flags & NVME_SG_DMA) {
         const MemTxAttrs attrs = MEMTXATTRS_UNSPECIFIED;
         dma_addr_t residual;
+        MemTxResult res;
 
         if (dir == NVME_TX_DIRECTION_TO_DEVICE) {
-            dma_buf_write(ptr, len, &residual, &sg->qsg, attrs);
+            res = dma_buf_write(ptr, len, &residual, &sg->qsg, attrs);
         } else {
-            dma_buf_read(ptr, len, &residual, &sg->qsg, attrs);
+            res = dma_buf_read(ptr, len, &residual, &sg->qsg, attrs);
+        }
+
+        if (unlikely(res != MEMTX_OK)) {
+            trace_pci_nvme_err_data_transfer(res);
+            return NVME_DATA_TRAS_ERROR;
         }
 
         if (unlikely(residual)) {
