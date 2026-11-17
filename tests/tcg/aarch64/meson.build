@@ -145,6 +145,7 @@ tests += {
 tests += {
   'test-826.c': {'cc_feat': 'sve2'},
   'sve-while-ptr.c': {'cc_feat': 'sve2'},
+  'sve-vec-imm.c': {'cc_feat': 'sve2'},
 }
 
 # FPRCVT test

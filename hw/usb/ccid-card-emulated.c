@@ -129,8 +129,7 @@ struct EmulatedState {
     VReader *reader;
     QSIMPLEQ_HEAD(, EmulEvent) guest_apdu_list;
     QemuMutex vreader_mutex; /* and guest_apdu_list mutex */
-    QemuMutex handle_apdu_mutex;
-    QemuCond handle_apdu_cond;
+    QemuSemaphore handle_apdu_sem;
     EventNotifier notifier;
     int      quit_apdu_thread;
     QemuThread apdu_thread_id;
@@ -149,9 +148,7 @@ static void emulated_apdu_from_guest(CCIDCardState *base,
     qemu_mutex_lock(&card->vreader_mutex);
     QSIMPLEQ_INSERT_TAIL(&card->guest_apdu_list, event, entry);
     qemu_mutex_unlock(&card->vreader_mutex);
-    qemu_mutex_lock(&card->handle_apdu_mutex);
-    qemu_cond_signal(&card->handle_apdu_cond);
-    qemu_mutex_unlock(&card->handle_apdu_mutex);
+    qemu_sem_post(&card->handle_apdu_sem);
 }
 
 static const uint8_t *emulated_get_atr(CCIDCardState *base, uint32_t *len)
@@ -238,9 +235,7 @@ static void *handle_apdu_thread(void* arg)
     EmulEvent *event;
 
     while (1) {
-        qemu_mutex_lock(&card->handle_apdu_mutex);
-        qemu_cond_wait(&card->handle_apdu_cond, &card->handle_apdu_mutex);
-        qemu_mutex_unlock(&card->handle_apdu_mutex);
+        qemu_sem_wait(&card->handle_apdu_sem);
         if (card->quit_apdu_thread) {
             card->quit_apdu_thread = 0; /* debugging */
             break;
@@ -496,8 +491,7 @@ static void emulated_realize(CCIDCardState *base, Error **errp)
     QSIMPLEQ_INIT(&card->guest_apdu_list);
     qemu_mutex_init(&card->event_list_mutex);
     qemu_mutex_init(&card->vreader_mutex);
-    qemu_mutex_init(&card->handle_apdu_mutex);
-    qemu_cond_init(&card->handle_apdu_cond);
+    qemu_sem_init(&card->handle_apdu_sem, 0);
     card->reader = NULL;
     card->quit_apdu_thread = 0;
     if (init_event_notifier(card, errp) < 0) {
@@ -556,8 +550,7 @@ static void emulated_realize(CCIDCardState *base, Error **errp)
 out2:
     clean_event_notifier(card);
 out1:
-    qemu_cond_destroy(&card->handle_apdu_cond);
-    qemu_mutex_destroy(&card->handle_apdu_mutex);
+    qemu_sem_destroy(&card->handle_apdu_sem);
     qemu_mutex_destroy(&card->vreader_mutex);
     qemu_mutex_destroy(&card->event_list_mutex);
 }
@@ -571,13 +564,12 @@ static void emulated_unrealize(CCIDCardState *base)
     qemu_thread_join(&card->event_thread_id);
 
     card->quit_apdu_thread = 1; /* stop handle_apdu thread */
-    qemu_cond_signal(&card->handle_apdu_cond);
+    qemu_sem_post(&card->handle_apdu_sem);
     qemu_thread_join(&card->apdu_thread_id);
 
     clean_event_notifier(card);
     /* threads exited, can destroy all condvars/mutexes */
-    qemu_cond_destroy(&card->handle_apdu_cond);
-    qemu_mutex_destroy(&card->handle_apdu_mutex);
+    qemu_sem_destroy(&card->handle_apdu_sem);
     qemu_mutex_destroy(&card->vreader_mutex);
     qemu_mutex_destroy(&card->event_list_mutex);
 

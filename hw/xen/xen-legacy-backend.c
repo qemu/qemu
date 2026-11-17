@@ -640,6 +640,13 @@ static void xendev_class_init(ObjectClass *klass, const void *data)
     DeviceClass *dc = DEVICE_CLASS(klass);
 
     set_bit(DEVICE_CATEGORY_MISC, dc->categories);
+    /*
+     * Legacy Xen backends are created and destroyed dynamically from
+     * xenstore at runtime, after the machine has been initialized.
+     * TYPE_DYNAMIC_SYS_BUS_DEVICE marks devices as not hotpluggable,
+     * so override that here.
+     */
+    dc->hotpluggable = true;
     dc->bus_type = TYPE_XENSYSBUS;
 }
 
