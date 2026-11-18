@@ -347,13 +347,7 @@ static inline TCGv gen_read_ireg(TCGv result, TCGv val, int shift)
 #define fREAD_SA0 (env->gpr[HEX_REG_SA0])
 #define fREAD_SA1 (env->gpr[HEX_REG_SA1])
 #define fREAD_FP() (env->gpr[HEX_REG_FP])
-#ifdef FIXME
-/* Figure out how to get insn->extension_valid to helper */
-#define fREAD_GP() \
-    (insn->extension_valid ? 0 : env->gpr[HEX_REG_GP])
-#else
-#define fREAD_GP() (env->gpr[HEX_REG_GP])
-#endif
+#define fREAD_GP() (GP)
 #define fREAD_PC() (PC)
 
 #define fREAD_P0() (P0)
