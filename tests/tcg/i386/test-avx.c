@@ -150,9 +150,10 @@ static void run_test(const TestDef *t)
             "push rbx\n\t"
             "push rcx\n\t"
             "push rdx\n\t"
-            "push %1\n\t"
-            "push %2\n\t"
-            "mov rax, %0\n\t"
+            "push rsi\n\t"
+            "push rdi\n\t"
+            "push rsi\n\t" // result
+            "push rdi\n\t" // fn
             "pushf\n\t"
             "pop rbx\n\t"
             "shr rbx, 8\n\t"
@@ -165,19 +166,21 @@ static void run_test(const TestDef *t)
             REG(LOADREG)
             "mov rax, 0x240[rax]\n\t"
             "call [rsp]\n\t"
-            "mov [rsp], rax\n\t"
-            "mov rax, 8[rsp]\n\t"
+            "mov [rsp], rax\n\t" // save rax
+            "mov rax, 8[rsp]\n\t" // get back result
             REG(STOREREG)
             "mov rbx, [rsp]\n\t"
-            "mov 0x240[rax], rbx\n\t"
+            "mov 0x240[rax], rbx\n\t"  // rax
             "mov rbx, 0\n\t"
-            "mov 0x270[rax], rbx\n\t"
-            "mov 0x278[rax], rbx\n\t"
+            "mov 0x270[rax], rbx\n\t"  // rsp
+            "mov 0x278[rax], rbx\n\t"  // rbp
             "pushf\n\t"
             "pop rbx\n\t"
             "and rbx, 0xff\n\t"
             "mov 0x2c0[rax], rbx\n\t"
             "add rsp, 16\n\t"
+            "pop rdi\n\t"
+            "pop rsi\n\t"
             "pop rdx\n\t"
             "pop rcx\n\t"
             "pop rbx\n\t"
@@ -185,9 +188,8 @@ static void run_test(const TestDef *t)
             "add rsp, 128\n\t"
             MMREG(STOREMM)
             YMMREG(STOREYMM)
-            : : "r"(init), "r"(&result), "r"(t->fn)
+            : : "a"(init), "S"(&result), "D"(t->fn)
             : "memory", "cc",
-            "rsi", "rdi",
             "r8", "r9", "r10", "r11", "r12", "r13", "r14", "r15",
             "mm0", "mm1", "mm2", "mm3", "mm4", "mm5", "mm6", "mm7",
             "ymm0", "ymm1", "ymm2", "ymm3", "ymm4", "ymm5",

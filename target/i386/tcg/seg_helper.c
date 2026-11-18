@@ -1731,7 +1731,11 @@ void HELPER(lcall_protected)(CPUX86State *env, int new_cs, target_ulong new_eip,
 #endif
         {
             sa.sp = env->regs[R_ESP];
-            sa.sp_mask = get_sp_mask(env->segs[R_SS].flags);
+            if (env->hflags & HF_CS64_MASK) {
+                sa.sp_mask = -1;
+            } else {
+                sa.sp_mask = get_sp_mask(env->segs[R_SS].flags);
+            }
             sa.ss_base = env->segs[R_SS].base;
             if (shift) {
                 pushl(&sa, env->segs[R_CS].selector);
@@ -1921,7 +1925,12 @@ void HELPER(lcall_protected)(CPUX86State *env, int new_cs, target_ulong new_eip,
             /* to same privilege */
             sa.mmu_index = x86_mmu_index_pl(env, cpl);
             sa.sp = env->regs[R_ESP];
-            sa.sp_mask = get_sp_mask(env->segs[R_SS].flags);
+#ifdef TARGET_X86_64
+            if (shift == 2) {
+                sa.sp_mask = -1;
+            } else
+#endif
+                sa.sp_mask = get_sp_mask(env->segs[R_SS].flags);
             sa.ss_base = env->segs[R_SS].base;
             /* push_size = (4 << shift); */
             new_stack = 0;
@@ -2056,7 +2065,7 @@ static inline void helper_ret_protected(CPUX86State *env, int shift,
     sa.mmu_index = x86_mmu_index_pl(env, cpl);
 
 #ifdef TARGET_X86_64
-    if (shift == 2) {
+    if (shift == 2 || (env->hflags & HF_CS64_MASK)) {
         sa.sp_mask = -1;
     } else
 #endif

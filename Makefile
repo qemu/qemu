@@ -151,7 +151,7 @@ NINJAFLAGS = \
         $(filter-out -j, \
           $(or $(filter -l% -j%, $(MAKEFLAGS)), \
                $(if $(filter --jobserver-auth=%, $(MAKEFLAGS)),, -j1))) \
-        -d keepdepfile
+        -d keepdepfile $(if $(DEBUG),-d keeprsp)
 ninja-cmd-goals += $(or $(MAKECMDGOALS), all)
 ninja-cmd-goals += $(foreach g, $(MAKECMDGOALS), $(.ninja-goals.$g))
 

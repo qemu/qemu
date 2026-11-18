@@ -2064,6 +2064,9 @@ int kvm_arch_pre_create_vcpu(CPUState *cpu, Error **errp)
     int ret;
 
     if (first) {
+        X86CPU *x86cpu = X86_CPU(cpu);
+        CPUX86State *env = &x86cpu->env;
+
         first = false;
 
         /*
@@ -2082,6 +2085,17 @@ int kvm_arch_pre_create_vcpu(CPUState *cpu, Error **errp)
             if (ret < 0) {
                 error_setg_errno(errp, -ret,
                                  "Failed to set KVM_PMU_CAP_DISABLE");
+                return ret;
+            }
+        }
+
+        if (!is_tdx_vm() && env->tsc_khz &&
+            kvm_check_extension(kvm_state, KVM_CAP_VM_TSC_CONTROL)) {
+            ret = kvm_vm_ioctl(kvm_state, KVM_SET_TSC_KHZ, env->tsc_khz);
+            if (ret < 0) {
+                error_setg_errno(errp, -ret,
+                           "Unable to set TSC frequency to %"PRId64" kHz",
+                           env->tsc_khz);
                 return ret;
             }
         }
@@ -5514,8 +5528,9 @@ static int kvm_put_vcpu_events(X86CPU *cpu, KvmPutState level)
             /* As soon as these are moved to the kernel, remove them
              * from cs->interrupt_request.
              */
-            events.smi.pending = cs->interrupt_request & CPU_INTERRUPT_SMI;
-            events.smi.latched_init = cs->interrupt_request & CPU_INTERRUPT_INIT;
+            events.smi.pending = !!(cs->interrupt_request & CPU_INTERRUPT_SMI);
+            events.smi.latched_init =
+                !!(cs->interrupt_request & CPU_INTERRUPT_INIT);
             cpu_reset_interrupt(cs, CPU_INTERRUPT_INIT | CPU_INTERRUPT_SMI);
         } else {
             /* Keep these in cs->interrupt_request.  */

@@ -4136,6 +4136,14 @@ static void gen_SCAS(DisasContext *s, X86DecodedInsn *decode)
 static void gen_SETcc(DisasContext *s, X86DecodedInsn *decode)
 {
     gen_setcc(s, decode->b & 0xf, s->T0);
+
+    /*
+     * With APX ZU, the written value requests zero extension.  Since T0 is
+     * 0 or 1, writing the whole register is the same and saves the extension.
+     */
+    if (decode->op[0].ext == X86_EXT_Unsigned && !decode->op[0].has_ea) {
+        decode->op[0].ot = MO_TL;
+    }
 }
 
 static void gen_SFENCE(DisasContext *s, X86DecodedInsn *decode)
