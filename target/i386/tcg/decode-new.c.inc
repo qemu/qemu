@@ -2083,7 +2083,7 @@ static void decode_EVEX4cc(DisasContext *s, CPUX86State *env, X86OpEntry *entry,
     /*
      * All EVEX-promoted register-destination conditional moves (all CFCMOV
      * cases except "CFCMOV rm, r", and three-operand CMOV) have zero-upper
-     * Note that this is specific to CMOV/CFCMOV, and not ZU!
+     * This is specific to CMOV/CFCMOV in that it applies even for NDD=0!
      *
      * For NDD=0, NF represents the direction.  For NDD=1, NF represents fault
      * suppression.
@@ -3016,6 +3016,8 @@ static bool validate_evex_apx(DisasContext *s, X86DecodedInsn *decode)
             s->vex_ndd = false;
         } else if (!s->vex_ndd) {
             goto illegal;
+        } else {
+            decode->e.ext0 = X86_EXT_Unsigned;
         }
         evex4_mask = 0x1C;
         break;
