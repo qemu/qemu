@@ -390,6 +390,15 @@ int cryptodev_backend_close_session(
            void *opaque);
 
 /**
+ * cryptodev_backend_drain_requests:
+ * @backend: the cryptodev backend object
+ *
+ * Drain crypto operations that might still be in flight on a throttled
+ * backend.
+ */
+void cryptodev_backend_drain_requests(CryptoDevBackend *backend);
+
+/**
  * cryptodev_backend_crypto_operation:
  * @backend: the cryptodev backend object
  * @op_info: pointer to a CryptoDevBackendOpInfo object
