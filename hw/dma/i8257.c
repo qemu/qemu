@@ -281,7 +281,7 @@ static uint64_t i8257_read_cont(void *opaque, hwaddr nport, unsigned size)
         val = d->status;
         d->status &= 0xf0;
         break;
-    case 0x01:                  /* mask */
+    case 0x07:                  /* read all mask bits (RWAMB) */
         val = d->mask;
         break;
     default:
