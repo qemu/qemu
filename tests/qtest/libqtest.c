@@ -1165,6 +1165,7 @@ bool qtest_has_accel(const char *accel_name)
     g_autofree char *accel_type = NULL;
 
     if (g_str_equal(accel_name, "kvm")) {
+#ifdef CONFIG_KVM_TARGETS
         int i;
         const char *arch = qtest_get_arch();
         const char *targets[] = { CONFIG_KVM_TARGETS };
@@ -1176,6 +1177,7 @@ bool qtest_has_accel(const char *accel_name)
                 }
             }
         }
+#endif
         return false;
     }
 
