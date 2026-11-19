@@ -195,6 +195,8 @@ static void i8257_write_cont(void *opaque, hwaddr nport, uint64_t data,
             return;
         }
         d->command = data;
+        /* A pending request may be serviced once the group is enabled. */
+        i8257_dma_run(d);
         break;
 
     case 0x01:
@@ -353,6 +355,11 @@ static void i8257_dma_run(void *opaque)
     I8257State *d = opaque;
     int ichan;
     int rearm = 0;
+
+    /* DCOM bit 2 disables the channel group. */
+    if (d->command & CMD_BLOCK_CONTROLLER) {
+        return;
+    }
 
     if (d->running) {
         rearm = 1;
