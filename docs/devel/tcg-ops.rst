@@ -66,7 +66,7 @@ Variables
 
 * ``TEMP_FIXED``
 
-  There is one TCG *fixed global* variable, ``cpu_env``, which is
+  There is one TCG *fixed global* variable, ``tcg_env``, which is
   live in all translation blocks, and holds a pointer to ``CPUArchState``.
   This variable is held in a host cpu register at all times in all
   translation blocks.
@@ -75,7 +75,7 @@ Variables
 
   A TCG *global* is a variable which is live in all translation blocks,
   and corresponds to memory location that is within ``CPUArchState``.
-  These may be specified as an offset from ``cpu_env``, in which case
+  These may be specified as an offset from ``tcg_env``, in which case
   they are called *direct globals*, or may be specified as an offset
   from a direct global, in which case they are called *indirect globals*.
   Even indirect globals should still reference memory within
