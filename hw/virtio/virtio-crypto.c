@@ -1116,6 +1116,8 @@ static void virtio_crypto_device_unrealize(DeviceState *dev)
     VirtIOCryptoQueue *q;
     int i;
 
+    cryptodev_backend_drain_requests(vcrypto->cryptodev);
+
     for (i = 0; i < vcrypto->max_queues; i++) {
         virtio_delete_queue(vcrypto->vqs[i].dataq);
         q = &vcrypto->vqs[i];

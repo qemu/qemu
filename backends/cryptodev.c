@@ -263,6 +263,25 @@ static void cryptodev_backend_throttle_timer_cb(void *opaque)
     }
 }
 
+void cryptodev_backend_drain_requests(CryptoDevBackend *backend)
+{
+    CryptoDevBackendOpInfo *opinfo, *tmp;
+
+    /* Cancels pending timer, prevent it from firing during or after drain */
+    if (throttle_enabled(&backend->tc)) {
+        throttle_timers_detach_aio_context(&backend->tt);
+    }
+
+    QTAILQ_FOREACH_SAFE(opinfo, &backend->opinfos, next, tmp) {
+        QTAILQ_REMOVE(&backend->opinfos, opinfo, next);
+        cryptodev_backend_operation(backend, opinfo);
+    }
+
+    if (throttle_enabled(&backend->tc)) {
+        throttle_timers_attach_aio_context(&backend->tt, qemu_get_aio_context());
+    }
+}
+
 int cryptodev_backend_crypto_operation(
                  CryptoDevBackend *backend,
                  CryptoDevBackendOpInfo *op_info)

@@ -857,6 +857,7 @@ void vhost_svq_start(VhostShadowVirtqueue *svq, VirtIODevice *vdev,
     svq->shadow_used_idx = 0;
     memset(&svq->batch_last, 0, sizeof(svq->batch_last));
     svq->last_used = 0;
+    svq->free_head = 0;
     svq->last_used_idx = 0;
     svq->vdev = vdev;
     svq->vq = vq;
