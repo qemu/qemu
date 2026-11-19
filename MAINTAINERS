@@ -348,7 +348,7 @@ M: Nicholas Piggin <npiggin@gmail.com>
 R: Glenn Miles <milesg@linux.ibm.com>
 R: Harsh Prateek Bora <harshpb@linux.ibm.com>
 L: qemu-ppc@nongnu.org
-S: Odd Fixes
+S: Maintained
 F: target/ppc/
 F: hw/ppc/ppc.c
 F: hw/ppc/ppc_booke.c
@@ -515,9 +515,9 @@ F: tests/functional/aarch64/test_kvm.py
 
 PPC KVM CPUs
 M: Nicholas Piggin <npiggin@gmail.com>
+M: Amit Machhiwal <amachhiw@linux.ibm.com>
 R: Harsh Prateek Bora <harshpb@linux.ibm.com>
-R: Amit Machhiwal <amachhiw@linux.ibm.com>
-S: Odd Fixes
+S: Maintained
 F: target/ppc/kvm.c
 
 S390 KVM CPUs
@@ -1687,7 +1687,7 @@ M: Nicholas Piggin <npiggin@gmail.com>
 M: Harsh Prateek Bora <harshpb@linux.ibm.com>
 R: Amit Machhiwal <amachhiw@linux.ibm.com>
 L: qemu-ppc@nongnu.org
-S: Odd Fixes
+S: Maintained
 F: hw/*/spapr*
 F: include/hw/*/spapr*
 F: hw/*/xics*
@@ -1712,7 +1712,7 @@ M: Aditya Gupta <adityag@linux.ibm.com>
 R: Glenn Miles <milesg@linux.ibm.com>
 R: Harsh Prateek Bora <harshpb@linux.ibm.com>
 L: qemu-ppc@nongnu.org
-S: Odd Fixes
+S: Maintained
 F: docs/system/ppc/powernv.rst
 F: hw/ppc/pnv*
 F: hw/intc/pnv*
@@ -3079,9 +3079,9 @@ F: tests/qtest/fw_cfg-test.c
 
 XIVE
 M: Glenn Miles <milesg@linux.ibm.com>
-R: Gautam Menghani <gautam@linux.ibm.com>
+M: Gautam Menghani <gautam@linux.ibm.com>
 L: qemu-ppc@nongnu.org
-S: Odd Fixes
+S: Maintained
 F: hw/*/*xive*
 F: include/hw/*/*xive*
 F: tests/qtest/*xive*
