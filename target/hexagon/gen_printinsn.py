@@ -125,6 +125,10 @@ def main():
             beh = hex_common.absimmre.sub(r"#%s0x%x", beh)
             beh = hex_common.relimmre.sub(r"PC+%s%d", beh)
             beh = spacify(beh)
+
+            gp_relative = "(gp+" in beh
+            if gp_relative:
+                beh = beh.replace("(gp+", "(%s")
             # Print out a literal "%s" at the end, used to match empty string
             # so C won't complain at us
             if "A_VECX" in hex_common.attribdict[tag]:
@@ -158,6 +162,9 @@ def main():
                         ri += 1
                 else:
                     # immediate
+                    if gp_relative:
+                        f.write(', insn->extension_valid ? "" : "gp+"')
+                        gp_relative = False
                     if immlett.isupper():
                         if extendable_upper_imm:
                             if immlett in "rR":

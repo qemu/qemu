@@ -226,11 +226,25 @@ hexagon_h2_booters := hexagon-booter-qcs6490-cdsp \
 hexagon_h2_loadlinux := hexagon-loadlinux-qcs6490-cdsp \
 	hexagon-loadlinux-sm8975-nsp hexagon-loadlinux-sa8775p-cdsp \
 	hexagon-loadlinux-sc8480xp-nsp0 hexagon-loadlinux-sa8797p-nsp0
+include hexagon-hypervisor-version
+
+.PHONY: hexagon-hypervisor-check
+hexagon-hypervisor-check:
+	@if test -e hexagon-hypervisor/.git; then \
+		h2_head=$$(git -C hexagon-hypervisor rev-parse HEAD); \
+		if test "$$h2_head" != "$(H2K_COMMIT)"; then \
+			echo "hexagon-hypervisor is at $$h2_head, but" \
+				"roms/hexagon-hypervisor-version has" \
+				"$(H2K_COMMIT)" >&2; \
+			exit 1; \
+		fi; \
+	fi
+
 hexagon_h2_common_flags = USE_PKW=0 TARGET=opt NULL_ANGEL_TRAP=1 \
 	HMX_HLX_SUPPORT=1 \
 	H2K_LOAD_ADDR=0x9b800000 H2K_GUEST_START=0xa2000000 \
-	H2K_GIT_COMMIT=0x$(shell git -C hexagon-hypervisor rev-parse --short=8 HEAD) \
-	H2K_GIT_COMMIT_LONG=0x$(shell git -C hexagon-hypervisor rev-parse HEAD) \
+	H2K_GIT_COMMIT=0x$(shell echo $(H2K_COMMIT) | cut -c1-8) \
+	H2K_GIT_COMMIT_LONG=0x$(H2K_COMMIT) \
 	JFLAG=-j$(shell nproc)
 
 .PHONY: hexagon-qcs6490-cdsp hexagon-sm8975-nsp \
@@ -264,7 +278,7 @@ hexagon-loadlinux-sm8975-nsp hexagon-loadlinux-sa8775p-cdsp \
 	hexagon-loadlinux-sc8480xp-nsp0 hexagon-loadlinux-sa8797p-nsp0: \
 	hexagon_h2_linux_flags = LINUX_LINK_ADDR=0xa0000000
 
-$(hexagon_h2_booters): hexagon-booter-%:
+$(hexagon_h2_booters): hexagon-booter-%: hexagon-hypervisor-check
 	rm -rf $(hexagon_h2_out)/booter-$*
 	$(MAKE) -C hexagon-hypervisor $(hexagon_h2_common_flags) \
 		$(hexagon_h2_machine_flags) \
@@ -273,7 +287,7 @@ $(hexagon_h2_booters): hexagon-booter-%:
 		$(hexagon_h2_build)/booter-$*/install/bin/booter
 	chmod -x ../pc-bios/hexagon_booter_$(subst -,_,$*)
 
-$(hexagon_h2_loadlinux): hexagon-loadlinux-%:
+$(hexagon_h2_loadlinux): hexagon-loadlinux-%: hexagon-hypervisor-check
 	rm -rf $(hexagon_h2_out)/loadlinux-$*
 	$(MAKE) -C hexagon-hypervisor $(hexagon_h2_common_flags) \
 		$(hexagon_h2_machine_flags) \

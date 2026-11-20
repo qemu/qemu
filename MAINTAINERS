@@ -1400,6 +1400,7 @@ F: tests/qtest/qcom-dsp-test.c
 F: docs/devel/hexagon-sys.rst
 F: pc-bios/hexagon*
 F: roms/hexagon-hypervisor
+F: roms/hexagon-hypervisor-version
 
 LoongArch Machines
 ------------------

@@ -142,6 +142,7 @@ def calculate_attribs():
     add_qemu_macro_attrib('fLSBNEW1NOT', 'A_IMPLICIT_READS_P1')
     add_qemu_macro_attrib('fREAD_P3', 'A_IMPLICIT_READS_P3')
     add_qemu_macro_attrib('fREAD_SP', 'A_IMPLICIT_READS_SP')
+    add_qemu_macro_attrib('fREAD_GP', 'A_IMPLICIT_READS_GP')
 
     # Recurse down macros, find attributes from sub-macros
     macroValues = list(macros.values())
@@ -244,6 +245,10 @@ def need_p0(tag):
 
 def need_sp(tag):
     return "A_IMPLICIT_READS_SP" in attribdict[tag]
+
+
+def need_gp(tag):
+    return "A_IMPLICIT_READS_GP" in attribdict[tag]
 
 
 def is_hvx_insn(tag):
@@ -805,6 +810,8 @@ class Hvx:
         return True
     def is_hlx_reg(self):
         return False
+    def is_pair(self):
+        return len(self.regid) == 2
     def hvx_off(self):
         return f"{self.reg_tcg()}_off"
     def hvx_base(self):
@@ -2209,6 +2216,12 @@ def helper_args(tag, regs, imms):
             "i32",
             "hex_gpr[HEX_REG_SP]",
             "uint32_t SP"
+        ))
+    if need_gp(tag):
+        args.append(HelperArg(
+            "i32",
+            "insn->extension_valid ? tcg_constant_tl(0) : hex_gpr[HEX_REG_GP]",
+            "uint32_t GP"
         ))
     if need_slot(tag):
         args.append(HelperArg(

@@ -12249,7 +12249,7 @@ static abi_long do_syscall1(CPUArchState *cpu_env, int num, abi_long arg1,
                 return -TARGET_EFAULT;
             }
             ret = get_errno(safe_nanosleep(&req, &rem));
-            if (is_error(ret) && arg2) {
+            if (ret == -TARGET_EINTR && arg2) {
                 if (host_to_target_timespec(arg2, &rem)) {
                     return -TARGET_EFAULT;
                 }
