@@ -1400,7 +1400,6 @@ again:
             BADF("Unimplemented phase %d\n", s->sstat2 & PHASE_MASK);
         }
         s->ctest5 = (s->ctest5 & 0xfc) | ((s->dbc >> 8) & 3);
-        s->sbcl = s->dbc;
         break;
 
     case 1: /* IO or Read/Write instruction.  */
