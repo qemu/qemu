@@ -54,6 +54,12 @@
 
 #define LSI_BUF_SIZE     4096
 
+/*
+ * Safety bound on the synchronous completion drain loop in ncr710_reg_write();
+ * it then falls back to asynchronous completion.
+ */
+#define LSI_DRAIN_MAX_ITERS  100000
+
 static const char *const lsi_reg_names[64] = {
     "SCNTL0", "SCNTL1", "SDID", "SIEN", "SCID", "SXFER", "SODL", "SOCL",
     "SFBR", "SIDL", "SBDL", "SBCL", "DSTAT", "SSTAT0", "SSTAT1", "SSTAT2",
@@ -1561,7 +1567,30 @@ uint64_t ncr710_reg_read(NCR710State *s, hwaddr addr, unsigned size)
 
 void ncr710_reg_write(NCR710State *s, hwaddr addr, uint64_t val, unsigned size)
 {
+    unsigned drained = 0;
+
     lsi_reg_writeb(s, addr & 0xff, val & 0xff);
+
+    /*
+     * Drive any asynchronous SCSI transfer the register write kicked off to
+     * completion before returning to the guest, so its completion interrupt is
+     * raised first.  A deferred continue (lsi_issue_bh) has not issued its
+     * backing I/O yet, so pump it inline; otherwise blk_drain the backend.
+     */
+    while (s->waiting == LSI_DMA_IN_PROGRESS && s->current != NULL &&
+           s->current->req != NULL) {
+        if (drained++ >= LSI_DRAIN_MAX_ITERS) {
+            trace_ncr710_drain_exhausted(drained);
+            break;
+        }
+        if (s->issue_pending) {
+            lsi_issue_bh(s);
+        } else if (s->current->req->dev->conf.blk != NULL) {
+            blk_drain(s->current->req->dev->conf.blk);
+        } else {
+            break;      /* nothing deferred and no backend to drain */
+        }
+    }
 }
 
 static int lsi_pre_save(void *opaque)

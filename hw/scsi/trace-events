@@ -340,6 +340,7 @@ ncr710_memmove(uint32_t dest, uint32_t src, int count) "MOVE MEMORY dest=0x%08x 
 ncr710_do_dma_unavailable(void) "DMA: data not yet available"
 ncr710_wait_disconnect(void) "Wait Disconnect"
 ncr710_illegal_insn(uint32_t insn) "ILLEGAL instruction 0x%08x"
+ncr710_drain_exhausted(unsigned iters) "synchronous completion drain gave up after %u iters"
 
 # lasi_ncr710.c
 lasi_ncr710_device_realize(void) "Device realized"
