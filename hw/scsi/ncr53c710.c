@@ -104,7 +104,22 @@ static int lsi_id_from_bits(unsigned bits)
 
 void ncr710_soft_reset(NCR710State *s)
 {
+    lsi_request *p, *p_next;
+
     trace_ncr710_reset();
+
+    /*
+     * A guest ISTAT.RST soft reset can land with commands still in flight.
+     * Cancel them so no stale pointer survives the reset.
+     */
+    if (s->current && s->current->req) {
+        scsi_req_cancel(s->current->req);
+    }
+    QTAILQ_FOREACH_SAFE(p, &s->queue, next, p_next) {
+        if (p->req) {
+            scsi_req_cancel(p->req);
+        }
+    }
 
     s->carry = 0;
     s->msg_action = LSI_MSG_ACTION_COMMAND;
@@ -115,6 +130,11 @@ void ncr710_soft_reset(NCR710State *s)
     s->command_complete = 0;
     s->script_running = false;
     s->sigp_pending_resume = false;
+    /*
+     * Do not reset reentrancy_level here.  A SCRIPTS driven soft reset can run
+     * while lsi_execute_script frames are still on the stack; those frames
+     * decrement the counter as they unwind.
+     */
 
     s->scntl0 = 0xc0;       /* full arbitration */
     s->scntl1 = 0;
@@ -258,6 +278,16 @@ static int lsi_bad_phase(NCR710State *s, int new_phase)
 static void lsi_resume_script(NCR710State *s)
 {
     trace_ncr710_resume_script(s->waiting);
+    if (s->reentrancy_level > 0) {
+        /*
+         * A completion fired synchronously while the SCRIPTS interpreter is
+         * already on the stack.  Do not recurse: release the wait so the outer
+         * loop continues to the next instruction, which the completion has
+         * already armed.
+         */
+        s->waiting = LSI_NOWAIT;
+        return;
+    }
     if (s->waiting != LSI_DMA_SCRIPTS) {
         s->waiting = LSI_NOWAIT;
         lsi_execute_script(s);
@@ -858,13 +888,18 @@ static void lsi_execute_script(NCR710State *s)
         s->waiting = LSI_NOWAIT;
     }
 
+    s->reentrancy_level++;
     s->script_running = true;
 again:
-    /* Yield to the CPU after LSI_MAX_INSN instructions. */
-    if (++insn_processed > LSI_MAX_INSN) {
+    /*
+     * Yield to the CPU after LSI_MAX_INSN instructions, and guard against a
+     * script that retriggers itself (CVE-2023-0330).
+     */
+    if (++insn_processed > LSI_MAX_INSN || s->reentrancy_level > 8) {
         trace_ncr710_script_yield(insn_processed);
         s->waiting = LSI_WAIT_SCRIPTS;
         lsi_scripts_timer_start(s);
+        s->reentrancy_level--;
         return;
     }
 
@@ -1218,6 +1253,8 @@ again:
             goto again;
         }
     }
+
+    s->reentrancy_level--;
 }
 
 static uint8_t lsi_reg_readb(NCR710State *s, int offset)

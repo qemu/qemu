@@ -101,6 +101,11 @@ typedef struct NCR710State {
     bool sigp_pending_resume;
     /* A SCSI continue was deferred to lsi_issue_bh. */
     bool issue_pending;
+    /*
+     * SCRIPTS interpreter recursion depth; always 0 outside
+     * lsi_execute_script, so it is not migrated.
+     */
+    int reentrancy_level;
     lsi_request *current;
     /* Disconnected tagged commands awaiting reselection. */
     QTAILQ_HEAD(, lsi_request) queue;
