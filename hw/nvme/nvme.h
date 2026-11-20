@@ -363,7 +363,8 @@ static inline bool nvme_wp_is_valid(NvmeZone *zone)
 static inline uint8_t *nvme_get_zd_extension(NvmeNamespace *ns,
                                              uint32_t zone_idx)
 {
-    return &ns->zd_extensions[zone_idx * ns->params.zd_extension_size];
+    return ns->zd_extensions + (uint64_t)zone_idx *
+        ns->params.zd_extension_size;
 }
 
 static inline void nvme_aor_inc_open(NvmeNamespace *ns)
