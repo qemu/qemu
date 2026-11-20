@@ -700,6 +700,10 @@ static void lsi_do_msgin(NCR710State *s)
     if (!s->msg_len) {
         switch (s->msg_action) {
         case LSI_MSG_ACTION_COMMAND:
+            /* A MESSAGE REJECT declining negotiation was just consumed. */
+            if (s->sfbr == 7 && !(s->socl & LSI_SOCL_ATN)) {
+                lsi_add_msg_byte(s, 2);   /* SAVE DATA POINTERS (HP-UX) */
+            }
             /* Stay in MSG IN until the next block move requests COMMAND. */
             break;
         case LSI_MSG_ACTION_DISCONNECT:
@@ -795,7 +799,12 @@ static void lsi_do_msgout(NCR710State *s)
     }
     return;
 reject:
-    /* Decline SDTR/WDTR/PPR negotiation with a single MESSAGE REJECT. */
+    /*
+     * Decline SDTR/WDTR/PPR negotiation with a single MESSAGE REJECT.  HP-UX
+     * requires a trailing SAVE DATA POINTERS (0x02), which other initiators
+     * reject.  HP-UX reads the reject with ATN deasserted, so lsi_do_msgin
+     * appends the 0x02 only then.
+     */
     lsi_set_phase(s, PHASE_MI);
     lsi_add_msg_byte(s, 7);           /* MESSAGE REJECT */
     s->msg_action = LSI_MSG_ACTION_COMMAND;
