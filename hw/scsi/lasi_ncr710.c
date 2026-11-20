@@ -45,7 +45,8 @@ static uint64_t lasi_ncr710_reg_read(void *opaque, hwaddr addr,
         return val;
     }
 
-    if (addr >= 0x100) {
+    /* 0x100..0x1ff goes to the chip core. */
+    if (addr >= 0x100 && addr + size <= 0x200) {
         hwaddr ncr_addr = addr - 0x100;
         if (size == 1) {
             /*
@@ -68,6 +69,11 @@ static uint64_t lasi_ncr710_reg_read(void *opaque, hwaddr addr,
 
         trace_lasi_ncr710_reg_forward_read(addr, val);
     } else {
+        /*
+         * The rest of the module page reads as 0.  HP-UX reads a board strap
+         * at 0xd85 (bit 0x20: differential bus, 25 MHz clock); 0 is single
+         * ended, 50 MHz.
+         */
         val = 0;
         trace_lasi_ncr710_reg_read(addr, val, size);
     }
@@ -83,13 +89,14 @@ static void lasi_ncr710_reg_write(void *opaque, hwaddr addr,
 
     /*
      * 0x00..0x0f is the read only LASI module header (ID/SVERSION/HVERSION);
-     * writes to it are ignored.
+     * 0x10..0xff and 0x200..0xfff are unmapped module space.  Writes to all
+     * of them are ignored.
      */
     if (addr <= 0x0f) {
         return;
     }
 
-    if (addr >= 0x100) {
+    if (addr >= 0x100 && addr + size <= 0x200) {
         hwaddr ncr_addr = addr - 0x100;
 
         if (size == 1) {
@@ -191,7 +198,7 @@ static void lasi_ncr710_realize(DeviceState *dev, Error **errp)
         (uint64_t)s->ncr710.scripts_timer);
 
     memory_region_init_io(&s->mmio, OBJECT(dev), &lasi_ncr710_mmio_ops, s,
-                          "lasi-ncr710", 0x200);
+                          "lasi-ncr710", 0x1000);
     sysbus_init_mmio(sbd, &s->mmio);
 }
 
