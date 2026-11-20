@@ -74,6 +74,7 @@ static const char *lsi_reg_name(int offset)
 static uint8_t lsi_reg_readb(NCR710State *s, int offset);
 static void lsi_reg_writeb(NCR710State *s, int offset, uint8_t val);
 static void lsi_execute_script(NCR710State *s);
+static void lsi_issue_bh(void *opaque);
 static void lsi_set_phase(NCR710State *s, int phase);
 
 /*
@@ -107,6 +108,7 @@ void ncr710_soft_reset(NCR710State *s)
     s->select_tag = 0;
     s->command_complete = 0;
     s->script_running = false;
+    s->sigp_pending_resume = false;
 
     s->scntl0 = 0xc0;       /* full arbitration */
     s->scntl1 = 0;
@@ -273,6 +275,25 @@ static void lsi_bad_selection(NCR710State *s, uint32_t id)
     lsi_disconnect(s);
 }
 
+/*
+ * Deferred half of lsi_do_dma()'s SCSI continue.  It runs on a clean stack,
+ * so a cached backend's completion cannot arrive reentrantly inside the
+ * SCRIPTS interpreter.
+ */
+static void lsi_issue_bh(void *opaque)
+{
+    NCR710State *s = opaque;
+
+    if (!s->issue_pending) {
+        return;
+    }
+    s->issue_pending = false;
+    if (s->current == NULL || s->current->orphan) {
+        return;
+    }
+    scsi_req_continue(s->current->req);
+}
+
 static void lsi_do_dma(NCR710State *s, int out)
 {
     uint32_t count;
@@ -315,7 +336,21 @@ static void lsi_do_dma(NCR710State *s, int out)
     p->dma_len -= count;
     if (p->dma_len == 0) {
         p->dma_buf = NULL;
-        scsi_req_continue(req);
+        /*
+         * Defer the completing continue (dbc == 0) of a tagged transfer to a
+         * bottom half; the engine parks at DMA_IN_PROGRESS (set by the caller)
+         * meanwhile.
+         */
+        if ((p->tag & LSI_TAG_VALID) && s->dbc == 0) {
+            s->issue_pending = true;
+            aio_bh_schedule_oneshot(qemu_get_aio_context(), lsi_issue_bh, s);
+        } else {
+            /*
+             * Complete inline for untagged transfers and mid-transfer
+             * continues (dbc > 0).
+             */
+            scsi_req_continue(req);
+        }
     } else {
         p->dma_buf += count;
         lsi_resume_script(s);
@@ -418,20 +453,43 @@ static int lsi_queue_req(NCR710State *s, SCSIRequest *req, uint32_t len)
     return 1;
 }
 
-/* SCRIPTS Wait Reselect: reconnect a ready queued command, else park. */
-static void lsi_wait_reselect(NCR710State *s)
+/*
+ * Deferred half of lsi_wait_reselect(): reconnect a disconnected command
+ * whose data is ready and resume the engine.  Does nothing if the engine moved
+ * on while this was pending.
+ */
+static void lsi_reselect_bh(void *opaque)
 {
+    NCR710State *s = opaque;
     lsi_request *p;
 
-    if (s->current) {
+    if (s->current != NULL || s->waiting != LSI_WAIT_RESELECT) {
         return;
     }
     p = lsi_get_pending_req(s);
-    if (p) {
-        lsi_reselect(s, p);
+    if (p == NULL) {
+        return;
     }
-    if (s->current == NULL) {
-        s->waiting = LSI_WAIT_RESELECT;
+    lsi_reselect(s, p);
+    s->waiting = LSI_NOWAIT;
+    lsi_execute_script(s);
+}
+
+/* SCRIPTS Wait Reselect: reconnect a ready queued command, else park. */
+static void lsi_wait_reselect(NCR710State *s)
+{
+    if (s->current) {
+        return;
+    }
+    /*
+     * Reselecting synchronously here, inside the guest register write that
+     * drove the engine to this Wait Reselect, would deliver the command's
+     * completion interrupt reentrantly.  Defer the reconnect to a bottom half;
+     * the engine parks meanwhile.
+     */
+    s->waiting = LSI_WAIT_RESELECT;
+    if (lsi_get_pending_req(s)) {
+        aio_bh_schedule_oneshot(qemu_get_aio_context(), lsi_reselect_bh, s);
     }
 }
 
@@ -931,9 +989,10 @@ again:
                 /*
                  * Two things release a Wait Reselect: SIGP (jump to the
                  * dispatch address latched in DNAD), or a disconnected command
-                 * becoming ready to reselect.
+                 * becoming ready to reselect.  A SIGP that arrived while the
+                 * engine was halted is held in sigp_pending_resume.
                  */
-                if (s->istat & LSI_ISTAT0_SIGP) {
+                if ((s->istat & LSI_ISTAT0_SIGP) || s->sigp_pending_resume) {
                     /*
                      * The SIGP divert is a one-shot: clear the latch so a
                      * later Wait Reselect does not re-fire on a stale SIGP.
@@ -941,6 +1000,7 @@ again:
                      * auto-switching.
                      */
                     s->istat &= ~LSI_ISTAT0_SIGP;
+                    s->sigp_pending_resume = false;
                     s->dsp = s->dnad;
                 } else if (!lsi_irq_on_rsl(s)) {
                     lsi_wait_reselect(s);
@@ -1413,6 +1473,17 @@ static void lsi_reg_writeb(NCR710State *s, int offset, uint8_t val)
             s->waiting = LSI_NOWAIT;
             s->dsp = s->dnad;
             lsi_execute_script(s);
+        } else if ((val & LSI_ISTAT0_SIGP) && !s->script_running &&
+                   s->waiting == LSI_NOWAIT) {
+            /*
+             * SIGP while the engine is halted on a just completed command,
+             * not parked at Wait Reselect.  Clear the SIGP latch, as a Wait
+             * Reselect consumption would, without disturbing the pending
+             * completion.  Remember the kick so the next command is selected
+             * once the engine parks again at Wait Reselect.
+             */
+            s->istat &= ~LSI_ISTAT0_SIGP;
+            s->sigp_pending_resume = true;
         }
         break;
     case NCR710_CTEST8:
@@ -1544,6 +1615,7 @@ const VMStateDescription vmstate_ncr710 = {
         VMSTATE_UINT32(select_tag, NCR710State),
         VMSTATE_INT32(command_complete, NCR710State),
         VMSTATE_BOOL(script_running, NCR710State),
+        VMSTATE_BOOL(sigp_pending_resume, NCR710State),
 
         VMSTATE_UINT8(scntl0, NCR710State),
         VMSTATE_UINT8(scntl1, NCR710State),

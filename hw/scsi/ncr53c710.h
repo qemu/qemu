@@ -93,6 +93,14 @@ typedef struct NCR710State {
     uint32_t select_tag;
     int command_complete;
     bool script_running;
+    /*
+     * A SIGP arrived while the engine was halted instead of parked at Wait
+     * Reselect; the Wait Reselect handler consumes it when the engine next
+     * parks.
+     */
+    bool sigp_pending_resume;
+    /* A SCSI continue was deferred to lsi_issue_bh. */
+    bool issue_pending;
     lsi_request *current;
     /* Disconnected tagged commands awaiting reselection. */
     QTAILQ_HEAD(, lsi_request) queue;
