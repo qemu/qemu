@@ -1533,6 +1533,14 @@ static void lsi_reg_writeb(NCR710State *s, int offset, uint8_t val)
              * Reselect consumption would, without disturbing the pending
              * completion.  Remember the kick so the next command is selected
              * once the engine parks again at Wait Reselect.
+             *
+             * This deviates from the data manual, which describes SIGP as a
+             * read/write flag that stays set until the CPU resets it, either
+             * via ISTAT or by reading CTEST2: here a halted engine drops the
+             * bit at once, so a read of ISTAT or CTEST2 no longer sees it.
+             * The reason is not documented beyond the commit that added
+             * sigp_pending_resume (6bf09c62fa), which only says that a kick
+             * on a stopped engine is held and replayed once the engine parks.
              */
             s->istat &= ~LSI_ISTAT0_SIGP;
             s->sigp_pending_resume = true;
