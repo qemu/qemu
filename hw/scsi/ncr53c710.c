@@ -1683,8 +1683,8 @@ static int lsi_post_load(void *opaque, int version_id)
 
 const VMStateDescription vmstate_ncr710 = {
     .name = "ncr710",
-    .version_id = 1,
-    .minimum_version_id = 1,
+    .version_id = 2,
+    .minimum_version_id = 2,
     .pre_save = lsi_pre_save,
     .post_load = lsi_post_load,
     .fields = (const VMStateField[]) {
