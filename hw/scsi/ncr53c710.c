@@ -364,6 +364,10 @@ void ncr710_soft_reset(NCR710State *s)
     s->sidl = 0;
     s->sfbr = 0;
     qemu_set_irq(s->irq, 0);
+    if (s->current && s->current->req) {
+        /* Drops hba_private via ncr710_request_cancelled() */
+        scsi_req_cancel(s->current->req);
+    }
     ncr710_clear_pending_irq(s);
     ncr710_scsi_fifo_init(&s->scsi_fifo);
 }
