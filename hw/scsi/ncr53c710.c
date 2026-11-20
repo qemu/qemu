@@ -349,8 +349,8 @@ void ncr710_soft_reset(NCR710State *s)
     s->ctest5 = 0;
     s->dsp = 0;
     s->dsps = 0;
-    s->dmode = 0;
-    s->dcntl = 0;
+    s->dmode &= NCR710_DMODE_FC1;
+    s->dcntl &= NCR710_DCNTL_EA;
     s->scntl0 = 0xc0;
     s->scntl1 = 0;
     s->sstat0 = 0;
@@ -2266,6 +2266,9 @@ static void ncr710_device_reset(DeviceState *dev)
     NCR710State *s = &sysbus_dev->ncr710;
 
     ncr710_soft_reset(s);
+    /* A device reset clears EA and FC1; only ISTAT.RST keeps them. */
+    s->dcntl = 0;
+    s->dmode = 0;
 }
 
 static const struct SCSIBusInfo ncr710_scsi_info = {

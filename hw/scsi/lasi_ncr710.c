@@ -186,6 +186,9 @@ static void lasi_ncr710_realize(DeviceState *dev, Error **errp)
                      &s->ncr710);
 
     ncr710_soft_reset(&s->ncr710);
+    /* A device reset clears EA and FC1; only ISTAT.RST keeps them. */
+    s->ncr710.dcntl = 0;
+    s->ncr710.dmode = 0;
 
     trace_lasi_ncr710_timers_initialized(
         (uint64_t)s->ncr710.reselection_retry_timer);
@@ -246,6 +249,9 @@ static void lasi_ncr710_reset(DeviceState *dev)
     LasiNCR710State *s = LASI_NCR710(dev);
     trace_lasi_ncr710_device_reset();
     ncr710_soft_reset(&s->ncr710);
+    /* A device reset clears EA and FC1; only ISTAT.RST keeps them. */
+    s->ncr710.dcntl = 0;
+    s->ncr710.dmode = 0;
 }
 
 static void lasi_ncr710_instance_init(Object *obj)

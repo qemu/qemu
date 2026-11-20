@@ -85,6 +85,11 @@
 #define NCR710_DCNTL_REG        0x3B    /* DMA Control */
 #define NCR710_ADDER_REG        0x3C    /* Adder Sum Output (32-bit, LE) */
 
+/* DMODE bit 4: Function Code 1 (FC1), kept by an ISTAT.RST soft reset. */
+#define NCR710_DMODE_FC1  0x10
+/* DCNTL bit 5: Enable Acknowledge (EA), kept by an ISTAT.RST soft reset. */
+#define NCR710_DCNTL_EA   0x20
+
 #define NCR710_REG_SIZE         0x100
 
 #define NCR710_BUF_SIZE         4096
