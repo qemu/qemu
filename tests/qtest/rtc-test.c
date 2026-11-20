@@ -643,6 +643,46 @@ static void uip_stuck(void)
 
 #define RTC_PERIOD_TEST_NR  50
 
+static uint64_t wait_periodic_timer(uint64_t real_time, int period_code)
+{
+    uint64_t periodic_time = real_time;
+    periodic_time += NANOSECONDS_PER_SECOND >> (16 - period_code);
+
+    cmos_write(RTC_REG_A, period_code);
+    while (!(cmos_read(RTC_REG_C) & REG_C_PF)) {
+        real_time = clock_step_next();
+        g_assert_cmpint(real_time, <, periodic_time + 100);
+    }
+
+    g_assert_cmpint(real_time, <, periodic_time + 100);
+    g_assert_cmpint(real_time, >, periodic_time - 100);
+    return real_time;
+}
+
+static void periodic_timer(void)
+{
+    int i;
+    uint64_t real_time;
+
+    /* disable all interrupts. */
+    cmos_write(RTC_REG_A, 0);
+    cmos_write(RTC_REG_B, cmos_read(RTC_REG_B) &
+                                   ~(REG_B_PIE | REG_B_AIE | REG_B_UIE));
+
+    /* wait for the first timer without assertions, to synchronize and clear PF */
+    cmos_read(RTC_REG_C);
+    cmos_write(RTC_REG_A, 10);
+    real_time = clock_step_next();
+    while (!(cmos_read(RTC_REG_C) & REG_C_PF)) {
+        real_time = clock_step_next();
+    }
+
+    for (i = 0; i < RTC_PERIOD_TEST_NR; i++) {
+        real_time = wait_periodic_timer(real_time, RTC_PERIOD_CODE1);
+        real_time = wait_periodic_timer(real_time, RTC_PERIOD_CODE2);
+    }
+}
+
 static uint64_t wait_periodic_interrupt(uint64_t real_time)
 {
     while (!get_irq(RTC_ISA_IRQ)) {
@@ -653,7 +693,7 @@ static uint64_t wait_periodic_interrupt(uint64_t real_time)
     return real_time;
 }
 
-static void periodic_timer(void)
+static void periodic_interrupt(void)
 {
     int i;
     uint64_t period_clocks, period_time, start_time, real_time;
@@ -708,7 +748,8 @@ int main(int argc, char **argv)
     qtest_add_func("/rtc/update/divider-reset", divider_reset);
     qtest_add_func("/rtc/update/uip-stuck", uip_stuck);
     qtest_add_func("/rtc/misc/fuzz-registers", fuzz_registers);
-    qtest_add_func("/rtc/periodic/interrupt", periodic_timer);
+    qtest_add_func("/rtc/periodic/timer", periodic_timer);
+    qtest_add_func("/rtc/periodic/interrupt", periodic_interrupt);
 
     ret = g_test_run();
 
