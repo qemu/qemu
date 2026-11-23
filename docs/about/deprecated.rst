@@ -182,6 +182,14 @@ execution.  This special treatment of ``"no"`` is deprecated.  Use an
 empty string instead.  In a future version, ``"no"`` will be treated as
 a plain file name.
 
+``ignore-unavailable`` in ``trace-event-set-state`` (since 11.2)
+''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+
+Trace events are now unconditionally built-in to all QEMU builds,
+so the concept of an 'unavailable' trace event no longer exists.
+The ``ignore-unavailable`` parameter in ``trace-event-set-state``
+thus has no effect and should no longer be used.
+
 Human Machine Protocol (HMP) commands
 -------------------------------------
 

@@ -1148,14 +1148,12 @@ qcrypto_block_luks_erase_key(QCryptoBlock *block,
     slot->active = QCRYPTO_BLOCK_LUKS_KEY_SLOT_DISABLED;
 
     ret = qcrypto_block_luks_store_header(block, writefunc,
-                                          opaque, &local_err);
+                                          opaque, errp);
 
-    if (ret < 0) {
-        error_propagate(errp, local_err);
-    }
     /*
-     * Now try to erase the key material, even if the header
-     * update failed
+     * Note: errp may be non-NULL from this point onwards,
+     * as we carry trying to erase key material even in the
+     * face of errors
      */
     for (i = 0; i < QCRYPTO_BLOCK_LUKS_ERASE_ITERATIONS; i++) {
         if (qcrypto_random_bytes(garbagesplitkey,
@@ -1169,6 +1167,7 @@ qcrypto_block_luks_erase_key(QCryptoBlock *block,
             if (i > 0) {
                 return -1;
             }
+            local_err = NULL;
         }
         if (writefunc(block,
                       slot->key_offset_sector * QCRYPTO_BLOCK_LUKS_SECTOR_SIZE,
@@ -1672,7 +1671,7 @@ qcrypto_block_luks_amend_add_keyslot(QCryptoBlock *block,
 
     if (qcrypto_block_luks_find_key(block, old_password, master_key,
                                     readfunc, opaque, errp) < 0) {
-        error_append_hint(errp, "Failed to retrieve the master key");
+        error_append_hint(errp, "Failed to retrieve the master key\n");
         return -1;
     }
 
@@ -1685,7 +1684,7 @@ qcrypto_block_luks_amend_add_keyslot(QCryptoBlock *block,
     /* Now set the new keyslots */
     if (qcrypto_block_luks_store_key(block, keyslot, new_password, master_key,
                                      iter_time, writefunc, opaque, errp)) {
-        error_append_hint(errp, "Failed to write to keyslot %i", keyslot);
+        error_append_hint(errp, "Failed to write to keyslot %i\n", keyslot);
         return -1;
     }
     return 0;
@@ -1783,7 +1782,7 @@ qcrypto_block_luks_amend_erase_keyslots(QCryptoBlock *block,
 
         if (qcrypto_block_luks_erase_key(block, keyslot,
                                          writefunc, opaque, errp)) {
-            error_append_hint(errp, "Failed to erase keyslot %i", keyslot);
+            error_append_hint(errp, "Failed to erase keyslot %i\n", keyslot);
             return -1;
         }
 
@@ -1836,7 +1835,7 @@ qcrypto_block_luks_amend_erase_keyslots(QCryptoBlock *block,
             }
             if (qcrypto_block_luks_erase_key(block, i, writefunc,
                 opaque, errp)) {
-                error_append_hint(errp, "Failed to erase keyslot %zu", i);
+                error_append_hint(errp, "Failed to erase keyslot %zu\n", i);
                 return -1;
             }
         }

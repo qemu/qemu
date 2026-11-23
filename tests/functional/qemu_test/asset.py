@@ -137,7 +137,16 @@ class Asset:
         for _retries in range(3):
             try:
                 with tmp_cache_file.open("xb") as dst:
-                    with urllib.request.urlopen(self.url) as resp:
+                    req = urllib.request.Request(
+                        self.url,
+                        headers={
+                            # Workaround Anubis challenge which some sites
+                            # trigger when Accept is missing:
+                            #  https://github.com/TecharoHQ/anubis/issues/1346
+                            "Accept": "*/*",
+                        }
+                    )
+                    with urllib.request.urlopen(req) as resp:
                         copyfileobj(resp, dst)
                         length_hdr = resp.getheader("Content-Length")
 

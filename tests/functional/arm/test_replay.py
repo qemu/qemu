@@ -24,10 +24,10 @@ class ArmReplay(ReplayKernelBase):
         self.run_rr(kernel_path, kernel_command_line, console_pattern, shift=1)
 
     ASSET_CUBIE_KERNEL = Asset(
-        ('https://apt.armbian.com/pool/main/l/linux-6.6.16/'
-         'linux-image-current-sunxi_24.2.1_armhf_'
-         '_6.6.16-Seb3e-D6b4a-P2359-Ce96bHfe66-HK01ba-V014b-B067e-R448a.deb'),
-        '3d968c15b121ede871dce49d13ee7644d6f74b6b121b84c9a40f51b0c80d6d22')
+        ('https://apt.armbian.com/pool/main/l/linux-6.6.44/'
+         'linux-image-current-sunxi_24.8.2_armhf__6.6.44-'
+         'S7213-D53de-P4ceb-C697eH5c21-HK01ba-V014b-B58e9-R448a.deb'),
+        'd960131bed01a8bf48882ff133a37826dfdce84138f9a82e0bea331ba795fe78')
 
     ASSET_CUBIE_INITRD = Asset(
         ('https://github.com/groeck/linux-build-test/raw/'
@@ -37,9 +37,9 @@ class ArmReplay(ReplayKernelBase):
     def test_cubieboard(self):
         self.set_machine('cubieboard')
         kernel_path = self.archive_extract(self.ASSET_CUBIE_KERNEL,
-            member='boot/vmlinuz-6.6.16-current-sunxi')
+            member='boot/vmlinuz-6.6.44-current-sunxi')
         dtb_path = self.archive_extract(self.ASSET_CUBIE_KERNEL,
-            member='usr/lib/linux-image-6.6.16-current-sunxi/sun4i-a10-cubieboard.dtb')
+            member='usr/lib/linux-image-6.6.44-current-sunxi/sun4i-a10-cubieboard.dtb')
         initrd_path = self.uncompress(self.ASSET_CUBIE_INITRD)
 
         kernel_command_line = (self.KERNEL_COMMON_COMMAND_LINE +
