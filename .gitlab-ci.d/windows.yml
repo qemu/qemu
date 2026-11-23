@@ -12,8 +12,7 @@ msys2-64bit:
   stage: build
   timeout: 100m
   variables:
-    # Select the "64 bit, gcc and MSVCRT" MSYS2 environment
-    MSYSTEM: MINGW64
+    MSYSTEM: UCRT64
     # This feature doesn't (currently) work with PowerShell, it stops
     # the echo'ing of commands being run and doesn't show any timing
     FF_SCRIPT_SECTIONS: 0
@@ -76,24 +75,24 @@ msys2-64bit:
   - .\msys64\usr\bin\bash -lc "pacman -Sy --noconfirm --needed
       bison diffutils flex
       git grep make sed
-      mingw-w64-x86_64-binutils
-      mingw-w64-x86_64-ca-certificates
-      mingw-w64-x86_64-ccache
-      mingw-w64-x86_64-curl-winssl
-      mingw-w64-x86_64-gcc
-      mingw-w64-x86_64-glib2
-      mingw-w64-x86_64-libnfs
-      mingw-w64-x86_64-libssh
-      mingw-w64-x86_64-ninja
-      mingw-w64-x86_64-pixman
-      mingw-w64-x86_64-pkgconf
-      mingw-w64-x86_64-python
-      mingw-w64-x86_64-python-certifi
-      mingw-w64-x86_64-python-setuptools
-      mingw-w64-x86_64-python-wheel
-      mingw-w64-x86_64-rust
-      mingw-w64-x86_64-rust-bindgen
-      mingw-w64-x86_64-zstd"
+      mingw-w64-ucrt-x86_64-binutils
+      mingw-w64-ucrt-x86_64-ca-certificates
+      mingw-w64-ucrt-x86_64-ccache
+      mingw-w64-ucrt-x86_64-curl-winssl
+      mingw-w64-ucrt-x86_64-gcc
+      mingw-w64-ucrt-x86_64-glib2
+      mingw-w64-ucrt-x86_64-libnfs
+      mingw-w64-ucrt-x86_64-libssh
+      mingw-w64-ucrt-x86_64-ninja
+      mingw-w64-ucrt-x86_64-pixman
+      mingw-w64-ucrt-x86_64-pkgconf
+      mingw-w64-ucrt-x86_64-python
+      mingw-w64-ucrt-x86_64-python-certifi
+      mingw-w64-ucrt-x86_64-python-setuptools
+      mingw-w64-ucrt-x86_64-python-wheel
+      mingw-w64-ucrt-x86_64-rust
+      mingw-w64-ucrt-x86_64-rust-bindgen
+      mingw-w64-ucrt-x86_64-zstd"
   - .\msys64\usr\bin\bash -lc "pacman -Sc --noconfirm"
   - Write-Output "Running build at $(Get-Date -Format u)"
   - $env:JOBS = $(.\msys64\usr\bin\bash -lc nproc)
