@@ -958,7 +958,7 @@ static void pflash_cfi02_reset(DeviceState *dev)
 {
     PFlashCFI02 *pfl = PFLASH_CFI02(dev);
 
-    pflash_reset_state_machine(pfl);
+    pflash_mode_read_array(pfl);
 }
 
 static const Property pflash_cfi02_properties[] = {
