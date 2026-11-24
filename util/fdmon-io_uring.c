@@ -61,6 +61,32 @@ enum {
     FDMON_IO_URING_DELETE_AIO_HANDLER = (1 << 3),
 };
 
+#ifndef HAVE_IO_URING_SET_IOWAIT
+static inline int io_uring_set_iowait(struct io_uring *ring, bool enable_iowait)
+{
+    /*
+     * Stub out this liburing 2.10 API on older hosts and accept that
+     * IOWAIT accounting includes POLL_ADD and TIMEOUT ops. Build
+     * against a newer liburing and a newer Linux kernel if you want to
+     * fix IOWAIT accounting.
+     */
+    return 0;
+}
+#endif
+
+/*
+ * Use before calling any liburing function that may call io_uring_enter().
+ *
+ * Configures IO wait accounting for the AioContext's ring depending on the
+ * presence of real block-layer IO. Poll or timeout SQEs alone do not count
+ * towards IO wait.
+ */
+static inline void configure_iowait_accounting(AioContext *ctx)
+{
+    io_uring_set_iowait(&ctx->fdmon_io_uring,
+                        qatomic_read(&ctx->iowait_accounting_reqs) > 0);
+}
+
 static inline int poll_events_from_pfd(int pfd_events)
 {
     return (pfd_events & G_IO_IN ? POLLIN : 0) |
@@ -93,6 +119,7 @@ static struct io_uring_sqe *get_sqe(AioContext *ctx)
 
     /* No free sqes left, submit pending sqes first */
     do {
+        configure_iowait_accounting(ctx);
         ret = io_uring_submit(ring);
     } while (ret == -EINTR);
 
@@ -176,8 +203,13 @@ static void fdmon_io_uring_add_sqe(AioContext *ctx,
 {
     struct io_uring_sqe *sqe = get_sqe(ctx);
 
+    /* Currently, IO wait should be accounted for all requests here. */
+    cqe_handler->iowait_accounting = true;
+
     prep_sqe(sqe, opaque);
     io_uring_sqe_set_data(sqe, cqe_handler);
+
+    qatomic_inc(&ctx->iowait_accounting_reqs);
 
     trace_fdmon_io_uring_add_sqe(ctx, opaque, sqe->opcode, sqe->fd, sqe->off,
                                  cqe_handler);
@@ -286,6 +318,10 @@ static bool process_cqe(AioContext *ctx,
         return false;
     }
 
+    if (cqe_handler->iowait_accounting) {
+        qatomic_dec(&ctx->iowait_accounting_reqs);
+    }
+
     /*
      * Special handling for AioHandler cqes. They need ready_list and have a
      * return value.
@@ -314,6 +350,7 @@ static int process_cq_ring(AioContext *ctx, AioHandlerList *ready_list)
 #ifdef HAVE_IO_URING_CQ_HAS_OVERFLOW
     /* If the CQ overflowed then fetch CQEs with a syscall */
     if (io_uring_cq_has_overflow(ring)) {
+        configure_iowait_accounting(ctx);
         io_uring_get_events(ring);
     }
 #endif
@@ -335,9 +372,11 @@ static void fdmon_io_uring_gsource_prepare(AioContext *ctx)
 {
     fill_sq_ring(ctx);
     if (io_uring_sq_ready(&ctx->fdmon_io_uring)) {
-        while (io_uring_submit(&ctx->fdmon_io_uring) == -EINTR) {
-            /* Keep trying if syscall was interrupted */
-        }
+        int ret;
+        do {
+            configure_iowait_accounting(ctx);
+            ret = io_uring_submit(&ctx->fdmon_io_uring);
+        } while (ret == -EINTR); /* Keep trying if syscall was interrupted */
     }
 }
 
@@ -424,6 +463,7 @@ static int fdmon_io_uring_wait(AioContext *ctx, AioHandlerList *ready_list,
      *    rather than -EINTR.
      */
     do {
+        configure_iowait_accounting(ctx);
         ret = io_uring_submit_and_wait(&ctx->fdmon_io_uring, wait_nr);
     } while (ret == -EINTR ||
              (ret >= 0 && wait_nr > io_uring_cq_ready(&ctx->fdmon_io_uring)));
