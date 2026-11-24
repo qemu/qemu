@@ -1136,6 +1136,11 @@ static inline void vmsvga_check_size(struct vmsvga_state_s *s)
         pixman_format_code_t format =
             qemu_default_pixman_format(s->new_depth, true);
         trace_vmware_setmode(s->new_width, s->new_height, s->new_depth);
+
+        /* Ignore attempts to set a resolution too large for the VRAM */
+        if ((uint64_t)s->new_height * stride > s->vga.vram_size) {
+            return;
+        }
         surface = qemu_create_displaysurface_from(s->new_width, s->new_height,
                                                   format, stride,
                                                   s->vga.vram_ptr);
