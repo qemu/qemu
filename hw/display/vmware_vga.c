@@ -1255,7 +1255,7 @@ static void vmsvga_init(DeviceState *dev, struct vmsvga_state_s *s,
                         MemoryRegion *address_space, MemoryRegion *io)
 {
     s->scratch_size = SVGA_SCRATCH_SIZE;
-    s->scratch = g_malloc(s->scratch_size * 4);
+    s->scratch = g_new0(uint32_t, s->scratch_size);
 
     s->vga.con = graphic_console_init(dev, 0, &vmsvga_ops, s);
 
