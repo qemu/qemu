@@ -1617,9 +1617,10 @@ static void icv_eoir_write(CPUARMState *env, const ARMCPRegInfo *ri,
     if (idx < 0) {
         /*
          * No valid list register corresponding to EOI ID; if this is a vLPI
-         * not in the list regs then do nothing; otherwise increment EOI count
+         * not in the list regs then do nothing; otherwise increment EOI count,
+         * unless drop and deactivate are split, when the DIR write does so.
          */
-        if (irq < GICV3_LPI_INTID_START) {
+        if (irq < GICV3_LPI_INTID_START && !icv_eoi_split(env, cs)) {
             icv_increment_eoicount(cs);
         }
     } else {
