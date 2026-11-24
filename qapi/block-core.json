@@ -3403,11 +3403,23 @@
 #     writable.  If it is true, this check is skipped.  (since: 11.2,
 #     default: false)
 #
+# Features:
+#
+# @dynamic-auto-read-only: If present, enabled auto-read-only means
+#     that the driver will open the image read-only at first,
+#     dynamically reopen the image file read-write when the first
+#     writer is attached to the node and reopen read-only when the
+#     last writer is detached.  This allows giving QEMU write
+#     permissions only on demand when an operation actually needs
+#     write access.
+#
 # Since: 11.2
 ##
 { 'struct': 'BlockdevOptionsHostDevice',
   'base': 'BlockdevOptionsFile',
-  'data': { '*accept-read-only-device': 'bool' } }
+  'data': { '*accept-read-only-device': 'bool' },
+  'features': [ { 'name': 'dynamic-auto-read-only',
+                  'if': 'CONFIG_POSIX' } ] }
 
 ##
 # @BlockdevOptionsNull:
