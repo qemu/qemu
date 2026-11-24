@@ -581,8 +581,10 @@ static inline int vmsvga_fifo_length(struct vmsvga_state_s *s)
     }
     if (s->fifo_max > SVGA_FIFO_SIZE ||
         s->fifo_min >= SVGA_FIFO_SIZE ||
-        s->fifo_stop >= SVGA_FIFO_SIZE ||
-        s->fifo_next >= SVGA_FIFO_SIZE) {
+        s->fifo_stop < s->fifo_min ||
+        s->fifo_stop >= s->fifo_max ||
+        s->fifo_next < s->fifo_min ||
+        s->fifo_next >= s->fifo_max) {
         return 0;
     }
     if (s->fifo_max < s->fifo_min + 10 * KiB) {
@@ -598,7 +600,10 @@ static inline int vmsvga_fifo_length(struct vmsvga_state_s *s)
 
 static inline uint32_t vmsvga_fifo_read_raw(struct vmsvga_state_s *s)
 {
-    uint32_t cmd = s->fifo[s->fifo_stop >> 2];
+    uint32_t cmd;
+
+    assert(s->fifo_stop < SVGA_FIFO_SIZE);
+    cmd = s->fifo[s->fifo_stop >> 2];
 
     s->fifo_stop += 4;
     if (s->fifo_stop >= s->fifo_max) {
