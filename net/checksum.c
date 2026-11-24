@@ -57,9 +57,9 @@ uint16_t net_checksum_tcpudp(uint16_t length, uint16_t proto,
     return net_checksum_finish(sum);
 }
 
-void net_checksum_calculate(void *data, int length, int csum_flag)
+void net_checksum_calculate(void *data, size_t length, int csum_flag)
 {
-    int mac_hdr_len, ip_len;
+    unsigned int mac_hdr_len, ip_len, ip_hdr_len;
     struct ip_header *ip;
     uint16_t csum;
 
@@ -94,12 +94,12 @@ void net_checksum_calculate(void *data, int length, int csum_flag)
         break;
     }
 
-    length -= mac_hdr_len;
-
     /* Now check we have an IP header (with an optional VLAN header) */
-    if (length < sizeof(struct ip_header)) {
+    if (length < mac_hdr_len + sizeof(struct ip_header)) {
         return;
     }
+
+    length -= mac_hdr_len;
 
     ip = (struct ip_header *)((uint8_t *)data + mac_hdr_len);
 
@@ -107,10 +107,20 @@ void net_checksum_calculate(void *data, int length, int csum_flag)
         return; /* not IPv4 */
     }
 
+    ip_hdr_len = IP_HDR_GET_LEN(ip);
+
+    if (ip_hdr_len < sizeof(struct ip_header) || ip_hdr_len > length) {
+        /*
+         * Ignore packet with an invalidly short IHL, or which claims the
+         * IP header is larger than the buffer
+         */
+        return;
+    }
+
     /* Calculate IP checksum */
     if (csum_flag & CSUM_IP) {
         stw_he_p(&ip->ip_sum, 0);
-        csum = net_raw_checksum((uint8_t *)ip, IP_HDR_GET_LEN(ip));
+        csum = net_raw_checksum((uint8_t *)ip, ip_hdr_len);
         stw_be_p(&ip->ip_sum, csum);
     }
 
@@ -120,12 +130,16 @@ void net_checksum_calculate(void *data, int length, int csum_flag)
 
     ip_len = lduw_be_p(&ip->ip_len);
 
-    /* Last, check that we have enough data for the all IP frame */
-    if (length < ip_len) {
+    /*
+     * Last, check that the packet's total length field doesn't
+     * imply a negative amount of data given the header length,
+     * and that it's not larger than the data buffer we have.
+     */
+    if (ip_len < ip_hdr_len || length < ip_len) {
         return;
     }
 
-    ip_len -= IP_HDR_GET_LEN(ip);
+    ip_len -= ip_hdr_len;
 
     switch (ip->ip_p) {
     case IP_PROTO_TCP:
