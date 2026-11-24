@@ -1004,11 +1004,6 @@
 #     only supported on SEV-ES and SEV-SNP guests
 #     (default: false) (since 11.1)
 #
-# Features:
-#
-# @confidential-guest-reset: If present, the hypervisor supports
-#     confidential guest resets (since 11.0).
-#
 # Since: 9.1
 ##
 { 'struct': 'SevCommonProperties',
@@ -1016,8 +1011,7 @@
             '*cbitpos': 'uint32',
             'reduced-phys-bits': 'uint32',
             '*kernel-hashes': 'bool',
-            '*debug-swap': 'bool' },
-  'features': ['confidential-guest-reset']}
+            '*debug-swap': 'bool' } }
 
 ##
 # @SevGuestProperties:
@@ -1042,6 +1036,11 @@
 #    that require it.  If set to 'off', QEMU will require
 #    KVM_SEV_INIT2 unconditionally.  (default: off) (since 9.1)
 #
+# Features:
+#
+# @confidential-guest-reset: If present, the hypervisor supports
+#     confidential guest resets (since 11.0).
+#
 # Since: 2.12
 ##
 { 'struct': 'SevGuestProperties',
@@ -1050,7 +1049,8 @@
             '*session-file': 'str',
             '*policy': 'uint32',
             '*handle': 'uint32',
-            '*legacy-vm-type': 'OnOffAuto' } }
+            '*legacy-vm-type': 'OnOffAuto' },
+  'features': [ 'confidential-guest-reset' ] }
 
 ##
 # @SevSnpGuestProperties:
@@ -1101,6 +1101,11 @@
 # @tsc-frequency: set secure TSC frequency.  Only valid if Secure TSC
 #     is enabled (default: zero) (since 11.1)
 #
+# Features:
+#
+# @confidential-guest-reset: If present, the hypervisor supports
+#     confidential guest resets (since 11.0).
+#
 # Since: 9.1
 ##
 { 'struct': 'SevSnpGuestProperties',
@@ -1114,7 +1119,8 @@
             '*host-data': 'str',
             '*vcek-disabled': 'bool',
             '*secure-tsc': 'bool',
-            '*tsc-frequency': 'uint32' } }
+            '*tsc-frequency': 'uint32' },
+  'features': [ 'confidential-guest-reset' ] }
 
 ##
 # @TdxGuestProperties:
