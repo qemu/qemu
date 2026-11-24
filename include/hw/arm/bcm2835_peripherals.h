@@ -54,6 +54,7 @@ struct BCMSocPeripheralBaseState {
     qemu_irq irq, fiq;
 
     BCM2835SystemTimerState systmr;
+    SplitIRQ systmr_irq_splitter[BCM2835_SYSTIMER_COUNT];
     BCM2835MphiState mphi;
     UnimplementedDeviceState txp;
     UnimplementedDeviceState armtmr;

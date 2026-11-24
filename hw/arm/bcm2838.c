@@ -192,6 +192,13 @@ static void bcm2838_realize(DeviceState *dev, Error **errp)
     qdev_connect_gpio_out(DEVICE(&ps_base->spi_irq_splitter), 1,
                           qdev_get_gpio_in(gicdev, GIC_SPI_INTERRUPT_SPI));
 
+    /* Connect the system timer interrupts to the interrupt controller */
+    for (int n = 0; n < BCM2835_SYSTIMER_COUNT; n++) {
+        int int_n = GIC_SPI_INTERRUPT_SYS_TIMER0 + n;
+        qdev_connect_gpio_out(DEVICE(&ps_base->systmr_irq_splitter[n]), 1,
+                              qdev_get_gpio_in(gicdev, int_n));
+    }
+
     /* Connect VC mailbox to the interrupt controller */
     sysbus_connect_irq(SYS_BUS_DEVICE(&ps_base->mboxes), 0,
                        qdev_get_gpio_in(gicdev, GIC_SPI_INTERRUPT_MBOX));

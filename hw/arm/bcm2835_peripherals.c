@@ -95,6 +95,14 @@ static void raspi_peripherals_base_init(Object *obj)
     /* SYS Timer */
     object_initialize_child(obj, "systimer", &s->systmr,
                             TYPE_BCM2835_SYSTIMER);
+    /*
+     * One splitter per system-timer interrupt line so that each interrupt
+     * reaches both the legacy controller and the GIC.
+     */
+    for (int n = 0; n < BCM2835_SYSTIMER_COUNT; n++) {
+        object_initialize_child(obj, "systmr-irq-splitter[*]",
+                                &s->systmr_irq_splitter[n], TYPE_SPLIT_IRQ);
+    }
 
     /* UART0 */
     object_initialize_child(obj, "uart0", &s->uart0, TYPE_PL011);
@@ -304,18 +312,19 @@ void bcm_soc_peripherals_common_realize(DeviceState *dev, Error **errp)
     }
     memory_region_add_subregion(&s->peri_mr, ST_OFFSET,
                 sysbus_mmio_get_region(SYS_BUS_DEVICE(&s->systmr), 0));
-    sysbus_connect_irq(SYS_BUS_DEVICE(&s->systmr), 0,
-        qdev_get_gpio_in_named(DEVICE(&s->ic), BCM2835_IC_GPU_IRQ,
-                               INTERRUPT_TIMER0));
-    sysbus_connect_irq(SYS_BUS_DEVICE(&s->systmr), 1,
-        qdev_get_gpio_in_named(DEVICE(&s->ic), BCM2835_IC_GPU_IRQ,
-                               INTERRUPT_TIMER1));
-    sysbus_connect_irq(SYS_BUS_DEVICE(&s->systmr), 2,
-        qdev_get_gpio_in_named(DEVICE(&s->ic), BCM2835_IC_GPU_IRQ,
-                               INTERRUPT_TIMER2));
-    sysbus_connect_irq(SYS_BUS_DEVICE(&s->systmr), 3,
-        qdev_get_gpio_in_named(DEVICE(&s->ic), BCM2835_IC_GPU_IRQ,
-                               INTERRUPT_TIMER3));
+    for (n = 0; n < BCM2835_SYSTIMER_COUNT; n++) {
+        qdev_prop_set_uint32(DEVICE(&s->systmr_irq_splitter[n]),
+                "num-lines", 2);
+        if (!qdev_realize(DEVICE(&s->systmr_irq_splitter[n]), NULL, errp)) {
+            return;
+        }
+        sysbus_connect_irq(SYS_BUS_DEVICE(&s->systmr), n,
+                qdev_get_gpio_in(DEVICE(&s->systmr_irq_splitter[n]), 0));
+        qdev_connect_gpio_out(DEVICE(&s->systmr_irq_splitter[n]), 0,
+                qdev_get_gpio_in_named(DEVICE(&s->ic),
+                    BCM2835_IC_GPU_IRQ,
+                    INTERRUPT_TIMER0 + n));
+    }
 
     /* UART0 */
     qdev_prop_set_chr(DEVICE(&s->uart0), "chardev", serial_hd(0));
