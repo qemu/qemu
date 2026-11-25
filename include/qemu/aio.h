@@ -55,6 +55,12 @@ struct CqeHandler {
 
     /* This field is filled in before ->cb() is called */
     struct io_uring_cqe cqe;
+
+    /*
+     * Whether the in-flight request should count towards IO wait.
+     * Private to the fdmon layer; must not be touched outside of it.
+     */
+    bool iowait_accounting;
 };
 
 typedef QSIMPLEQ_HEAD(, CqeHandler) CqeHandlerSimpleQ;
@@ -295,6 +301,12 @@ struct AioContext {
 
     /* Pending callback state for cqe handlers */
     CqeHandlerSimpleQ cqe_handler_ready_list;
+
+    /*
+     * Number of in-flight requests that should count towards IO wait.
+     * Must be accessed using atomics.
+     */
+    unsigned int iowait_accounting_reqs;
 #endif /* CONFIG_LINUX_IO_URING */
 
     /* TimerLists for calling timers - one per clock type.  Has its own
@@ -842,6 +854,9 @@ static inline bool aio_has_io_uring(void)
  * The sqe is submitted by the current AioContext. The kernel may see the sqe
  * as soon as @prep_sqe() returns or it may take until the next event loop
  * iteration.
+ *
+ * The fdmon's IO wait accounting logic currently assumes that the request is
+ * not multishot.
  *
  * When the AioContext is destroyed, pending sqes are ignored and their
  * CqeHandlers are not invoked.
