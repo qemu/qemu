@@ -605,7 +605,7 @@ static void pflash_write(PFlashCFI01 *pfl, hwaddr offset,
         switch (pfl->cmd) {
         case 0xe8: /* Block write */
             /* FIXME check @offset, @width */
-            if (pfl->blk_offset == -1 && pfl->counter) {
+            if (pfl->blk_offset == -1) {
                 pflash_blk_write_start(pfl, offset);
             }
             if (!pfl->ro && (pfl->blk_offset != -1)) {
@@ -1028,6 +1028,13 @@ static void postload_update_cb(void *opaque, bool running, RunState state)
 static int pflash_post_load(void *opaque, int version_id)
 {
     PFlashCFI01 *pfl = opaque;
+    uint64_t size = pfl->sector_len * pfl->nb_blocs;
+
+    if (pfl->blk_offset != -1
+        && (pfl->blk_offset >= size
+            || size - pfl->blk_offset < pfl->writeblock_size)) {
+        return -EINVAL;
+    }
 
     /*
      * ROMD mode is not in the VMState; derive it from the migrated
@@ -1039,7 +1046,8 @@ static int pflash_post_load(void *opaque, int version_id)
         memory_region_rom_device_set_romd(&pfl->mem, false);
     }
 
-    if (!pfl->ro) {
+    /* A second load before the VM resumes must not add a duplicate entry */
+    if (!pfl->ro && !pfl->vmstate) {
         pfl->vmstate = qemu_add_vm_change_state_handler(postload_update_cb,
                                                         pfl);
     }

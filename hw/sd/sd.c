@@ -1073,11 +1073,24 @@ static int sd_vmstate_pre_load(void *opaque)
     return 0;
 }
 
+static int sd_vmstate_post_load(void *opaque, int version_id)
+{
+    SDState *sd = opaque;
+
+    /* Check for blk_len that overflows data[] */
+    if (sd->blk_len > sizeof(sd->data)) {
+        return -EINVAL;
+    }
+
+    return 0;
+}
+
 static const VMStateDescription sd_vmstate = {
     .name = "sd-card",
     .version_id = 2,
     .minimum_version_id = 2,
     .pre_load = sd_vmstate_pre_load,
+    .post_load = sd_vmstate_post_load,
     .fields = (const VMStateField[]) {
         VMSTATE_UNUSED(4),
         VMSTATE_INT32(state, SDState),
@@ -1961,7 +1974,7 @@ static sd_rsp_type_t sd_cmd_SET_BLOCKLEN(SDState *sd, SDRequest req)
     if (sd->state != sd_transfer_state) {
         return sd_invalid_state_for_cmd(sd, req);
     }
-    if (req.arg > (1 << HWBLOCK_SHIFT)) {
+    if (req.arg == 0 || req.arg > (1 << HWBLOCK_SHIFT)) {
         sd->card_status |= BLOCK_LEN_ERROR;
     } else {
         trace_sdcard_set_blocklen(req.arg);
@@ -2597,6 +2610,10 @@ send_response:
         sd->data_offset = 0;
         /* fall-through */
     case sd_illegal:
+        if (sd_is_spi(sd)) {
+            sd_response_r1_make(sd, response);
+            response[0] |= 1 << 2; /* ILLEGAL_COMMAND */
+        }
         break;
     default:
         g_assert_not_reached();
@@ -2806,7 +2823,9 @@ static size_t sd_write_data(SDState *sd, const void *buf, size_t length)
         break;
 
     default:
-        g_assert_not_reached();
+        qemu_log_mask(LOG_GUEST_ERROR, "%s: DAT write illegal for command %s\n",
+                      __func__, sd->last_cmd_name);
+        break;
     }
 
     return length;

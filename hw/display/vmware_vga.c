@@ -581,8 +581,10 @@ static inline int vmsvga_fifo_length(struct vmsvga_state_s *s)
     }
     if (s->fifo_max > SVGA_FIFO_SIZE ||
         s->fifo_min >= SVGA_FIFO_SIZE ||
-        s->fifo_stop >= SVGA_FIFO_SIZE ||
-        s->fifo_next >= SVGA_FIFO_SIZE) {
+        s->fifo_stop < s->fifo_min ||
+        s->fifo_stop >= s->fifo_max ||
+        s->fifo_next < s->fifo_min ||
+        s->fifo_next >= s->fifo_max) {
         return 0;
     }
     if (s->fifo_max < s->fifo_min + 10 * KiB) {
@@ -598,7 +600,10 @@ static inline int vmsvga_fifo_length(struct vmsvga_state_s *s)
 
 static inline uint32_t vmsvga_fifo_read_raw(struct vmsvga_state_s *s)
 {
-    uint32_t cmd = s->fifo[s->fifo_stop >> 2];
+    uint32_t cmd;
+
+    assert(s->fifo_stop < SVGA_FIFO_SIZE);
+    cmd = s->fifo[s->fifo_stop >> 2];
 
     s->fifo_stop += 4;
     if (s->fifo_stop >= s->fifo_max) {
@@ -1131,6 +1136,11 @@ static inline void vmsvga_check_size(struct vmsvga_state_s *s)
         pixman_format_code_t format =
             qemu_default_pixman_format(s->new_depth, true);
         trace_vmware_setmode(s->new_width, s->new_height, s->new_depth);
+
+        /* Ignore attempts to set a resolution too large for the VRAM */
+        if ((uint64_t)s->new_height * stride > s->vga.vram_size) {
+            return;
+        }
         surface = qemu_create_displaysurface_from(s->new_width, s->new_height,
                                                   format, stride,
                                                   s->vga.vram_ptr);
@@ -1201,6 +1211,11 @@ static int vmsvga_post_load(void *opaque, int version_id)
 {
     struct vmsvga_state_s *s = opaque;
 
+    if (s->new_width < 0 || s->new_width > SVGA_MAX_WIDTH ||
+        s->new_height < 0 || s->new_height > SVGA_MAX_HEIGHT) {
+        return -1;
+    }
+
     s->invalidated = 1;
     if (s->config) {
         s->fifo = (uint32_t *) s->fifo_ptr;
@@ -1256,7 +1271,7 @@ static void vmsvga_init(DeviceState *dev, struct vmsvga_state_s *s,
                         MemoryRegion *address_space, MemoryRegion *io)
 {
     s->scratch_size = SVGA_SCRATCH_SIZE;
-    s->scratch = g_malloc(s->scratch_size * 4);
+    s->scratch = g_new0(uint32_t, s->scratch_size);
 
     s->vga.con = qemu_graphic_console_create(dev, 0, &vmsvga_ops, s);
 

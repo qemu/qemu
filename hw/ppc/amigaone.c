@@ -109,6 +109,7 @@ static void nvram_write(void *opaque, hwaddr addr, uint64_t val,
     uint8_t *p = memory_region_get_ram_ptr(&s->mr);
 
     p[addr] = val;
+    memory_region_flush_rom_device(&s->mr, addr, 1);
     if (s->blk && blk_pwrite(s->blk, addr, 1, &val, 0) < 0) {
         error_report("%s: could not write %s", __func__, blk_name(s->blk));
     }
