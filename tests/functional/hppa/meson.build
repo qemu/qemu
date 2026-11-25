@@ -6,4 +6,5 @@ tests_hppa_system_quick = [
 
 tests_hppa_system_thorough = [
   'cdboot',
+  'openbsd',
 ]
