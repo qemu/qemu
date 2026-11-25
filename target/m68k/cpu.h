@@ -606,8 +606,8 @@ void m68k_cpu_transaction_failed(CPUState *cs, hwaddr physaddr, vaddr addr,
 #define TB_FLAGS_SFC_S          (1 << TB_FLAGS_SFC_S_BIT)
 #define TB_FLAGS_DFC_S_BIT      15
 #define TB_FLAGS_DFC_S          (1 << TB_FLAGS_DFC_S_BIT)
-#define TB_FLAGS_TRACE          16
-#define TB_FLAGS_TRACE_BIT      (1 << TB_FLAGS_TRACE)
+#define TB_FLAGS_TRACE_BIT      16
+#define TB_FLAGS_TRACE          (1 << TB_FLAGS_TRACE_BIT)
 
 void dump_mmu(CPUM68KState *env);
 

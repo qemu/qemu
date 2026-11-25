@@ -2063,7 +2063,7 @@ void gen_lx(DisasContext *ctx, int rd, int base, int index, MemOp mop)
 static void gen_ld(DisasContext *ctx, uint32_t opc,
                    int rt, int base, int offset)
 {
-    TCGv t0, t1;
+    TCGv t0, t1, t2, t3;
     int mem_idx = ctx->mem_idx;
 
     if (rt == 0 && ctx->insn_flags & (INSN_LOONGSON2E | INSN_LOONGSON2F |
@@ -2176,7 +2176,17 @@ static void gen_ld(DisasContext *ctx, uint32_t opc,
         t1 = tcg_temp_new();
         gen_load_gpr(t1, rt);
         gen_lxr(ctx, t1, t0, mem_idx, mo_endian(ctx) | MO_UL);
-        tcg_gen_ext32s_tl(t1, t1);
+        if (ctx->insn_flags & INSN_OCTEON) {
+            t2 = tcg_temp_new();
+            t3 = tcg_temp_new();
+            tcg_gen_ext32s_tl(t3, t1);
+            tcg_gen_andi_tl(t2, t0, 3);
+            tcg_gen_movcond_tl(TCG_COND_EQ, t1, t2,
+                               tcg_constant_tl(disas_is_bigendian(ctx) ? 3 : 0),
+                               t3, t1);
+        } else {
+            tcg_gen_ext32s_tl(t1, t1);
+        }
         gen_store_gpr(t1, rt);
         break;
     case OPC_LLE:
@@ -8588,7 +8598,7 @@ static void gen_cp0(CPUMIPSState *env, DisasContext *ctx, uint32_t opc,
         opn = "mthc0";
         break;
     case OPC_MFTR:
-        check_cp0_enabled(ctx);
+        check_cp0_mt(ctx);
         if (rd == 0) {
             /* Treat as NOP. */
             return;
@@ -8598,7 +8608,7 @@ static void gen_cp0(CPUMIPSState *env, DisasContext *ctx, uint32_t opc,
         opn = "mftr";
         break;
     case OPC_MTTR:
-        check_cp0_enabled(ctx);
+        check_cp0_mt(ctx);
         gen_mttr(env, ctx, rd, rt, (ctx->opcode >> 5) & 1,
                  ctx->opcode & 0x7, (ctx->opcode >> 4) & 1);
         opn = "mttr";
@@ -13649,17 +13659,18 @@ static void decode_opc_special3_legacy(CPUMIPSState *env, DisasContext *ctx)
         switch (op2) {
 #if defined(TARGET_MIPS64)
         case OPC_LDX:
-            gen_lx(ctx, rd, rs, rt, MO_UQ);
+            check_mips_64(ctx);
+            gen_lx(ctx, rd, rs, rt, MO_UQ | ctx->default_tcg_memop_mask);
             break;
 #endif
         case OPC_LBUX:
             gen_lx(ctx, rd, rs, rt, MO_UB);
             break;
         case OPC_LHX:
-            gen_lx(ctx, rd, rs, rt, MO_SW);
+            gen_lx(ctx, rd, rs, rt, MO_SW | ctx->default_tcg_memop_mask);
             break;
         case OPC_LWX:
-            gen_lx(ctx, rd, rs, rt, MO_SL);
+            gen_lx(ctx, rd, rs, rt, MO_SL | ctx->default_tcg_memop_mask);
             break;
         default:            /* Invalid */
             MIPS_INVAL("MASK LX");
@@ -14621,6 +14632,11 @@ static bool decode_opc_legacy(CPUMIPSState *env, DisasContext *ctx)
             gen_compute_compact_branch(ctx, op, rs, rt, imm << 2);
         } else {
             /* OPC_BLEZL */
+            if (rt != 0) {
+                gen_reserved_instruction(ctx);
+                break;
+            }
+            check_insn(ctx, ISA_MIPS2);
             gen_compute_branch(ctx, op, 4, rs, rt, imm << 2, 4);
         }
         break;
@@ -14634,6 +14650,11 @@ static bool decode_opc_legacy(CPUMIPSState *env, DisasContext *ctx)
             gen_compute_compact_branch(ctx, op, rs, rt, imm << 2);
         } else {
             /* OPC_BGTZL */
+            if (rt != 0) {
+                gen_reserved_instruction(ctx);
+                break;
+            }
+            check_insn(ctx, ISA_MIPS2);
             gen_compute_branch(ctx, op, 4, rs, rt, imm << 2, 4);
         }
         break;

@@ -513,7 +513,7 @@ enum {
     TLTIU = 0x0a,
     BC2EQZC = 0x0a,
     TGEIU = 0x0b,
-    BC2NEZC = 0x0a,
+    BC2NEZC = 0x0b,
     TNEI = 0x0c,
     R6_SYNCI = 0x0c,
     LUI = 0x0d,
@@ -1820,7 +1820,7 @@ static void decode_micromips32_opc(CPUMIPSState *env, DisasContext *ctx)
         case CACHE:
             check_cp0_enabled(ctx);
             if (ctx->hflags & MIPS_HFLAG_ITC_CACHE) {
-                gen_cache_operation(ctx, rt, rs, imm);
+                gen_cache_operation(ctx, rt, rs, SIMM(ctx->opcode, 0, 9));
             }
             break;
         case LWC2:
