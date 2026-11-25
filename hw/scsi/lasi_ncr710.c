@@ -1,12 +1,12 @@
 /*
- * LASI Wrapper for NCR710 SCSI Controller
+ * LASI wrapper for the NCR 53C710 SCSI controller
  *
  * Copyright (c) 2025 Soumyajyotii Ssarkar <soumyajyotisarkar23@gmail.com>
- * This driver was developed during the Google Summer of Code 2025 program.
- * Mentored by Helge Deller <deller@gmx.de>
+ * Developed during Google Summer of Code 2025, mentored by
+ * Helge Deller <deller@gmx.de>.
  *
- * NCR710 SCSI Controller implementation
- * Based on the NCR53C710 Technical Manual Version 3.2, December 2000
+ * LASI module glue mapping the 53C710 core in ncr53c710.c onto the HP 715
+ * (-M 715) LASI bus.
  *
  * SPDX-License-Identifier: GPL-2.0-or-later
  */
@@ -24,7 +24,6 @@
 #include "system/dma.h"
 
 #define LASI_710_SVERSION    0x00082
-#define SCNR                 0xBEEFBABE
 #define LASI_710_HVERSION    0x3D
 #define HPHW_FIO             5        /* Fixed I/O module */
 
@@ -33,8 +32,6 @@ static uint64_t lasi_ncr710_reg_read(void *opaque, hwaddr addr,
 {
     LasiNCR710State *s = LASI_NCR710(opaque);
     uint64_t val = 0;
-
-    trace_lasi_ncr710_reg_read(addr, 0, size);
 
     if (addr == 0x00) {  /* Device ID */
         val = (HPHW_FIO << 24) | LASI_710_SVERSION;
@@ -48,29 +45,35 @@ static uint64_t lasi_ncr710_reg_read(void *opaque, hwaddr addr,
         return val;
     }
 
-    if (addr >= 0x100) {
+    /* 0x100..0x1ff goes to the chip core. */
+    if (addr >= 0x100 && addr + size <= 0x200) {
         hwaddr ncr_addr = addr - 0x100;
         if (size == 1) {
+            /*
+             * Single byte access: flip the byte lane (PA-RISC big endian
+             * access -> the chip's little endian register order).
+             */
             ncr_addr ^= 3;
-            NCR710_DPRINTF("Reading value to LASI WRAPPER == 0x%lx%s, "
-                           "val=0x%lx, size=%u\n",
-                           addr - 0x100, size == 1 ? " (XORed)" : "",
-                           val, size);
             val = ncr710_reg_read(&s->ncr710, ncr_addr, size);
         } else {
+            /*
+             * Multibyte access: gather little endian, no lane flip, so
+             * the 24/32 bit registers assemble correctly.
+             */
             val = 0;
             for (unsigned i = 0; i < size; i++) {
                 uint8_t byte_val = ncr710_reg_read(&s->ncr710, ncr_addr + i, 1);
                 val |= ((uint64_t)byte_val) << (i * 8);
-                NCR710_DPRINTF("  Read byte %u from NCR addr 0x%lx: "
-                               "0x%02x\n", i, ncr_addr + i, byte_val);
             }
-            NCR710_DPRINTF("  Reconstructed %u-byte value: 0x%lx\n",
-                           size, val);
         }
 
         trace_lasi_ncr710_reg_forward_read(addr, val);
     } else {
+        /*
+         * The rest of the module page reads as 0.  HP-UX reads a board strap
+         * at 0xd85 (bit 0x20: differential bus, 25 MHz clock); 0 is single
+         * ended, 50 MHz.
+         */
         val = 0;
         trace_lasi_ncr710_reg_read(addr, val, size);
     }
@@ -84,25 +87,24 @@ static void lasi_ncr710_reg_write(void *opaque, hwaddr addr,
 
     trace_lasi_ncr710_reg_write(addr, val, size);
 
-    if (addr <= 0x0F) {
+    /*
+     * 0x00..0x0f is the read only LASI module header (ID/SVERSION/HVERSION);
+     * 0x10..0xff and 0x200..0xfff are unmapped module space.  Writes to all
+     * of them are ignored.
+     */
+    if (addr <= 0x0f) {
         return;
     }
 
-    if (addr >= 0x100) {
+    if (addr >= 0x100 && addr + size <= 0x200) {
         hwaddr ncr_addr = addr - 0x100;
 
         if (size == 1) {
             ncr_addr ^= 3;
-            NCR710_DPRINTF("Writing value to LASI WRAPPER == 0x%lx%s, "
-                           "val=0x%lx, size=%u\n",
-                           addr - 0x100, size == 1 ? " (XORed)" : "",
-                           val, size);
             ncr710_reg_write(&s->ncr710, ncr_addr, val, size);
         } else {
             for (unsigned i = 0; i < size; i++) {
                 uint8_t byte_val = (val >> (i * 8)) & 0xff;
-                 NCR710_DPRINTF("  Writing byte %u to NCR addr 0x%lx: 0x%02x\n",
-                       i, ncr_addr + i, byte_val);
                 ncr710_reg_write(&s->ncr710, ncr_addr + i, byte_val, 1);
             }
         }
@@ -113,10 +115,7 @@ static void lasi_ncr710_reg_write(void *opaque, hwaddr addr,
     }
 }
 
-/*
- * req_cancelled, command_complete, transfer_data forwards
- * commands to its core counterparts.
- */
+/* SCSIBusInfo callbacks: trace, then forward to the ncr53c710 core. */
 static void lasi_ncr710_request_cancelled(SCSIRequest *req)
 {
     trace_lasi_ncr710_request_cancelled(req);
@@ -129,20 +128,27 @@ static void lasi_ncr710_command_complete(SCSIRequest *req, size_t resid)
     ncr710_command_complete(req, resid);
 }
 
- static void lasi_ncr710_transfer_data(SCSIRequest *req, uint32_t len)
+static void lasi_ncr710_transfer_data(SCSIRequest *req, uint32_t len)
 {
     trace_lasi_ncr710_transfer_data(len);
     ncr710_transfer_data(req, len);
 }
 
+static void lasi_ncr710_free_request(SCSIBus *bus, void *priv)
+{
+    g_free(priv);
+}
+
 static const struct SCSIBusInfo lasi_ncr710_scsi_info = {
     .tcq = true,
-    .max_target = 8,
-    .max_lun = 8,  /* full LUN support */
+    /* 8-bit bus: targets and LUNs 0-7 (scsi-bus.c maxima are inclusive). */
+    .max_target = 7,
+    .max_lun = 7,
 
     .transfer_data = lasi_ncr710_transfer_data,
     .complete = lasi_ncr710_command_complete,
     .cancel = lasi_ncr710_request_cancelled,
+    .free_request = lasi_ncr710_free_request,
 };
 
 static const MemoryRegionOps lasi_ncr710_mmio_ops = {
@@ -157,12 +163,9 @@ static const MemoryRegionOps lasi_ncr710_mmio_ops = {
 
 static const VMStateDescription vmstate_lasi_ncr710 = {
     .name = "lasi-ncr710",
-    .version_id = 1,
-    .minimum_version_id = 1,
+    .version_id = 2,
+    .minimum_version_id = 2,
     .fields = (const VMStateField[]) {
-        VMSTATE_UINT32(hw_type, LasiNCR710State),
-        VMSTATE_UINT32(sversion, LasiNCR710State),
-        VMSTATE_UINT32(hversion, LasiNCR710State),
         VMSTATE_STRUCT(ncr710, LasiNCR710State, 1, vmstate_ncr710, NCR710State),
         VMSTATE_END_OF_LIST()
     }
@@ -179,49 +182,39 @@ static void lasi_ncr710_realize(DeviceState *dev, Error **errp)
                   &lasi_ncr710_scsi_info);
     s->ncr710.as = &address_space_memory;
     s->ncr710.irq = s->lasi_irq;
+    QTAILQ_INIT(&s->ncr710.queue);
 
-    s->ncr710.reselection_retry_timer =
+    s->ncr710.scripts_timer =
         timer_new_ns(QEMU_CLOCK_VIRTUAL,
-                     ncr710_reselection_retry_callback,
+                     ncr710_scripts_timer_callback,
                      &s->ncr710);
 
     ncr710_soft_reset(&s->ncr710);
+    /* A device reset clears EA and FC1; only ISTAT.RST keeps them. */
+    s->ncr710.dcntl = 0;
+    s->ncr710.dmode = 0;
 
     trace_lasi_ncr710_timers_initialized(
-        (uint64_t)s->ncr710.reselection_retry_timer);
+        (uint64_t)s->ncr710.scripts_timer);
 
-    /* Initialize memory region */
     memory_region_init_io(&s->mmio, OBJECT(dev), &lasi_ncr710_mmio_ops, s,
-                          "lasi-ncr710", 0x200);
+                          "lasi-ncr710", 0x1000);
     sysbus_init_mmio(sbd, &s->mmio);
+}
+
+static void lasi_ncr710_unrealize(DeviceState *dev)
+{
+    LasiNCR710State *s = LASI_NCR710(dev);
+
+    timer_free(s->ncr710.scripts_timer);
+    s->ncr710.scripts_timer = NULL;
 }
 
 void lasi_ncr710_handle_legacy_cmdline(DeviceState *lasi_dev)
 {
     LasiNCR710State *s = LASI_NCR710(lasi_dev);
-    SCSIBus *bus = &s->ncr710.bus;
-    int found_drives = 0;
 
-    if (!bus) {
-        return;
-    }
-
-    for (int unit = 0; unit <= 7; unit++) {
-        DriveInfo *dinfo = drive_get(IF_SCSI, bus->busnr, unit);
-        if (dinfo) {
-            trace_lasi_ncr710_legacy_drive_found(bus->busnr, unit);
-            found_drives++;
-        }
-    }
-
-    trace_lasi_ncr710_handle_legacy_cmdline(bus->busnr, found_drives);
-
-    scsi_bus_legacy_handle_cmdline(bus);
-    BusChild *kid;
-    QTAILQ_FOREACH(kid, &bus->qbus.children, sibling) {
-        trace_lasi_ncr710_scsi_device_created(
-            object_get_typename(OBJECT(kid->child)));
-    }
+    scsi_bus_legacy_handle_cmdline(&s->ncr710.bus);
 }
 
 DeviceState *lasi_ncr710_init(MemoryRegion *addr_space, hwaddr hpa,
@@ -246,15 +239,9 @@ static void lasi_ncr710_reset(DeviceState *dev)
     LasiNCR710State *s = LASI_NCR710(dev);
     trace_lasi_ncr710_device_reset();
     ncr710_soft_reset(&s->ncr710);
-}
-
-static void lasi_ncr710_instance_init(Object *obj)
-{
-    LasiNCR710State *s = LASI_NCR710(obj);
-
-    s->hw_type = HPHW_FIO;
-    s->sversion = LASI_710_SVERSION;
-    s->hversion = LASI_710_HVERSION;
+    /* A device reset clears EA and FC1; only ISTAT.RST keeps them. */
+    s->ncr710.dcntl = 0;
+    s->ncr710.dmode = 0;
 }
 
 static void lasi_ncr710_class_init(ObjectClass *klass, const void *data)
@@ -262,6 +249,7 @@ static void lasi_ncr710_class_init(ObjectClass *klass, const void *data)
     DeviceClass *dc = DEVICE_CLASS(klass);
 
     dc->realize = lasi_ncr710_realize;
+    dc->unrealize = lasi_ncr710_unrealize;
     set_bit(DEVICE_CATEGORY_STORAGE, dc->categories);
     dc->fw_name = "scsi";
     dc->desc = "HP-PARISC LASI NCR710 SCSI adapter";
@@ -274,7 +262,6 @@ static const TypeInfo lasi_ncr710_info = {
     .name          = TYPE_LASI_NCR710,
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(LasiNCR710State),
-    .instance_init = lasi_ncr710_instance_init,
     .class_init    = lasi_ncr710_class_init,
 };
 
