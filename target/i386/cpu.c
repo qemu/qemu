@@ -5729,8 +5729,7 @@ static const X86CPUDefinition builtin_x86_defs[] = {
             CPUID_1E_1_EAX_AMX_INT8_ALIAS | CPUID_1E_1_EAX_AMX_BF16_ALIAS |
             CPUID_1E_1_EAX_AMX_COMPLEX_ALIAS |
             CPUID_1E_1_EAX_AMX_FP16_ALIAS | CPUID_1E_1_EAX_AMX_FP8 |
-            CPUID_1E_1_EAX_AMX_TF32 | CPUID_1E_1_EAX_AMX_AVX512 |
-            CPUID_1E_1_EAX_AMX_MOVRS,
+            CPUID_1E_1_EAX_AMX_AVX512 | CPUID_1E_1_EAX_AMX_MOVRS,
         .features[FEAT_29_0_EBX] = CPUID_29_0_EBX_APX_NCI_NDD_NF,
         /*
          * Though this bit will be set by avx_version=2, it's better to

@@ -2422,11 +2422,10 @@ endif
 
 config_host_data.set('HOST_' + host_arch.to_upper(), 1)
 
-kvm_targets_c = '""'
 if get_option('kvm').allowed() and host_os == 'linux'
   kvm_targets_c = '"' + '" ,"'.join(kvm_targets) + '"'
+  config_host_data.set('CONFIG_KVM_TARGETS', kvm_targets_c)
 endif
-config_host_data.set('CONFIG_KVM_TARGETS', kvm_targets_c)
 
 if get_option('module_upgrades') and not enable_modules
   error('Cannot enable module-upgrades as modules are not enabled')
