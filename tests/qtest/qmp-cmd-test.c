@@ -384,8 +384,7 @@ static void test_qapi_type(void)
 
             if (qapi_type) {
                 g_assert_nonnull(qmp_schema_lookup(&schema, qapi_type));
-            } else if (!g_str_has_prefix(ty, "child<") &&
-                       !g_str_has_prefix(ty, "link<")) {
+            } else {
                 g_test_message("%s.%s %s has no associated qapi-type",
                                name, propname, ty);
             }

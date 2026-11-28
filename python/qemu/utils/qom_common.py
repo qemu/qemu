@@ -49,7 +49,6 @@ class ObjectPropertyInfo:
         Build an ObjectPropertyInfo from a Dict with an unknown shape.
         """
         assert value.keys() >= {'name', 'type'}
-        assert value.keys() <= {'name', 'type', 'description', 'default-value'}
         return cls(value['name'], value['type'],
                    value.get('description'),
                    value.get('default-value'))
@@ -80,7 +79,6 @@ class ObjectPropertyValue:
         Build an ObjectPropertyValue from a Dict with an unknown shape.
         """
         assert value.keys() >= {'name', 'type'}
-        assert value.keys() <= {'name', 'type', 'value'}
         return cls(value['name'], value['type'], value.get('value'))
 
     @property
@@ -103,7 +101,7 @@ class ObjectPropertiesValues:
         """
         Build an ObjectPropertiesValues from a Dict with an unknown shape.
         """
-        assert value.keys() == {'properties'}
+        assert value.keys() <= {'properties'}
         props = [ObjectPropertyValue(item['name'],
                                      item['type'],
                                      item.get('value'))
